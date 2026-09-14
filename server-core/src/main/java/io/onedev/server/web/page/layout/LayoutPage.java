@@ -550,8 +550,8 @@ public abstract class LayoutPage extends BasePage {
 
 		});
 
-		var version = AppLoader.getProduct().getVersion();
-		sidebar.add(new ExternalLink("productVersion", "https://onedev.io", "OneDev K10 " + version));
+		// var version = AppLoader.getProduct().getVersion();
+		sidebar.add(new ExternalLink("productVersion", "https://onedev.io", "OneDev K10 "));
 		
 		// sidebar.add(new WebMarkupContainer("tryEE") {
 		// 	@Override
@@ -572,44 +572,44 @@ public abstract class LayoutPage extends BasePage {
 
 		var checkUpdateUrl = "https://onedev.io/check-update/" + commitHash + "-"
 				+ (WicketUtils.isSubscriptionActive()? "1": "0");
-		sidebar.add(new AjaxLink<Void>("checkUpdate") {
+		// sidebar.add(new AjaxLink<Void>("checkUpdate") {
 
-			@Override
-			protected void onConfigure() {
-				super.onConfigure();
-				setVisible(getLoginUser() != null);
-			}
+		// 	@Override
+		// 	protected void onConfigure() {
+		// 		super.onConfigure();
+		// 		setVisible(getLoginUser() != null);
+		// 	}
 
-			@Override
-			public void onClick(AjaxRequestTarget target) {
-				getUpdateCheckService().clearCache();
-				throw new RedirectToUrlException(checkUpdateUrl);
-			}
+		// 	@Override
+		// 	public void onClick(AjaxRequestTarget target) {
+		// 		getUpdateCheckService().clearCache();
+		// 		throw new RedirectToUrlException(checkUpdateUrl);
+		// 	}
 
-		});
+		// });
 
-		sidebar.add(new WebMarkupContainer("tryEEMenuItem") {
-			@Override
-			protected void onConfigure() {
-				super.onConfigure();
-				setVisible(!isSubscriptionActive());
-			}
-		});
-		sidebar.add(new BookmarkablePageLink<Void>("incompatibilities", IncompatibilitiesPage.class));
-		sidebar.add(new Label("bugReport", new LoadableDetachableModel<String>() {
-			@Override
-			protected String load() {
-				if (isSubscriptionActive() && SecurityUtils.isAdministrator())
-					return _T("Bug Report");
-				else
-					return _T("Support & Bug Report");
-			}
+		// sidebar.add(new WebMarkupContainer("tryEEMenuItem") {
+		// 	@Override
+		// 	protected void onConfigure() {
+		// 		super.onConfigure();
+		// 		setVisible(!isSubscriptionActive());
+		// 	}
+		// });
+		//sidebar.add(new BookmarkablePageLink<Void>("incompatibilities", IncompatibilitiesPage.class));
+		// sidebar.add(new Label("bugReport", new LoadableDetachableModel<String>() {
+		// 	@Override
+		// 	protected String load() {
+		// 		if (isSubscriptionActive() && SecurityUtils.isAdministrator())
+		// 			return _T("Bug Report");
+		// 		else
+		// 			return _T("Support & Bug Report");
+		// 	}
 
-		}));
-		if (SecurityUtils.isAdministrator())
-			sidebar.add(getSubscriptionService().renderSupportRequestLink("supportRequest"));
-		else
-			sidebar.add(new WebMarkupContainer("supportRequest").setVisible(false));
+		// }));
+		// if (SecurityUtils.isAdministrator())
+		// 	sidebar.add(getSubscriptionService().renderSupportRequestLink("supportRequest"));
+		// else
+		// 	sidebar.add(new WebMarkupContainer("supportRequest").setVisible(false));
 
 		WebMarkupContainer topbar = new WebMarkupContainer("topbar");
 		add(topbar);
