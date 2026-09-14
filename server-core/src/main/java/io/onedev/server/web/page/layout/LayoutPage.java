@@ -553,13 +553,13 @@ public abstract class LayoutPage extends BasePage {
 		var version = AppLoader.getProduct().getVersion();
 		sidebar.add(new ExternalLink("productVersion", "https://onedev.io", "OneDev K10 " + version));
 		
-		sidebar.add(new WebMarkupContainer("tryEE") {
-			@Override
-			protected void onConfigure() {
-				super.onConfigure();
-				setVisible(!isSubscriptionActive());
-			}
-		});
+		// sidebar.add(new WebMarkupContainer("tryEE") {
+		// 	@Override
+		// 	protected void onConfigure() {
+		// 		super.onConfigure();
+		// 		setVisible(!isSubscriptionActive());
+		// 	}
+		// });
 
 		String commitHash;
 		try (var is = new FileInputStream(new File(Bootstrap.installDir, "release.properties"))) {
