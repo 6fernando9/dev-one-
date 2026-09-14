@@ -374,11 +374,32 @@ public abstract class ProjectPage extends LayoutPage implements ProjectAware, Ch
 			for (var menuItem: contribution.getMenuItems(getProject())) 
 				menu.insertMenuItem(menuItem);			
 		}
-		
+		// removerItemsEE(menu.getItems());
 		List<SidebarMenu> menus = super.getSidebarMenus();	
 		menus.add(menu);
 		return menus;
 	}
+
+	// private void removerItemsEE(List<SidebarMenuItem> items) {
+    //     if (items == null || items.isEmpty()) return;
+
+    //     items.removeIf(item -> {
+    //         if (item.getLabel() != null && item.getLabel().getObject() != null) {
+    //             String label = item.getLabel().getObject().toLowerCase();
+    //             if (label.contains("audit log") || label.contains("audit")) {
+    //                 return true; // Elimina el ítem
+    //             }
+    //         }
+    //         return false;
+    //     });
+
+    //     // Aplica el mismo filtro recursivamente a los submenús
+    //     for (SidebarMenuItem item : items) {
+    //         if (item instanceof SidebarMenuItem.SubMenu) {
+    //             removerItemsEE(((SidebarMenuItem.SubMenu) item).getItems());
+    //         }
+    //     }
+    // }
 
 	private SettingService getSettingService() {
 		return OneDev.getInstance(SettingService.class);
