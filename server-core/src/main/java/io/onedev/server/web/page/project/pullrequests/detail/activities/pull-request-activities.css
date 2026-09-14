@@ -1,0 +1,98 @@
+.pull-request-detail>.card-body>.main>.activities>.activity {
+	border-left: 4px solid white;
+}
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity {
+	border-left-color: var(--dark-mode-dark);
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.new {
+	border-left-color: var(--primary) !important;
+}
+
+.pull-request-detail>.card-body>.main>.activities>.activity {
+	border-top: 1px solid var(--light-gray);
+}
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity {
+	border-top-color: var(--dark-mode-light-dark);
+}
+.pull-request-detail>.card-body>.main>.activities>.activity:first-child {
+	border-top-width: 2px;
+	border-top-style: dashed;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity>div {
+	padding: 16px 0 16px 8px;
+}
+.pull-request-detail>.card-body>.main>.activities>.comment.activity img.avatar {
+	width: 40px;
+	height: 40px;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity .activity-anchor, 
+.pull-request-detail>.card-body>.main>.activities>.activity .since-changes {
+	display: none;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity:hover .activity-anchor,
+.pull-request-detail>.card-body>.main>.activities>.activity:hover .since-changes {
+	display: inline;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.since-changes span {
+	border-radius: 20px;
+	background: var(--primary);
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.since-changes span .icon {
+	width: 20px;
+	height: 20px;
+	color: white !important;
+}
+.pull-request-detail>.card-body>.main>.activities>.non-comment+.non-comment {
+	border-top: none !important;
+}
+
+.pull-request-detail>.card-body>.main>.activities>.activity.non-comment>div {
+    border-left: 1px solid var(--light-gray) !important;
+	margin-left: 4.6rem;
+	position: relative;
+	padding-left: 1.3rem;
+}
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity.non-comment>div {
+	border-color: var(--dark-mode-light-dark) !important;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.non-comment>div>.icon {
+	position: absolute;
+	left: -0.6rem;
+	top: 1.4rem;
+	background: white;
+}
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity.non-comment>div>.icon {
+	background: var(--dark-mode-dark);
+}
+
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased,
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased a,
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased span,
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased:before {
+	color: var(--muted);
+}
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased,
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased a,
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased span,
+.dark-mode .pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased:before {
+	color: rgb(98, 101, 126);
+}
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit.rebased img {
+	opacity: 36%;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.since-changes {
+	padding: 16px 0 16px 8px;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity.since-changes .icon {
+	width: 1.2rem;
+	height: 1.2rem;
+}
+.pull-request-detail>.card-body>.main>.activities>.activity>.commit+.commit,
+.pull-request-detail>.card-body>.main>.activities>.PullRequestUpdateActivity+.PullRequestUpdateActivity.activity>.commit {
+	margin-top: -16px;
+}

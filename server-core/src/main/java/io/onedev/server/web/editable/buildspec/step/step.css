@@ -1,0 +1,5 @@
+@media(min-width: 768px) {
+.step.floating.draw {
+    width: 600px;
+}
+}

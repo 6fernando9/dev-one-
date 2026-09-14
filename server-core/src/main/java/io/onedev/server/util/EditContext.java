@@ -1,0 +1,51 @@
+package io.onedev.server.util;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Stack;
+
+import org.jspecify.annotations.Nullable;
+
+public interface EditContext {
+
+	static ThreadLocal<Stack<EditContext>> stack = ThreadLocal.withInitial(Stack::new);
+
+	public static void push(EditContext context) {
+		stack.get().push(context);
+	}
+
+	public static void pop() {
+		stack.get().pop();
+	}
+	
+	Object getInputValue(String name);
+
+	@Nullable
+	public static EditContext get(int level) {
+		List<EditContext> list = list();
+		if (list.size() > level)
+			return list().get(level);
+		else
+			return null;
+	}
+
+	@Nullable
+	public static EditContext get() {
+		return get(0);
+	}
+
+	public static List<EditContext> list() {
+		if (!stack.get().isEmpty()) {
+			var list = new ArrayList<>(stack.get());
+			Collections.reverse(list);
+			return list;
+		} 
+		
+		HierarchicalContext hierarchicalContext = HierarchicalContext.get();
+		if (hierarchicalContext != null)
+			return hierarchicalContext.findAllData(EditContext.class);
+		else
+			return new ArrayList<>();
+	}
+}

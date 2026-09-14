@@ -1,0 +1,411 @@
+# 16.5.0
+
+### GPG Signing
+
+Default system GPG signing email changed from `system@onedev` to `onedev@noreply.localhost`. The system GPG signing key is regenerated as a result; previously signed commits will show as unverified.
+
+# 16.4.0
+
+### Helm Chart
+
+Git access via SSH is now disabled by default. Existing installations exposing SSH through a LoadBalancer, nginx ingress controller, or another TCP proxy should set `ssh.enabled=true` when upgrading; otherwise the SSH port is removed from OneDev's Kubernetes Service.
+
+# 16.2.1
+
+### RESTful API
+
+Pull request review/assignment resources are removed. Use add/remove reviewer/assignee, approve and request for changes operations of [pull request resource](/~help/api/io.onedev.server.rest.resource.PullRequestResource) instead. Also get reviews/assignments no longer return review/assignment id
+
+# 16.1.1
+
+### Git LFS
+
+Existing Git LFS file locks will be removed during upgrade. Previously locks were not scoped per repository and cannot be migrated reliably. Recreate locks after upgrade as needed.
+
+# 16.1.0
+
+### CI/CD
+
+1. Issues defined in parent project are now longer able to link with commits/builds/PRs in child projects. This restriction is added to address the performance problem when a project has many child projects
+
+1. Users authorized to access a projectd will be able to access artifacts of all CI/CD jobs of the project. This is added to address performance issue when massive number of projects are created in OneDev
+
+# 16.0.0
+
+### CI/CD
+
+1. The `Default (Shell on Linux, Batch on Windows)` command interpreter of the CI/CD `Command` step has been removed. Use the explicit `POSIX Compatible Shell` or `Windows Batch` interpreter instead.
+
+    Existing build specs are migrated automatically. Commands running in a container are migrated to `POSIX Shell`. Commands running directly on an agent are inspected for Windows batch syntax; if the interpreter cannot be determined reliably, `POSIX Shell` is used. Review migrated host commands if they rely on Windows batch syntax that cannot be detected automatically.
+
+1. The post-build action `Create issue` now only supports to create issues in the same project as the build. The option to specify a different target project has been removed.
+
+### Workspace
+
+The `Default (sh on Linux, batch on Windows)` workspace shell has been removed. Use the explicit `POSIX Compatible Shell` or `Windows Batch` workspace shell instead.
+
+Existing workspace specs are migrated automatically. Workspaces using a container image are migrated to `POSIX Shell`. Other workspaces are inspected using their setup commands; if the shell cannot be determined reliably, `POSIX Shell` is used. Review migrated host workspace specs if their setup commands rely on Windows batch syntax that cannot be detected automatically.
+
+### Issue
+
+Custom issue fields of type `Build`, `Issue`, and `Pull Request` now only allow referencing entities in the same project as the issue. References to entities outside the project will be removed during upgrade.
+
+# 15.1.0
+
+### CI/CD
+
+The Kubernetes job executor now requires build working directory to be backed by PVC. Using hostPath volumes is no longer supported, as it is not considered a recommended Kubernetes practice.
+
+If your previous configuration did not use a PVC for the build volume, OneDev will automatically provision a PVC using the cluster's default StorageClass. The initial storage size is set to 10 GiB. Adjust this value as needed to meet your workload requirements.
+
+### Workspace
+
+Due to changes in the workspace user data storage format, all existing workspace user data will be removed during the upgrade.
+
+The new storage format is designed to be stable and will be preserved across future upgrades starting from this release.
+
+# 15.0.0
+
+### CI/CD
+
+1. Windows container support is removed due to maintenance overhead and rare usages. 
+1. The path of the job workspace directory has been changed from /onedev-build/workspace to /onedev-build/work, and the corresponding environment variable has been renamed from ONEDEV_WORKSPACE to ONEDEV_WORKDIR. Commands defined in command steps will be migrated automatically. If you reference these in your own scripts, please update them manually.
+
+# 14.1.0
+
+### Enterprise Edition
+
+1. The OSV license check step has been removed from CI/CD job. Use the check licenses option in OSV source scanner step instead
+
+# 13.1.0
+
+1. Java 17 is required for both server and agent
+2. Agents will be stopped after upgrading to this version. Make sure to pull the latest image first (`docker pull 1dev/agent`) before starting agents again
+
+# 12.0.1
+
+### RESTful API
+
+Only authenticated users can now query user id and role id
+
+# 11.11.0
+
+### RESTful API
+
+Project default role is replaced with [base authorization](~help/api/io.onedev.server.rest.resource.BaseAuthorizationResource) to support multiple default role assignment. The defaultRoleId field should be removed when create/update the project resource. 
+
+# 11.8.0
+
+### Query Syntax
+
+1. Multiple order by clauses now connects via **,** instead of **and** 
+1. Pull request status criteria of form `"Status" is "<name>"` is removed, use `open`, `merged`, or `discarded` instead
+1. Build status criteria of form `"Status" is "<name>"` is removed, use respective status criteria instead, such as `successful`, `failed`, `running`
+
+In case these changes prevent you accessing the dashboard, suffix the url with `?failsafe=true` to access the dashboard without rendering, and then edit 
+settings of relevant widget to fix the queries
+
+### Issue
+
+Custom field type `Working Period` is removed, as it depends on time tracking setting which is a EE feature. Existing working period fields will be 
+converted to integer fields with value set to number of minutes 
+
+### Build Spec
+
+Build spec param type `Working Period` is removed for same reason as above. Existing working period params will be converted to integer params
+
+# 11.6.12
+
+### RESTful API
+
+The ability to edit existing user authorization is removed as any project owner can use it to remove authorization of 
+other projects
+
+# 11.6.10
+
+### RESTful API
+
+1. Format of contributed project settings inside project settings (refer to endpoint to [get](/~help/api/io.onedev.server.rest.resource.ProjectResource/getSetting) and [set](/~help/api/io.onedev.server.rest.resource.ProjectResource/updateSetting)
+project settings) has been changed
+1. Format of contributed administration settings (refer to endpoint to [get](/~help/api/io.onedev.server.rest.resource.SettingResource/getContributedSettings) and [set](/~help/api/io.onedev.server.rest.resource.SettingResource/setContributedSettings)
+   contributed administration settings) has been changed
+
+# 11.6.6
+
+Incoming box settings of various mail services removed additional target addresses for simplicity reason. 
+Configure mail relay/forward at mail server side if you are using this feature previously     
+
+# 11.6.0
+
+SQL Server support is removed due to added complexity and inability to test with full version. 
+If you are using SQL Server, please [switch to use MySQL/PostgreSQL/MariaDB](https://docs.onedev.io/administration-guide/switch-database)
+
+# 11.5.0
+
+Guest concept is removed as administrator can create read-only roles achieving same purpose. 
+If you are limiting user permissions via guest option, please make sure to assign those users 
+appropriate roles before upgrade 
+
+# 11.0.6
+
+### RESTful api
+
+1. Project path now gets returned via _Get Basic Info_ operation
+2. Project service desk name now gets returned via _Get Basic Info_ operation
+3. Project service desk name now gets updated via _Update Basic Info_ operation
+
+# 10.9.0
+
+### RESTful api
+
+Milestone is now renamed as iteration. All other settings are migrated automatically. For programs using milestone api, 
+they need to be updated to use iteration api instead
+
+# 10.5.0
+
+### CI/CD
+
+1. The build image step now always uses buildx builder to build images to avoid polluting images used by other jobs. 
+The builder should be specified in more settings section of corresponding executors. If you are accessing insecure
+private docker registries, please follow [this tutorial](https://docs.onedev.io/tutorials/cicd/insecure-docker-registry) to configure the builder
+
+2. Builder and platform option cannot be specified via _More Options_ property of build image step now. The builder option
+should be specified in executor (see above note), and platform option should be specified via property _Platform_
+
+3. Build image step now either push image to registry, or save image as OCI layout. The option to build local image without
+pushing is removed, as this imposes a security vulnerability (built image can pollute images used by other jobs)
+
+# 10.1.6
+
+### Agent
+
+A library upgrade in server causes agent auto-update to fail. To work around this, please update agent manually by pulling 
+latest image or download latest agent package from server. 
+
+# 10.1.0
+
+### CI/CD
+
+OneDev now stores job caches on server instead of local disk for better manageability and 
+sharing. As result of this, the cache settings defined at job level are removed. One should 
+use _Set Up Cache_ step now instead. Check out <a href='https://docs.onedev.io/tutorials/cicd/job-cache'>this tutorial</a> 
+to get familiar with the new cache mechanism
+
+### RESTful API
+
+The operation to [query repository commits](/~help/api/io.onedev.server.rest.resource.RepositoryResource/queryCommits) 
+and [get repository commit](/~help/api/io.onedev.server.rest.resource.RepositoryResource/getCommit) now return commit 
+object(s) whose fields can be controlled via the field query parameter
+
+# 9.4.7
+
+### Mail Service
+
+The option `Monitor System Email Only` is removed from various mail services. Instead, you will 
+need to specify additional email addresses to be monitored explicitly via option 
+`Additional Email Addresses to Monitor`
+
+# 9.3.2
+
+### Agent
+
+OneDev now relies on buildx to build docker image. Make sure to update agent image by running 
+`docker pull 1dev/agent` if you are running agent inside container
+
+# 9.1.5
+
+### Agent
+
+Temporal agent support is removed as this feature is flawed (using same token). 
+This feature will be replaced by on demand agent launch in future versions
+
+# 9.1.0
+
+### Pull Request
+
+1. The query criteria *has failed builds* has been changed to *has unsuccessful builds*
+2. The query criteria *to be verified by builds* has been changed to *has unfinished builds*
+
+# 9.0.0
+ 
+### License Terms
+
+Since 9.0, OneDev introduces [enterprise edition](https://onedev.io/pricing) which requires a paid subscription to use, 
+and now it is distributed under [new license](https://onedev.io/license-agreement). In short, the _server-ee_ folder is 
+licensed separately with a source available license, while other parts remain MIT licensed. 
+
+It is promised that all existing features prior to 9.0 will never be moved into enterprise edition, and new features 
+will be added to MIT licensed part continuously.
+
+### Helm Chart 
+
+1. OneDev only supports to run as statefulsets now. Refer to the [upgrade guide](https://docs.onedev.io/upgrade-guide/deploy-to-k8s) to migrate the persistent volume
+2. Various database settings are changed to remove the _db_ prefix. For instance, _.Values.database.dbType_ was changed to _.Values.database.type_. Refer to [values.yaml](https://code.onedev.io/onedev/server/~files/main/server-product/helm/values.yaml) for details
+
+### RESTful api 
+
+The operation to [get issue fields](/~help/api/io.onedev.server.rest.IssueResource/getFields) now return a map of field name to value  
+
+# 8.6.0
+
+### Database 
+
+Oracle support is removed as it is hard to test with latest version. If you happen to use this database, please back up data and restore to a supported database following [this guide](https://docs.onedev.io/administration-guide/backup-restore)
+
+# 8.5.0
+
+### Helm Chart
+
+Helm chart has been completely rewritten to be flexible, and it is not compatible with earlier versions. Follow [upgrade guide](https://docs.onedev.io/upgrade-guide/deploy-to-k8s) to upgrade your chart from version <= 8.4.2
+
+# 8.4.0
+
+### Executor
+
+Kubernetes executor no longer supports to execute step of type `Run Docker Container` to avoid mounting container sock into sidecar container. Put your step logic in a command step instead
+
+# 8.3.4
+
+### Executor 
+
+Kubernetes executor no longer supports to execute build image step even with docker runtime. A kaniko step is added to build image in Kubernetes cluster
+
+### Build Spec 
+
+The `publish` option of `build docker image` step is removed, and now the step always tries to publish the built image
+
+# 8.2.0
+
+Branch/tag protection rules are changed to apply first matching instead of apply all matching
+
+# 8.1.0
+
+**[Agent]** 
+
+A particular agent token can only be used by one agent now. If you have multiple agents using same token, only the first one can connect to server, and others will be rejected. To fix this, open detail page of each rejected agent and copy the newly generated token to agent side
+
+**[RESTful api]** 
+
+1. The endpoint path to list agents in agent token resource has been changed from `/agents` to `/agent`
+1. The endpoint to create agent token now do not require any request body. It will generate new token value at OneDev side
+
+# 8.0.7
+
+Various resource update operations now require resource id to be specified in url path instead of request body. Refer to RESTful api help for details   
+
+# 8.0.5
+
+Create tag step and close milestone step in build spec now uses access token to authenticate to server for flexibility and consistence reason. Please edit relevant build specs to specify appropriate access tokens for these two steps, otherwise they will fail 
+
+# 8.0.0
+
+Project site published via public site step in build spec now can be publicly accessible. Previously it is only accessible to users able to access the project 
+
+# 7.9.12
+
+All access tokens of users are re-generated with cryto strong random string. As a result of this, all places using previous access token should be replaced with the new access token. This may include restful api authentication, CI/CD checkout step using access token etc.  
+
+# 7.8.0
+
+To use consistent project url for web and git access, OneDev now uses project path instead of project id to access projects via web UI, for instance `https://code.onedev.io/projects/160` has been changed to `https://code.onedev.io/onedev/server`. To avoid conflicting with this url scheme, 
+some service urls have been changed and this causes some incompatibitlities:
+
+1. The RESTful api url now starts with `~api` instead of `api`, for instance url to access project information is now `/~api/projects/{projectId}` 
+2. SSO callback url now takes the form `https://<onedev root url>/~sso/callback/<Provider Name>` (use `~sso` instead of `sso`)
+3. If you are using OAuth based Office365 or Gmail mail service, make sure to change redirect url as `https://<onedev root url>/~oauth/callback` (use `~oauth` instead of `oauth`)
+4. Agents cannot upgrade itself for this version, as url connecting to server has been changed. You will need to re-download 
+agent package from server if running in bare-metal mode, or re-pull the agent image if running in docker mode
+5. If you are setting up reverse proxy using Apache or Nginx, make sure to change proxied path `/server` to `/~server`. Check [the docs](https://docs.onedev.io/administration-guide/reverse-proxy-setup) for details
+
+# 7.7.0
+
+OneDev server and agent now requires Java 11 or higher. Follow below steps to upgrade agent manually:
+
+1. If agent is running as bare metal mode with Java 8, re-download agent package from server and run it 
+with Java 11 or higher following the instructions
+1. If agent is running as bare metal mode with Java 11 or higher, it will be updated automatically
+1. If agent is running in container mode, re-pull the image and start the container
+
+# 7.4.0
+
+### RESTful api
+
+1. A boolean property "confidential" must be added to create endpoint of [issue resource](/~help/api/io.onedev.server.rest.IssueResource/create) to indicate whether or not the issue is confidential
+
+# 7.3.5
+1. [RESTful api] Service desk name property of [project resource](/~help/api/io.onedev.server.rest.ProjectResource) moved from basic info endpoint to setting endpoint
+
+# 7.3.0
+1. [CI/CD] Docker sock is NOT mounted by default for server docker executor, remote docker executor and Kubernetes 
+executor for security reasons. If your CI job performs docker operation, the build may fail. You may enable 
+the mount docker sock option in related executors, but make sure to configure authorized jobs of the executor 
+to only allow trusted jobs to use the executors
+
+# 7.0.0
+
+1. [RESTful api] Email addresses of a user should now be retrieved via [UserResource.getEmailAddresses](/~help/api/io.onedev.server.rest.UserResource/getEmailAddresses), and should be operated via [EmailAddressResource](/~help/api/io.onedev.server.rest.EmailAddressResource)
+2. [RESTful api] Access token of a user should now be retrieved via [UserResource.getAccessToken](/~help/api/io.onedev.server.rest.UserResource/getAccessToken)
+3. [RESTful api] User query by login name, full name and email should now be done via [UserResource.queryProfile](/~help/api/io.onedev.server.rest.UserResource/queryProfile)
+
+# 6.2.1
+
+1. [build spec] Registry login setting is removed from build image step (introduced in 6.2.0). Specify registry logins 
+in job executor if necessary
+
+# 6.2.0
+
+1. A new property `Run In Container` is added and enabled for all command steps in build spec. If you have steps intended to 
+be executed by shell executor, edit them to disable this property, otherwise the build will be failed with error `This step should be executed by server docker executor, remote docker executor, or kubernetes executor`
+1. Using cache path &quot;.&quot; (to cache workspace itself) in job cache definition is no longer supported
+
+# 5.4.0 
+
+1. In case install OneDev into a Kubernetes cluster, Kustomization based deployment is replaced by helm based deployment for flexibility reason
+
+# 5.2.1
+
+1. User by default is not able to create/fork projects now. To allow it, specify default login group with appropriate project create permissions in security setting.
+2. URL of project is changed from *http(s)://\<onedev-server\>/projects/\<project name\>* to *http(s)://\<onedev-server\>/projects/\<project id\>*. This only affects web UI, clone url and REStful api url is not changed.
+3. Job variable *@project_name@* should be replaced by *@project_path@*.
+4. Job match condition in job executor is renamed as job requirement, and the criteria to match job name is no longer valid. Executor can now be specified when define the job.
+
+# 4.3.0
+
+1. Service definition is separated from job definition. Previous service defined in job will be moved out of job and take the name _\<job name\>-\<service name\>_ to avoid possible name conflicts. You either need to change it back to use original name in case there is no conflicts, or change your build script to use the new service name. 
+2. Job match condition of job executor no longer accepts image criteria. You need to remove it manually if there is any; otherwise the job matching will fail.
+
+# 4.1.3
+
+1. Html report is removed from build spec due to possible XSS vulnerabilities. Check issue #230 for details
+2. Setting _Default Fixed Issues Filter_ in build spec has been moved to be under project build setting, in order to facilitate issue query auto-updating upon custom field/state change
+
+# 4.1.0
+
+1. Backslash in job commands should not be escaped now. And literal '@' should be written as '@@'
+2. Various query operator _is before_ and _is after_ is substituted with _is until_ and _is since_. For instance issue query _"Submit Date" is before "yesterday"_ should be written as _"Submit Date" is until "yesterday"_
+
+# 4.0.5
+
+1. Renamed build variables:
+
+  |old name|new name|
+  |---|---|
+  |updated_ref|ref|
+  |updated_branch|branch|
+  |updated_tag|tag|
+  |pull_request_ids|pull_request_number|
+
+1. Removed build variables: _on_branches_, _commit_tags_, 
+
+# 3.2
+
+Version 3.2 uses token authentication instead of password authentication in build spec for security 
+consideration. As a result of this, password authentication specified previously will be cleared:
+
+1. Submodule authentication
+  
+  You will need to use custom http/ssh clone credential with permission to access submodule projects to retrieve source. Refer to [tutorial](https://docs.onedev.io/tutorials/cicd/clone-submodules-ssh/) for an example.
+  
+2. Project dependency authentication
+
+  You will need to define a job secret containing an access token in project build setting page, and then use that secret in project dependency definition. The access token should have permission to download dependency project artifacts of course.

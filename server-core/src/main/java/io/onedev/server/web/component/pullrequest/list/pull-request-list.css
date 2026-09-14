@@ -1,0 +1,33 @@
+.pull-request-list>div>.body table>tbody>tr>td {
+	padding: 1.2rem 0.8rem;
+}
+.pull-request-list>div>.body .new-indicator {
+	width: 4px;
+	padding: 0;
+}
+.pull-request-list>div>.body table>tbody>tr>td.row-selector {
+	padding-top: 1.4rem;
+}
+
+.pull-request-list>div>.body tr.request.new td.new-indicator {
+	background: var(--primary);
+}
+.pull-request-list .pull-request-jobs {
+	flex-direction: row;
+}
+.pull-request-list .pull-request-jobs>.job {
+	margin-right: 1rem;
+}
+.pull-request-list .pull-request-jobs>.job:last-child {
+	margin-right: 0;
+}
+.pull-request-list .request-status {
+	width: 75px;
+}
+.pull-request-list .number {
+	margin-right: 0.25rem;
+}
+.pull-request-list .number, .pull-request-list .title {
+	font-size: 1.175rem;
+	font-weight: 500;	
+}

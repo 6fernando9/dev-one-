@@ -1,0 +1,73 @@
+package io.onedev.server.search.entity.pullrequest;
+
+import java.util.Collection;
+import java.util.HashSet;
+
+import org.jspecify.annotations.Nullable;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.From;
+import javax.persistence.criteria.Predicate;
+
+import org.eclipse.jgit.lib.ObjectId;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.model.Issue;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.PullRequest;
+import io.onedev.server.util.ProjectScope;
+import io.onedev.server.util.QueryUtils;
+import io.onedev.server.util.criteria.Criteria;
+import io.onedev.server.xodus.CommitInfoService;
+import io.onedev.server.xodus.PullRequestInfoService;
+
+public class IncludesIssueCriteria extends Criteria<PullRequest> {
+
+	private static final long serialVersionUID = 1L;
+
+	private final Issue issue;
+	
+	private final String value;
+	
+	public IncludesIssueCriteria(@Nullable Project project, String value) {
+		issue = QueryUtils.getIssue(project, value);
+		this.value = value;
+	}
+	
+	public IncludesIssueCriteria(Issue issue) {
+		this.issue = issue;
+		value = String.valueOf(issue.getNumber());
+	}
+	
+	@Override
+	public Predicate getPredicate(@Nullable ProjectScope projectScope, CriteriaQuery<?> query, From<PullRequest, PullRequest> from, 
+			CriteriaBuilder builder) {
+		Collection<Long> pullRequestIds = new HashSet<>();
+		pullRequestIds.addAll(getPullRequestIds(issue.getProject()));
+		if (!pullRequestIds.isEmpty()) 
+			return from.get(PullRequest.PROP_ID).in(pullRequestIds);
+		else 
+			return builder.disjunction();
+	}
+	
+	private Collection<Long> getPullRequestIds(Project project) {
+		Collection<Long> pullRequestIds = new HashSet<>();
+		var commitInfoService = OneDev.getInstance(CommitInfoService.class);
+		var pullRequestInfoService = OneDev.getInstance(PullRequestInfoService.class);
+		for (ObjectId commit: commitInfoService.getFixCommits(project.getId(), issue.getId(), false))
+			pullRequestIds.addAll(pullRequestInfoService.getPullRequestIds(project, commit));
+		pullRequestIds.addAll(pullRequestInfoService.getPullRequestIds(project, issue.getId()));
+		return pullRequestIds;
+	}
+	
+	@Override
+	public boolean matches(PullRequest request) {
+		return getPullRequestIds(request.getProject()).contains(request.getId());
+	}
+
+	@Override
+	public String toStringWithoutParens() {
+		return PullRequestQuery.getRuleName(PullRequestQueryLexer.IncludesIssue) + " " + quote(value);
+	}
+
+}

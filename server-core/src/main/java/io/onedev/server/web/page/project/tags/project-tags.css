@@ -1,0 +1,34 @@
+.project-tags .body>table>thead {
+	display: none;
+}
+.project-tags .body>table td {
+	padding-left: 0;
+	padding-right: 0;
+}
+.project-tags .body>table td.tag>.title>.name {
+	font-weight: bold;
+	font-size: 1.1rem;
+}
+.project-tags .annotated .message {
+	display: none; 
+    font-size: 0.9rem;
+	border-left: 4px solid var(--secondary);
+    margin: 1rem 0;
+    padding: 0 0 0 1rem;
+    border-radius: 0;
+	white-space: pre-wrap;
+}
+.dark-mode .project-tags .annotated .message {
+	border-left-color: var(--dark-mode-lighter-dark);
+}
+
+.project-tags .body>table tr .workspaces, 
+.project-tags .body>table tr .no-builds {
+	display: none;
+}
+.project-tags .body>table tr:hover .workspaces, 
+.project-tags .body>table tr .dropdown-aware-open .workspaces, 
+.project-tags .body>table tr:hover .no-builds,
+.project-tags .body>table tr .dropdown-aware-open .no-builds {
+	display: inline-block;
+}

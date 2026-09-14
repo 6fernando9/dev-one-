@@ -1,0 +1,28 @@
+.watch-status:AFTER {
+	margin-left: 0.5rem;
+}
+.watch-status>span {
+	display: none;
+}
+.watch-status.default>span.default, 
+.watch-status.watch>span.watch, 
+.watch-status.ignore>span.ignore  {
+	display: inline-block;
+}
+
+.floating .watch-status a .icon {
+	width: 12px;
+	height: 12px;
+	display: inline-block;
+	visibility: hidden;
+}
+.floating .watch-status a.active .icon {
+	visibility: visible;
+}
+
+.floating .watch-status a:hover {
+	background: var(--light);
+}
+.dark-mode .floating .watch-status a:hover {
+	background: var(--dark-mode-light-dark);
+}

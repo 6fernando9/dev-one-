@@ -1,0 +1,15 @@
+apiVersion: v2
+name: onedev
+version: ${buildVersion}
+description: All-In-One DevOps Platform
+type: application
+keywords:
+  - onedev
+  - devops
+  - vcs
+  - cicd
+home: https://onedev.io
+maintainers:
+  - name: Robin Shen
+    email:  robin@onedev.io
+appVersion: ${buildVersion}

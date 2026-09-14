@@ -1,0 +1,71 @@
+<wicket:extend xmlns:wicket="http://www.w3.org/1999/html">
+	<div class="mb-5">
+		<a wicket:id="pauseOrResume" class="btn btn-light-primary mr-2"><span wicket:id="label"></span></a>
+		<a wicket:id="restart" class="btn btn-light-primary mr-2"><wicket:t>Restart</wicket:t></a>
+		<a wicket:id="remove" class="btn btn-light-danger mr-2"><wicket:t>Remove</wicket:t></a>
+	</div>
+	<table class="table mb-5">
+		<thead>
+			<th><wicket:t>Name</wicket:t></th>
+			<th class="d-none d-xl-table-cell"><wicket:t>IP Address</wicket:t></th>
+			<th class="d-none d-xl-table-cell"><wicket:t>OS Version</wicket:t></th>
+			<th class="d-none d-xl-table-cell"><wicket:t>OS Arch</wicket:t></th>
+			<th><wicket:t>Status</wicket:t></th>
+		</thead>
+		<tbody>
+			<tr>
+				<td>
+					<div class="d-flex align-items-center">
+						<svg wicket:id="icon" class="icon icon-lg mr-2"></svg>
+						<span wicket:id="name"></span>			
+					</div>	
+				</td>
+				<td>
+					<span wicket:id="ipAddress"></span>
+				</td>
+				<td class="d-none d-xl-table-cell">
+					<span wicket:id="osVersion"></span>
+				</td>
+				<td class="d-none d-xl-table-cell">
+					<span wicket:id="osArch"></span>
+				</td>
+				<td>
+					<span wicket:id="status"></span>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<div class="mb-4">
+		<span class="font-weight-bold"><wicket:t>Access Token</wicket:t>: </span>
+		<span wicket:id="accessToken" class="text-monospace font-size-sm mr-2"></span> 
+		<a wicket:id="copyAccessToken" t:data-tippy-content="copy"><wicket:svg href="copy" class="icon mr-1"/></a>
+		<a wicket:id="regenerateAccessToken" t:data-tippy-content="Regenerate"><wicket:svg href="refresh2" class="icon"/></a>
+	</div>
+	<div wicket:id="attributes"></div>
+	<wicket:fragment wicket:id="onlineAttributesFrag">
+		<form wicket:id="form" class="leave-confirm">
+			<div wicket:id="attributes"></div>
+			<input type="submit" t:value="Update" class="btn btn-primary dirty-aware">
+		</form>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="offlineHasAttributesFrag">
+		<div class="mb-3 font-weight-bold"><wicket:t>Attributes (can only be edited when agent is online)</wicket:t></div>
+		<div class="border rounded">
+		<table class="table">
+			<thead>
+				<th><wicket:t>Name</wicket:t></th>
+				<th><wicket:t>Value</wicket:t></th>
+			</thead>
+			<tbody>
+				<tr wicket:id="attributes">
+					<td><span wicket:id="name"></span></td>
+					<td><span wicket:id="value"></span></td>
+				</tr>
+			</tbody>
+		</table>
+		</div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="offlineNoAttributesFrag">
+		<div class="alert alert-notice alert-light-warning"><wicket:t>No attributes defined (can only be edited when agent is online)</wicket:t></div>
+	</wicket:fragment>
+</wicket:extend>

@@ -1,0 +1,55 @@
+<wicket:panel>
+	<div wicket:id="content" class="p-4"></div>
+	<wicket:fragment wicket:id="aggregationFrag">
+		<div class="mb-4 bg-light p-4 rounded">
+			<h6>
+				<wicket:t>Estimated Time</wicket:t>
+			</h6>
+			<div class="mb-2">
+				<span><wicket:t>Total:</wicket:t> </span>
+				<span wicket:id="estimatedTime"></span>
+			</div>
+			<div class="mb-2">
+				<span><wicket:t>Own:</wicket:t> </span> 
+				<span wicket:id="ownEstimatedTime"></span> 
+				<a wicket:id="editOwnEstimatedTime" t:data-tippy-content="Edit"><wicket:svg href="edit" class="icon"></wicket:svg></a>
+			</div>
+			<div>
+				<span><wicket:t>Aggregated from '<span wicket:id="estimatedTimeAggregationLink"></span>':</wicket:t></span>
+				<span wicket:id="aggregatedEstimatedTime"></span>
+			</div>
+		</div>
+		<div class="bg-light rounded p-4">
+			<h6>
+				<wicket:t>Spent Time</wicket:t>
+			</h6>
+			<div class="mb-2">
+				<span><wicket:t>Total:</wicket:t> </span>
+				<span wicket:id="spentTime"></span>
+			</div>
+			<div class="mb-2">
+				<span><wicket:t>Own:</wicket:t> </span>
+				<span wicket:id="ownSpentTime"></span>
+				<a wicket:id="logWork" t:data-tippy-content="Log work"><wicket:svg href="plus" class="icon"></wicket:svg></a>
+				<a wicket:id="startWork" t:data-tippy-content="Start work"><wicket:svg href="play" class="icon"></wicket:svg></a>
+			</div>
+			<div>
+				<span><wicket:t>Aggregated from '<span wicket:id="spentTimeAggregationLink"></span>':</wicket:t></span>
+				<span wicket:id="aggregatedSpentTime"></span>
+			</div>
+		</div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="noAggregationFrag">
+		<div class="mb-4">
+			<span><wicket:t>Estimated Time:</wicket:t></span>
+			<span wicket:id="estimatedTime"></span>
+			<a wicket:id="editEstimatedTime" t:data-tippy-content="Edit"><wicket:svg href="edit" class="icon"></wicket:svg></a>
+		</div>
+		<div class="mb-0">
+			<span><wicket:t>Spent Time:</wicket:t></span>
+			<span wicket:id="spentTime"></span>
+			<a wicket:id="logWork" t:data-tippy-content="Log work"><wicket:svg href="plus" class="icon"></wicket:svg></a>
+			<a wicket:id="startWork" t:data-tippy-content="Start work"><wicket:svg href="play" class="icon"></wicket:svg></a>
+		</div>
+	</wicket:fragment>
+</wicket:panel>

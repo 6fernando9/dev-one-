@@ -1,0 +1,153 @@
+package io.onedev.server.event.project;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+
+import org.jspecify.annotations.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.event.Event;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
+import io.onedev.server.model.support.LastActivity;
+import io.onedev.server.notification.ActivityDetail;
+import io.onedev.server.service.ProjectService;
+import io.onedev.server.service.UrlService;
+import io.onedev.server.service.UserService;
+import io.onedev.server.util.commenttext.CommentText;
+
+public abstract class ProjectEvent extends Event implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private static final ThreadLocal<List<Long>> participatingUserIdsHolder = new ThreadLocal<>();
+	
+	private final Long projectId;
+	
+	private final Long userId;
+	
+	private final Date date;
+
+	private final List<Long> participatingUserIds;
+	
+	private transient Optional<CommentText> commentText;
+	
+	public ProjectEvent(@Nullable User user, Date date, Project project) {
+		userId = User.idOf(user);
+		this.date = date;
+		projectId = project.getId();
+		var inheritedParticipatingUserIds = participatingUserIdsHolder.get();
+		if (inheritedParticipatingUserIds != null)
+			participatingUserIds = new ArrayList<>(inheritedParticipatingUserIds);
+		else
+			participatingUserIds = new ArrayList<>();
+		if (userId != null)
+			participatingUserIds.add(userId);
+	}
+
+	public static void setContextualParticipatingUserIds(List<Long> participatingUserIds) {
+		participatingUserIdsHolder.set(participatingUserIds);
+	}
+
+	public static void clearContextualParticipatingUserIds() {
+		participatingUserIdsHolder.remove();
+	}
+	
+	public Project getProject() {
+		return OneDev.getInstance(ProjectService.class).load(projectId);
+	}
+	
+	@Nullable
+	public User getUser() {
+		return userId != null? OneDev.getInstance(UserService.class).load(userId): null;
+	}
+
+	public Date getDate() {
+		return date;
+	}
+
+	public List<Long> getParticipatingUserIds() {
+		return participatingUserIds;
+	}
+	
+	public abstract String getActivity();
+	
+	@Nullable
+	public final CommentText getCommentText() {
+		if (commentText == null)
+			commentText = Optional.ofNullable(newCommentText());
+		return commentText.orElse(null);
+	}
+	
+	@Nullable
+	protected CommentText newCommentText() {
+		return null;
+	}
+	
+	@Nullable
+	public ActivityDetail getActivityDetail() {
+		return null;
+	}
+	
+	public LastActivity getLastUpdate() {
+		LastActivity lastActivity = new LastActivity();
+		lastActivity.setUser(getUser());
+		lastActivity.setDescription(getActivity());
+		lastActivity.setDate(getDate());
+		return lastActivity;
+	}
+	
+	@Nullable
+	public String getTextBody() {
+		ActivityDetail activityDetail = getActivityDetail();
+		CommentText commentText = getCommentText();
+		
+		if (activityDetail != null && commentText != null)
+			return activityDetail.getTextVersion() + "\n\n" + commentText.getPlainContent();
+		else if (activityDetail != null)
+			return activityDetail.getTextVersion();
+		else if (commentText != null)
+			return commentText.getPlainContent();
+		else
+			return null;
+	}
+	
+	@Nullable
+	public String getHtmlBody() {
+		ActivityDetail activityDetail = getActivityDetail();
+		CommentText commentText = getCommentText();
+
+		if (activityDetail != null && commentText != null)
+			return activityDetail.getHtmlVersion() + "<br>" + commentText.getHtmlContent();
+		else if (activityDetail != null)
+			return activityDetail.getHtmlVersion();
+		else if (commentText != null)
+			return commentText.getHtmlContent();
+		else
+			return null;
+	}
+	
+	public String getUrl() {
+		return OneDev.getInstance(UrlService.class).urlFor(getProject(), true);
+	}
+	
+	@Nullable
+	public String getLockName() {
+		return null;
+	}
+	
+	public boolean isMinor() {
+		return false;
+	}
+	
+	@JsonProperty("type")
+	public String getType() {
+		return getClass().getSimpleName();
+	}
+
+}

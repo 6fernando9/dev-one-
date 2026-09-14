@@ -1,0 +1,103 @@
+<wicket:panel>
+	<div wicket:id="content" class="workflow-reconciliation"></div>
+	<wicket:fragment wicket:id="fixStatesFrag">
+		<form wicket:id="form" class="fix-states leave-confirm">
+			<div class="modal-header">
+				<h5 id="modal-title" class="modal-title"><wicket:t>Fix Undefined States</wicket:t></h5>
+				<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+			</div>
+			<div class="modal-body">
+				<div class="alert alert-notice alert-light-warning">
+					<wicket:t>Please resolve undefined states below. Note that if you select to delete an undefined state, 
+					all issues with that state will be deleted</wicket:t>
+				</div>
+				<table class="table table-condensed">
+					<thead>
+						<tr><th><wicket:t>Undefined</wicket:t></th><th><wicket:t>Change To</wicket:t></th></tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="rows">
+							<td class="undefined">
+								<span wicket:id="undefined"></span>
+							</td>
+							<td class="change-to">
+								<div wicket:id="resolution"></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<input wicket:id="fix" type="submit" class="dirty-aware btn btn-primary" t:value="Fix">
+				<a wicket:id="cancel" class="btn btn-secondary"><wicket:t>Cancel</wicket:t></a>
+			</div>
+		</form>	
+	</wicket:fragment>
+	<wicket:fragment wicket:id="fixFieldsFrag">
+		<form wicket:id="form" class="fix-fields leave-confirm">
+			<div class="modal-header">
+				<h5 id="modal-title" class="modal-title"><wicket:t>Fix Undefined Fields</wicket:t></h5>
+				<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+			</div>
+			<div class="modal-body">
+				<div class="alert alert-notice alert-light-warning">
+					<wicket:t>Please resolve undefined fields below</wicket:t>
+				</div>
+				<table class="table table-condensed">
+					<thead>
+						<tr><th><wicket:t>Field Name</wicket:t></th><th><wicket:t>Resolution</wicket:t></th></tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="rows">
+							<td class="name">
+								<span wicket:id="name"></span>
+							</td>
+							<td class="resolution">
+								<div wicket:id="resolution"></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<input wicket:id="fix" type="submit" class="dirty-aware btn btn-primary" t:value="Fix">
+				<a wicket:id="cancel" class="btn btn-secondary"><wicket:t>Cancel</wicket:t></a>
+			</div>
+		</form>	
+	</wicket:fragment>
+	<wicket:fragment wicket:id="fixFieldValuesFrag">
+		<form wicket:id="form" class="fix-field-values leave-confirm">
+			<div class="modal-header">
+				<h5 id="modal-title" class="modal-title"><wicket:t>Fix Undefined Field Values</wicket:t></h5>
+				<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+			</div>
+			<div class="modal-body">
+				<div class="alert alert-notice alert-light-warning">
+					<wicket:t>Please resolve undefined field values below</wicket:t>
+				</div>
+				<table class="table table-condensed">
+					<thead>
+						<tr><th><wicket:t>Field Name</wicket:t></th><th><wicket:t>Field Value</wicket:t></th><th><wicket:t>Resolution</wicket:t></th></tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="rows">
+							<td class="name">
+								<span wicket:id="name" class="text-break"></span>
+							</td>
+							<td class="value">
+								<span wicket:id="value" class="text-break"></span>
+							</td>
+							<td class="resolution">
+								<div wicket:id="resolution"></div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<input wicket:id="fix" type="submit" class="dirty-aware btn btn-primary" t:value="Fix">
+				<a wicket:id="cancel" class="btn btn-secondary"><wicket:t>Cancel</wicket:t></a>
+			</div>
+		</form>	
+	</wicket:fragment>
+</wicket:panel>

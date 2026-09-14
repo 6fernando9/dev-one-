@@ -1,0 +1,47 @@
+package io.onedev.server.model.support;
+
+import javax.validation.constraints.NotEmpty;
+
+import io.onedev.server.annotation.CodeCommentQuery;
+import io.onedev.server.annotation.Editable;
+
+@Editable
+public class NamedCodeCommentQuery implements NamedQuery {
+	
+	private static final long serialVersionUID = 1L;
+
+	private String name;
+	
+	private String query;
+	
+	public NamedCodeCommentQuery(String name, String query) {
+		this.name = name;
+		this.query = query;
+	}
+	
+	public NamedCodeCommentQuery() {
+	}
+
+	@Editable
+	@NotEmpty
+	@Override
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	@Editable(placeholder="All")
+	@CodeCommentQuery(withCurrentUserCriteria=true)
+	@Override
+	public String getQuery() {
+		return query;
+	}
+
+	public void setQuery(String query) {
+		this.query = query;
+	}
+
+}

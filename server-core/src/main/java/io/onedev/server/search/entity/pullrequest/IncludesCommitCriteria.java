@@ -1,0 +1,62 @@
+package io.onedev.server.search.entity.pullrequest;
+
+import java.util.Collection;
+
+import org.jspecify.annotations.Nullable;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.From;
+import javax.persistence.criteria.Predicate;
+
+import org.eclipse.jgit.lib.ObjectId;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.PullRequest;
+import io.onedev.server.util.ProjectScope;
+import io.onedev.server.util.ProjectScopedCommit;
+import io.onedev.server.util.QueryUtils;
+import io.onedev.server.util.criteria.Criteria;
+import io.onedev.server.xodus.PullRequestInfoService;
+
+public class IncludesCommitCriteria extends Criteria<PullRequest> {
+
+	private static final long serialVersionUID = 1L;
+
+	private final Project project;
+	
+	private final ObjectId commitId;
+	
+	private final String value;
+	
+	public IncludesCommitCriteria(@Nullable Project project, String value) {
+		ProjectScopedCommit commitId = QueryUtils.getCommitId(project, value);
+		this.project = commitId.getProject();
+		this.commitId = commitId.getCommitId();
+		this.value = value;
+	}
+	
+	@Override
+	public Predicate getPredicate(@Nullable ProjectScope projectScope, CriteriaQuery<?> query, From<PullRequest, PullRequest> from, CriteriaBuilder builder) {
+		Collection<Long> pullRequestIds = getPullRequestIds();
+		if (!pullRequestIds.isEmpty()) 
+			return from.get(PullRequest.PROP_ID).in(pullRequestIds);
+		else 
+			return builder.disjunction();
+	}
+	
+	private Collection<Long> getPullRequestIds() {
+		return OneDev.getInstance(PullRequestInfoService.class).getPullRequestIds(project, commitId);
+	}
+	
+	@Override
+	public boolean matches(PullRequest request) {
+		return getPullRequestIds().contains(request.getId());
+	}
+
+	@Override
+	public String toStringWithoutParens() {
+		return PullRequestQuery.getRuleName(PullRequestQueryLexer.IncludesCommit) + " " + quote(value);
+	}
+
+}

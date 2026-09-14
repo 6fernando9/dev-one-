@@ -1,0 +1,73 @@
+.issue-list>div>.body table>tbody>tr>td {
+	padding: 1.2rem 0.8rem 0.7rem 0.8rem;
+}
+.issue-list>div>.body table>tbody>tr>td.row-selector {
+	padding-top: 1.5rem;
+}
+.issue-list .field.undefined {
+	display: none;
+}
+.issue-list .field .issue-state {
+	margin-bottom: 0.5rem;
+	margin-right: 0.5rem;
+	padding: 0.25rem 0.4rem;
+}
+.issue-list .issue-progress {
+	vertical-align: middle;
+	position: relative;
+	top: -1px;
+}
+.issue-list .issue-progress .completion-rate {
+	width: 18px !important;
+	height: 18px !important;
+}
+.issue-list>div>.body .new-indicator {
+	width: 4px;
+	padding: 0;
+}
+.issue-list>div>.body tr.issue.new td.new-indicator {
+	background: var(--primary);
+}
+
+.issue-list>div>.body tr.issue .working-indicator {
+	margin-top: 4px;
+}
+
+.issue-list .number, .issue-list .title {
+	font-size: 1.175rem;
+	font-weight: 500;	
+}
+.issue-list .state {
+	border-bottom: 2px dotted transparent;
+	cursor: pointer;
+}
+.issue-list .state:hover {
+	border-color: var(--gray);
+}
+.issue-list .issue-link {
+	font-weight: 500;
+}
+
+.issue-list .linked-issues {
+	border-left: 2px dashed var(--secondary);
+}
+.dark-mode .issue-list .linked-issues {
+	border-left-color: var(--dark-mode-dark-gray);
+}
+.issue-list .linked-issue {
+	margin-top: 0.7rem;
+	padding-top: 1.2rem;
+	border-top: 1px solid var(--light-gray);
+}
+.dark-mode .issue-list .linked-issue {
+	border-top-color: var(--dark-mode-light-dark);
+}
+
+.issue-list>div>.body tr.issue .issue-item .no-estimate,
+.issue-list>div>.body tr.issue .issue-item .pin {
+	display: none !important;
+}
+.issue-list>div>.body tr.issue .issue-item:hover .pin,
+.issue-list>div>.body tr.issue .issue-item .dropdown-aware-open .pin {
+	display: inline !important;
+}

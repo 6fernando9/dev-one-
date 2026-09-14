@@ -1,0 +1,23 @@
+<wicket:extend>
+	<div class="card">
+		<div class="card-body">
+			<div class="alert alert-notice alert-light">
+				<wicket:t>
+				This model will be used to perform lite tasks including:
+				<ul class="mb-0">
+					<li>Natural language support for various queries</li>
+					<li>Mark the most likely symbol definition in symbol navigation</li>
+					<li>Suggest pull request title and description if multiple commits are involved</li>
+				</ul>
+				Fast and cost-effective models are recommended, such as
+				<code>Google/gemini-2.5-flash</code> and 
+				<code>OpenAI/gpt-4.1-mini</code>
+				</wicket:t>
+			</div>
+			<form wicket:id="form" class="leave-confirm">
+				<div wicket:id="editor" class="mb-4"></div>
+				<input type="submit" class="btn btn-primary dirty-aware" t:value="Save Settings">
+			</form>
+		</div>
+	</div>
+</wicket:extend>

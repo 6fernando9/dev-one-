@@ -1,0 +1,45 @@
+<wicket:panel>
+	<div class="code-comment-list card no-autofocus">
+		<div class="card-body">
+			<form wicket:id="query" class="clearable-wrapper mb-4">
+				<div class="input-group">
+					<input wicket:id="input" spellcheck="false" autocomplete="off" class="form-control" t:placeholder="Query/order comments">
+					<span class="input-group-append">
+						<button wicket:id="submit" type="submit" class="btn btn-icon btn-outline-secondary" t:data-tippy-content="Query"><wicket:svg href="magnify" class="icon"></wicket:svg></button>
+					</span>
+				</div>
+			</form>
+			<div class="mb-4">
+				<a wicket:id="showSavedQueries" class="show-saved-queries text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="eye" class="icon"></wicket:svg> <wicket:t>Show Saved Queries</wicket:t>
+				</a>
+				<a wicket:id="saveQuery" class="save-query text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="save" class="icon"></wicket:svg> <wicket:t>Save Query</wicket:t>
+				</a>
+				<a wicket:id="filter" class="filter text-gray mr-4 mb-2 d-inline-block text-nowrap">
+					<wicket:svg href="filter" class="icon"></wicket:svg> <wicket:t>Filter</wicket:t>
+				</a>
+				<a wicket:id="orderBy" class="order-by text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="sort" class="icon"></wicket:svg> <wicket:t>Order By</wicket:t>
+				</a>
+				<a wicket:id="operations" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
+					<wicket:svg href="ellipsis-circle" class="icon rotate-180"></wicket:svg> <wicket:t>Operations</wicket:t>
+				</a>
+			</div>
+			<div wicket:id="body" class="body">
+				<div wicket:id="feedback"></div>
+				<table wicket:id="comments" class="table"></table>
+			</div>
+		</div>
+	</div>
+	<wicket:fragment wicket:id="contentFrag">
+		<div class="primary mb-2">
+			<span wicket:id="status" class="mr-1"></span>
+			<a wicket:id="description" class="font-weight-bold font-size-lg"><span wicket:id="label"></span></a>
+		</div>
+		<div class="secondary font-size-sm text-muted">
+			<a wicket:id="user"></a> <span wicket:id="activity"></span> <span wicket:id="date"></span>
+			<span wicket:id="file" class="d-none d-lg-inline text-break"></span>
+		</div>
+	</wicket:fragment>
+</wicket:panel>

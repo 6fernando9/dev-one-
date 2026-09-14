@@ -1,0 +1,22 @@
+.floating.draw {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	border: none;
+	width: 360px;
+	border-radius: 0;
+}
+
+.floating.draw>.content {
+	height: 100%;
+}
+.floating.draw-left {
+	left: 0;
+}
+.floating.draw-right {
+	right: 0;
+}
+.floating.draw>.content>.card {
+	box-shadow: none;
+	border-radius: 0;
+}

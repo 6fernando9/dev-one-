@@ -1,0 +1,103 @@
+onedev.server.blobEdit = {
+	onDomReady: function(containerId) {
+		var $container = $("#" + containerId);
+		var $blobEdit = $container.children(".blob-edit");
+		var $head = $blobEdit.children(".head");
+		var $body = $blobEdit.children(".body");
+		
+	    $head.find(".edit>a").click(function() {
+            if (!$(this).parent().hasClass("active")) {
+        		$body.find(">form>.edit.submit").click();
+            }
+	    });
+	    $head.find(".edit-plain>a").click(function() {
+            if (!$(this).parent().hasClass("active")) {
+        		$body.find(">form>.edit-plain.submit").click();
+            }
+	    });
+	    $head.find(".changes>a").click(function() {
+            if (!$(this).parent().hasClass("active")) {
+				onedev.server.viewState.getFromViewAndSetToHistory();
+        		$body.find(">form>.changes.submit").click();
+			}
+	    });
+	    $head.find(".save>a").click(function() {
+            if (!$(this).parent().hasClass("active")) {
+				onedev.server.viewState.getFromViewAndSetToHistory();
+				$body.find(">form>.save.submit").click();
+			}
+	    });
+	    
+	    $blobEdit.on("getViewState", function(e) {
+        	var $form = $body.children("form");
+	    	if ($form.is(":visible"))
+	    		return {scroll:{left: $body.scrollLeft(), top: $body.scrollTop()}};			
+	    	else
+	    		return undefined;
+		});
+		
+	    $blobEdit.on("setViewState", function(e, viewState) {
+        	var $form = $body.children("form");
+			if ($form.is(":visible") && viewState.scroll) {
+				$body.scrollLeft(viewState.scroll.left);
+				$body.scrollTop(viewState.scroll.top);
+			}
+		});
+		
+        $container.mouseover(function() {
+            /* 
+             * While inputting file names of a new file, the blob content will be re-created to 
+             * use appropriate blob editor for current file name. In such case we add "no-autofocus"
+             * class to the blob content container in order not to jump to blob content area while 
+             * inputting file name. However we want to remove this class to get better user 
+             * experience (for instance when we are editing the build specs) when we are ready to edit 
+             * the blob content by moving mouse into blob edit area
+             */
+            $container.closest(".no-autofocus").removeClass("no-autofocus");
+        });
+
+	},
+	selectTab: function($tab) {
+		var $active = $tab.parent().find(".tab.active");
+    	$active.removeClass("active");
+    	$tab.addClass("active");
+    	var $blobEdit = $tab.closest(".blob-edit");
+    	var $body = $blobEdit.children(".body");
+    	
+		$body.children().removeClass("d-flex");
+
+        var $form = $body.children("form");
+		if ($tab.hasClass("edit") || $tab.hasClass("edit-plain")) {
+			$form.addClass("d-flex");
+		} else if ($tab.hasClass("save")) {
+			$body.children(".commit-options").addClass("d-flex");
+        } else {
+			$body.children(".changes-viewer").addClass("d-flex");
+		}
+		        
+        if (!$tab.hasClass("save") && !$tab.hasClass("changes"))
+        	onedev.server.viewState.getFromHistoryAndSetToView();        	
+	},
+	recordFormFlags: function(formId) {
+		var $form = $("#" + formId);
+		if ($form.hasClass("dirty"))
+			$form.parent().addClass("dirty");
+		else
+			$form.parent().removeClass("dirty");
+	},
+	restoreFormFlags: function(formId) {
+		var $form = $("#" + formId);
+		if ($form.parent().hasClass("dirty"))
+			$form.addClass("dirty");
+		else
+			$form.removeClass("dirty");
+	},
+	onNameChanging: function(containerId, addingFile, recreateCallback) {
+		var $body = $("#" + containerId + ">.blob-edit>.body");
+		var contentModified = $body.find("form.dirty").length != 0;
+		if (addingFile && !contentModified)
+			recreateCallback();
+		else
+			$body.find(".name-changing-listener").trigger("nameChanging");
+	}
+};

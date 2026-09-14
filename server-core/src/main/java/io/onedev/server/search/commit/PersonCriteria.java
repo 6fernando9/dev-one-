@@ -1,0 +1,113 @@
+package io.onedev.server.search.commit;
+
+import static io.onedev.server.web.translation.Translation._T;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.eclipse.jgit.lib.PersonIdent;
+
+import com.google.common.base.Preconditions;
+
+import io.onedev.commons.utils.match.WildcardUtils;
+import io.onedev.server.OneDev;
+import io.onedev.server.exception.NotAcceptableException;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.UserService;
+
+public abstract class PersonCriteria extends CommitCriteria {
+
+	private static final long serialVersionUID = 1L;
+
+	private final List<String> values;
+	
+	public PersonCriteria(List<String> values) {
+		Preconditions.checkArgument(!values.isEmpty());
+		this.values = values;
+	}
+
+	public List<String> getValues() {
+		return values;
+	}
+
+	private boolean matches(String value, PersonIdent person) {
+		String formatted = String.format("%s <%s>", person.getName(), person.getEmailAddress());
+		return WildcardUtils.matchString(value, formatted);
+	}
+
+	private static UserService getUserService() {
+		return OneDev.getInstance(UserService.class);
+	}
+	
+	protected void fill(Project project, List<String> persons) {
+		for (String value: values) {
+			if (value == null) { // authored by me
+				User user = SecurityUtils.getUser();
+				if (user != null) {
+					user.getVerifiedEmailAddresses().forEach(it-> {
+						persons.add("<" + it + ">");
+					});
+				} else {
+					throw new NotAcceptableException(_T("Please login to perform this query"));
+				}
+			} else if (value.startsWith("@")) {
+				String userName = value.substring(1);
+				User user = getUserService().findByName(userName);
+				if (user != null) {
+					for (String emailAddress: user.getVerifiedEmailAddresses()) {
+						persons.add("<" + emailAddress + ">");
+					}
+				} else {
+					persons.add(Strings.CS.replace(value, "*", ".*"));
+				}
+			} else {
+				persons.add(Strings.CS.replace(value, "*", ".*"));
+			}
+		}
+	}
+
+	protected boolean matches(PersonIdent person) {
+		String personEmail = person.getEmailAddress();
+		for (String value: values) {
+			if (value == null) { // authored by me
+				User user = User.get();
+				if (user == null) {
+					throw new NotAcceptableException(_T("Please login to perform this query"));
+				} else if (user.getVerifiedEmailAddresses().stream()
+						.anyMatch(it-> it.equalsIgnoreCase(personEmail))) { 
+					return true;
+				}
+			} else if (value.startsWith("@")) {
+				String userName = value.substring(1);
+				User user = getUserService().findByName(userName);
+				if (user != null) {
+					if (user.getVerifiedEmailAddresses().stream()
+							.anyMatch(it-> it.equalsIgnoreCase(personEmail))) {
+						return true;
+					}
+				} else if (matches("*" + value + "*", person)) {
+					return true;
+				}
+			} else if (matches("*" + value + "*", person)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	protected String toString(int personRule, int currentPersonRule) {
+		List<String> parts = new ArrayList<>();
+		for (String value: values) {
+			if (value != null)
+				parts.add(getRuleName(personRule) + parens(value));
+			else
+				parts.add(getRuleName(currentPersonRule));
+		}
+		return StringUtils.join(parts, " ");
+	}
+	
+}

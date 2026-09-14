@@ -1,0 +1,70 @@
+<wicket:panel>
+	<div class="project-list card no-autofocus">
+		<div class="card-body">
+			<div class="d-flex mb-4">
+				<form wicket:id="query" class="clearable-wrapper flex-grow-1">
+					<div class="input-group">
+						<input wicket:id="input" spellcheck="false" autocomplete="off" class="form-control" t:placeholder="Query/order projects">
+						<span class="input-group-append">
+							<button wicket:id="submit" t:data-tippy-content="Query" type="submit" class="btn btn-outline-secondary btn-icon"><wicket:svg href="magnify" class="icon"></wicket:svg></button>
+						</span>
+					</div>
+				</form>
+				<a wicket:id="addProject" class="btn btn-primary btn-icon flex-shrink-0 ml-3"><wicket:svg href="plus" class="icon"/></a>
+			</div>
+			<div class="operations mb-4">
+				<a wicket:id="showSavedQueries" class="show-saved-queries text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="eye" class="icon"></wicket:svg> <wicket:t>Show Saved Queries</wicket:t>
+				</a>
+				<a wicket:id="saveQuery" class="save-query text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="save" class="icon"></wicket:svg> <wicket:t>Save Query</wicket:t>
+				</a>
+				<a wicket:id="filter" class="filter text-gray mr-4 mb-2 d-inline-block text-nowrap">
+					<wicket:svg href="filter" class="icon"></wicket:svg> <wicket:t>Filter</wicket:t>
+				</a>
+				<a wicket:id="orderBy" class="order-by text-gray d-inline-block mb-2 mr-4">
+					<wicket:svg href="sort" class="icon"></wicket:svg> <wicket:t>Order By</wicket:t>
+				</a>
+				<a wicket:id="operations" class="operations d-inline-block mb-2 mr-4 text-gray">
+					<wicket:svg href="ellipsis-circle" class="icon"></wicket:svg> <wicket:t>Operations</wicket:t>
+				</a>
+				<a wicket:id="importProjects" class="import-projects d-inline-block mb-2 mr-4 text-gray">
+					<wicket:svg href="import" class="icon"></wicket:svg> <wicket:t>Import</wicket:t>
+				</a>
+			</div>
+			<div wicket:id="body">
+				<div wicket:id="feedback"></div>
+				<table wicket:id="projects" class="table"></table>
+			</div>
+		</div>
+	</div>
+	<wicket:fragment wicket:id="projectFrag">
+		<div class="d-flex align-items-center flex-wrap row-gap-2 font-size-h5">
+			<a wicket:id="path" class="mr-2">
+				<img wicket:id="avatar"> 
+				<span wicket:id="text"></span>
+			</a> 
+			<span wicket:id="labels" class="mr-2"></span>
+		</div>
+		<div wicket:id="description" class="mt-2 font-size-sm text-muted"></div>
+		<div class="d-flex flex-wrap project-summary">
+			<div wicket:id="codeStats" class="code-stats mt-2 d-flex align-items-center flex-wrap mr-3"></div>
+			<div wicket:id="pullRequestStats" class="pull-request-stats mt-2 d-flex align-items-center flex-wrap"></div>
+			<div wicket:id="workspaceStats" class="workspace-stats mt-2 d-flex align-items-center flex-wrap mr-3"></div>
+		</div>
+		<div class="d-flex flex-wrap project-summary">
+			<div wicket:id="issueStats" class="issue-stats mt-2 d-flex align-items-center flex-wrap mr-3"></div>
+			<div wicket:id="buildStats" class="build-stats mt-2 d-flex align-items-center flex-wrap mr-3"></div>
+			<div wicket:id="packStats" class="pack-stats mt-2 d-flex align-items-center flex-wrap"></div>
+		</div>
+		<div wicket:id="noStorage" class="mt-2 font-italic"><wicket:t>Storage not found</wicket:t></div>
+		<div wicket:id="children" class="project-summary"></div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="childrenFrag">
+		<div class="d-flex flex-nowrap align-items-center mt-2">
+			<wicket:svg href="project" class="icon mr-2"/>
+			<a wicket:id="link" class="mr-1"><span wicket:id="label"></span></a>
+			<a wicket:id="treeTrigger" class="dropdown-triangle-indicator d-flex align-items-center justify-content-center"><span></span></a>
+		</div>
+	</wicket:fragment>
+</wicket:panel>

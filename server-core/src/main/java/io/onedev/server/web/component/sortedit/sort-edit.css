@@ -1,0 +1,35 @@
+.sort-edit {
+	padding: 1rem 1rem 1rem 0;
+}
+.sort-edit .selected .drag-indicator {
+	padding-right: 0.2rem;
+	text-align: right;
+	width: 1px;
+}
+.sort-edit .selected .index {
+	padding-left: 0;
+	padding-right: 0.4rem;
+	text-align: right;
+	width: 1px;
+}
+.sort-edit .selected td.name {
+	width: 1px;
+	padding-left: 0;
+	white-space: nowrap;
+}
+
+.sort-edit .available a {
+	display: block;
+	padding: 0.6rem 0.8rem;
+} 
+.sort-edit .available a .icon {
+	margin-right: 0.4rem;
+} 
+.sort-edit .available a:hover, .sort-edit .available a:focus {
+	background: var(--light);
+} 
+.dark-mode .sort-edit .available a:hover,
+.dark-mode .sort-edit .available a:focus {
+	color: var(--primary) !important;
+	background-color: var(--dark-mode-light-primary);
+} 

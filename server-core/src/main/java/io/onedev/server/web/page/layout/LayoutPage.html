@@ -1,0 +1,119 @@
+<wicket:extend>
+	<div wicket:id="sidebar" class="sidebar">
+		<div class="sidebar-header">
+			<a wicket:id="brandLink" class="sidebar-brand">
+				<span wicket:id="brandLogo"></span>
+				<span wicket:id="brandName"></span>
+			</a>
+			<a href="javascript:void(0);" class="sidebar-mini-toggle d-none d-lg-inline"><wicket:svg href="expand3" class="icon"></wicket:svg></a>
+			<a href="javascript:void(0);" class="sidebar-close d-lg-none"><wicket:svg href="times" class="icon"></wicket:svg></a>
+		</div>
+		<div class="sidebar-body ps ps-scroll">
+			<div wicket:id="menus" class="sidebar-menu">
+				<div wicket:id="header" class="menu-header"></div>
+				<div wicket:id="body" class="menu-body"></div>
+			</div>
+		</div>
+		<div class="sidebar-footer">
+			<a wicket:id="productVersion" target="_blank" class="sidebar-version"></a>
+			<a wicket:id="tryEE" href="https://onedev.io/pricing" class="try-ee badge badge-sm" t:data-tippy-content="Try Enterprise Edition"><wicket:t>Try EE</wicket:t></a>
+			<div class="dropdown sidebar-help">
+				<a href="#" class="dropdown-toggle no-dropdown-caret" data-toggle="dropdown">
+					<wicket:svg href="question-circle-o" class="icon"></wicket:svg>
+				</a>
+				<div class="dropdown-menu">
+					<a href="https://docs.onedev.io" class="dropdown-item" target="_blank"><wicket:t>Documentation</wicket:t></a>
+					<a wicket:id="supportRequest" class="dropdown-item"><wicket:t>Support Request</wicket:t></a>
+					<a wicket:id="bugReport" href="https://code.onedev.io/onedev/server/~issues?query=%22State%22+is+%22Open%22" class="dropdown-item" target="_blank"></a>
+					<a href="/~help/api" class="dropdown-item" target="_blank"><wicket:t>RESTful API</wicket:t></a>
+					<a wicket:id="incompatibilities" class="dropdown-item"><wicket:t>Incompatibilities</wicket:t></a>
+					<a class="dropdown-item" href="https://onedev.io/license-agreement" target="_blank"><wicket:t>License Agreement</wicket:t></a>
+					<a wicket:id="checkUpdate" class="dropdown-item"><wicket:t>Check Update</wicket:t></a>
+					<a wicket:id="tryEEMenuItem" href="https://onedev.io/pricing" class="try-ee dropdown-item d-none"><wicket:t>Try Enterprise Edition</wicket:t></a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div wicket:id="topbar" class="topbar">
+		<div class="topbar-left">
+			<a wicket:id="brandLink" class="topbar-brand">
+				<span wicket:id="brandLogo"></span>
+			</a>
+			<a class="sidebar-toggle topbar-link d-lg-none">
+				<wicket:svg href="menu" class="icon"></wicket:svg>
+			</a>
+			<div wicket:id="title" class="topbar-title"></div>
+		</div>
+		<div class="topbar-right text-nowrap">
+			<a wicket:id="alerts" t:data-tippy-content="Alerts" class="text-warning topbar-link d-none d-lg-inline"><wicket:svg href="exclamation-circle-o" class="icon fade-in-out"></wicket:svg></a>
+			<a wicket:id="newVersionStatus" t:data-tippy-content="New version available. Red for security/critical update, yellow for bug fix, blue for feature update. Click to show changes. Disable in system setting" class="new-version-status topbar-link d-none d-md-inline"><img wicket:id="icon"/></a>
+			<a wicket:id="showChat" t:data-tippy-content="Chat with AI" class="topbar-link"><wicket:svg href="ai" class="icon"/></a>
+			<a wicket:id="colorMode" t:data-tippy-content="Color mode" class="topbar-link">
+				<svg wicket:id="icon" class="icon"/>
+			</a>
+			<a wicket:id="showCommandPalette" class="topbar-link command-palette d-none d-md-inline"></a>
+			<a wicket:id="languageSelector" t:data-tippy-content="Language" class="topbar-link language-selector"><wicket:svg href="globe" class="icon"></wicket:svg></a>
+			<a wicket:id="signIn" class="topbar-link sign-in"><wicket:svg href="login" class="icon"/> <span class="d-none d-sm-inline"><wicket:t>Sign In</wicket:t></span></a>
+			<a wicket:id="userInfo" class="user-info topbar-link">
+				<img wicket:id="avatar">
+				<span wicket:id="name" class="ml-1 d-none d-lg-inline"></span>
+			</a>
+		</div>
+	</div>
+	<div class="main autofit d-flex flex-column resize-aware">
+		<wicket:child></wicket:child>
+		<wicket:child></wicket:child>
+		<div wicket:id="chat"></div>
+	</div>
+
+	<wicket:fragment wicket:id="menuHeaderFrag">
+		<img wicket:id="icon" class="menu-header-icon avatar"></img>
+		<span wicket:id="label" class="menu-header-text"></span>
+		<a wicket:id="moreInfo" class="mehu-header-ellipsis" data-tippy-content="More info"><wicket:svg href="ellipsis" class="icon"/></a>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="menuBodyFrag">
+		<div wicket:id="items" class="menu-item">
+			<a wicket:id="link" class="menu-link">
+				<svg wicket:id="icon" class="icon menu-icon"></svg>
+				<span wicket:id="bullet" class="menu-bullet"></span>
+				<span class="menu-text">
+					<span wicket:id="label"></span>
+				</span>
+				<svg wicket:id="arrow" class="icon menu-arrow"></svg>
+			</a>
+			<div wicket:id="subMenu" class="menu-body"></div>
+		</div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="userMenuFrag">
+		<wicket:enclosure child="hasUnverifiedLink">
+			<div class="mx-3 my-2 alert alert-light-warning">
+				<wicket:t>You have unverified <a wicket:id="hasUnverifiedLink">email addresses</a></wicket:t>
+			</div>
+		</wicket:enclosure>
+		<wicket:enclosure child="noPrimaryAddressLink">
+			<div class="mx-3 my-2 alert alert-light-warning">
+				<wicket:t>Primary <a wicket:id="noPrimaryAddressLink">email address</a> not specified</wicket:t>
+			</div>
+		</wicket:enclosure>
+		<div wicket:id="items"></div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="alertsFrag">
+		<div class="alerts">
+			<div class="text-center font-size-h6 border-bottom bg-light px-3 py-2 mb-2"><wicket:t>Alerts</wicket:t></div>
+			<table wicket:id="alerts" class="table"></table>
+			<wicket:enclosure child="clear">
+			<div class="px-2 pb-2 pt-4">
+				<a wicket:id="clear" class="btn btn-sm btn-block btn-light-primary"><wicket:t>Delete All</wicket:t></a>
+			</div>				
+			</wicket:enclosure>
+		</div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="alertMessageFrag">
+		<span wicket:id="subject"></span>
+		<a wicket:id="showDetail" class="btn btn-icon btn-xs btn-light btn-hover-primary"><wicket:svg href="ellipsis" class="icon"/></a>
+		<pre wicket:id="detail" class="mt-2 font-size-sm"></pre>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="alertActionFrag">
+		<a wicket:id="delete" t:data-tippy-content="Delete"><wicket:svg href="trash" class="icon"></wicket:svg></a>
+	</wicket:fragment>
+</wicket:extend>

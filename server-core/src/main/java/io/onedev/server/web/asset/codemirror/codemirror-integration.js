@@ -1,0 +1,316 @@
+onedev.server.codemirror = {
+	clearMark: function(cm) {
+		var marks = cm.getAllMarks();
+		for (var i=0; i<marks.length; i++)  {
+			marks[i].clear();
+		}
+	},
+	clearSelection: function(cm) {
+    	cm.setCursor(cm.getCursor("from"));
+	},
+	markRange: function(cm, range) {
+		cm.markText(
+				{line: range.fromRow, ch: range.fromColumn}, 
+				{line: range.toRow, ch: range.toColumn},
+				{className: "CodeMirror-mark"});
+		onedev.server.codemirror.markBlankLines(cm, range);
+	},
+	markBlankLines: function(cm, range) {
+		var endRow = range.toColumn == 0? range.toRow-1: range.toRow;
+		for (var line = range.fromRow; line <= endRow && line < cm.lineCount(); line++) {
+			if (cm.getLine(line) == "") {
+				var marker = document.createElement("span");
+				marker.className = "CodeMirror-mark";
+				marker.setAttribute("aria-hidden", "true");
+				marker.textContent = "\u00a0";
+				cm.setBookmark({line: line, ch: 0}, {widget: marker});
+			}
+		}
+	},
+	mark: function(cm, range) {
+        onedev.server.codemirror.clearMark(cm);
+		if (Array.isArray(range)) {
+			for (var i in range)
+				onedev.server.codemirror.markRange(cm, range[i]);
+		} else {
+			onedev.server.codemirror.markRange(cm, range);
+		}
+	},
+	scrollTo: function(cm, range) {
+		var top = cm.charCoords({line: range.fromRow, ch: 0}, "local").top;
+		cm.scrollTo(null, top - 50); 			
+	},
+	highlightSyntax: function(text, modeInfo, highlighted, startCallback, stopCallback) {
+		var modeMime = onedev.server.codemirror.getModeMime(modeInfo);
+		if (!CodeMirror.modes.hasOwnProperty(modeInfo.mode)) {
+			CodeMirror.requireMode(modeInfo.mode, function() {
+				if (startCallback)
+					startCallback();
+		    	CodeMirror.runMode(text, modeMime, highlighted);
+				if (stopCallback)
+					stopCallback();
+			});
+		} else {
+			if (startCallback)
+				startCallback();
+			CodeMirror.runMode(text, modeMime, highlighted);
+			if (stopCallback)
+				stopCallback();
+		}		
+	},
+	findModeByFileName: function(fileName) {
+		if (fileName.endsWith(".cbl") || fileName.endsWith(".pco")) 
+			return CodeMirror.findModeByName("cobol");
+		else if (fileName.endsWith(".js")) 
+			return CodeMirror.findModeByName("jsx");
+		else if (fileName.endsWith(".ld") || fileName.endsWith(".asm")) 
+			return CodeMirror.findModeByName("gas");			
+		else if (fileName.endsWith(".gdshader"))
+			return {name: "GDShader", mime: "x-shader/x-fragment", mode: "clike"};
+		else if (fileName == ".onedev-buildspec") 
+			return CodeMirror.findModeByName("xml");			
+		else 
+		    return CodeMirror.findModeByFileName(fileName);
+	},
+	scrollIntoView: function(cm, range) {
+		cm.scrollIntoView({line: range.fromRow, ch: 0}, 8);
+	},
+	setModeByName: function(cm, modeName) {
+	    var modeInfo = CodeMirror.findModeByName(modeName);
+        if (modeInfo) 
+            onedev.server.codemirror.setMode(cm, modeInfo);
+	},
+	setModeByFileName: function(cm, fileName) {
+		var modeInfo = onedev.server.codemirror.findModeByFileName(fileName);
+		if (modeInfo)
+			onedev.server.codemirror.setMode(cm, modeInfo);
+	},
+	setConflictAwareModeByFileName: function(cm, fileName) {
+		var modeInfo = onedev.server.codemirror.findModeByFileName(fileName);
+		if (modeInfo) {
+			var modeMime = onedev.server.codemirror.getModeMime(modeInfo);
+			if (!CodeMirror.modes.hasOwnProperty(modeInfo.mode)) {
+				CodeMirror.requireMode(modeInfo.mode, function() {
+					cm.setOption("mode", {name: "conflict-aware", inner: modeMime});
+				});
+			} else {
+				cm.setOption("mode", {name: "conflict-aware", inner: modeMime});
+			}
+		}
+	},
+	getModeMime: function(modeInfo) {
+        if (modeInfo.mode === "gfm")
+            return "gfm";
+		else		
+            return modeInfo.mime;
+	},
+	setMode: function(cm, modeInfo) {
+		var modeMime = onedev.server.codemirror.getModeMime(modeInfo);
+		if (!CodeMirror.modes.hasOwnProperty(modeInfo.mode)) {
+			CodeMirror.requireMode(modeInfo.mode, function() {
+		    	cm.setOption("mode", modeMime);
+			});
+		} else {
+		    cm.setOption("mode", modeMime);
+		}
+	},
+	getViewState: function(cm) {
+		var cursor = cm.getCursor();
+    	var scrollInfo = cm.getScrollInfo();
+    	var scroll = {left: scrollInfo.left, top: scrollInfo.top};
+		return {cursor: cursor, scroll: scroll};		
+	},
+	setViewState: function(cm, viewState) {
+    	if (viewState.cursor) {
+    		cm.setCursor(viewState.cursor);
+    		if (!viewState.scroll) {
+    			var h = cm.getScrollInfo().clientHeight;
+    			var coords = cm.charCoords({line: viewState.cursor.line, ch: 0}, "local");
+    			cm.scrollTo(null, (coords.top + coords.bottom - h) / 2); 			
+    		}
+    	}
+    	if (viewState.scroll) {
+	    	cm.scrollTo(viewState.scroll.left, viewState.scroll.top);
+    	}
+	}, 
+	bindShortcuts: function(cm) {
+		cm.setOption("extraKeys", {
+			"F11": function(cm) {
+				cm.setOption("fullScreen", !cm.getOption("fullScreen"));
+			},
+			"Esc": function(cm) {
+				if (cm.getOption("fullScreen")) {
+					cm.setOption("fullScreen", false);
+					$(window).resize();
+				}
+	        }
+		});
+		if (onedev.server.util.isMac()) {
+		    CodeMirror.keyMap.default["Cmd-L"] = "gotoLine";
+		} else {
+		    CodeMirror.keyMap.default["Ctrl-L"] = "gotoLine";
+		}
+		
+		if (!($(document).data("CodeMirrorShortcutsBinded"))) {
+			$(document).data("CodeMirrorShortcutsBinded", true);
+			
+			function find() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("find");
+					return false;
+				}
+			}
+			function findNext() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("findNext");
+					return false;
+				}
+			}
+			function findPrev() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("findPrev");
+					return false;
+				}
+			}
+			function gotoLine() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("gotoLine");
+					return false;
+				}
+			}
+			function goDocStart() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goDocStart");
+					return false;
+				}
+			}
+			function goDocEnd() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goDocEnd");
+					return false;
+				}
+			}
+			function goPageUp() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goPageUp");
+					return false;
+				}
+			}
+			function goPageDown() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goPageDown");
+					return false;
+				}
+			}
+			function goLineUp() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goLineUp");
+					return false;
+				}
+			}
+			function goLineDown() {
+				if ($(".code>.CodeMirror").length != 0) {
+					$(".code>.CodeMirror")[0].CodeMirror.execCommand("goLineDown");
+					return false;
+				}
+			}
+			if (onedev.server.util.isMac()) {
+				$(document).bind("keydown", "Meta+f", find);
+				$(document).bind("keydown", "Meta+g", findNext);
+				$(document).bind("keydown", "Meta+Shift+g", findPrev);
+				$(document).bind("keydown", "Meta+up", goDocStart);
+				$(document).bind("keydown", "Meta+down", goDocEnd);
+				$(document).bind("keydown", "Meta+l", gotoLine);
+			} else {
+				$(document).bind("keydown", "Ctrl+f", find);
+				$(document).bind("keydown", "Ctrl+g", findNext);
+				$(document).bind("keydown", "Ctrl+Shift+g", findPrev);
+				$(document).bind("keydown", "Ctrl+home", goDocStart);
+				$(document).bind("keydown", "Ctrl+end", goDocEnd);
+				$(document).bind("keydown", "Ctrl+l", gotoLine);
+			}
+			$(document).bind("keydown", "pageup", goPageUp);
+			$(document).bind("keydown", "pagedown", goPageDown);
+			$(document).bind("keydown", "up", goLineUp);
+			$(document).bind("keydown", "down", goLineDown);
+		}
+	}
+};
+
+CodeMirror.defineMode("conflict-aware", function(config, parserConfig) {
+	var innerMode = CodeMirror.getMode(config, parserConfig.inner || "text/plain");
+	return {
+		startState: function() {
+			return {
+				innerState: CodeMirror.startState(innerMode),
+				rightState: null,
+				conflictRegion: null
+			};
+		},
+		copyState: function(state) {
+			return {
+				innerState: CodeMirror.copyState(innerMode, state.innerState),
+				rightState: state.rightState ? CodeMirror.copyState(innerMode, state.rightState) : null,
+				conflictRegion: state.conflictRegion
+			};
+		},
+		token: function(stream, state) {
+			if (stream.sol()) {
+				if (stream.match(/^<{7}(\s|$)/)) {
+					state.conflictRegion = "left";
+					state.rightState = CodeMirror.copyState(innerMode, state.innerState);
+					stream.skipToEnd();
+					return "conflict-marker";
+				}
+				if (stream.match(/^\|{7}(\s|$)/) || stream.match(/^={7}(\s|$)/)) {
+					state.conflictRegion = "right";
+					stream.skipToEnd();
+					return "conflict-marker";
+				}
+				if (stream.match(/^>{7}(\s|$)/)) {
+					state.conflictRegion = null;
+					state.rightState = null;
+					stream.skipToEnd();
+					return "conflict-marker";
+				}
+			}
+			if (state.conflictRegion === "right") {
+				return innerMode.token(stream, state.rightState);
+			}
+			return innerMode.token(stream, state.innerState);
+		},
+		blankLine: function(state) {
+			if (innerMode.blankLine) {
+				if (state.conflictRegion === "right") {
+					innerMode.blankLine(state.rightState);
+				} else {
+					innerMode.blankLine(state.innerState);
+				}
+			}
+		},
+		indent: function(state, textAfter, line) {
+			if (innerMode.indent) {
+				return innerMode.indent(state.innerState, textAfter, line);
+			}
+			return CodeMirror.Pass;
+		},
+		electricChars: innerMode.electricChars,
+		innerMode: function(state) {
+			return {state: state.innerState, mode: innerMode};
+		}
+	};
+});
+
+$(document).on("beforeElementReplace", function(event, componentId) {
+	var $component = $("#" + componentId);
+	$component.find(".CodeMirror").each(function() {
+		var cm = this.CodeMirror;
+		if (cm.toTextArea)
+			cm.toTextArea();
+	}).remove();
+	$component.find("form").addBack("form").each(function() {
+		this.submit = undefined;
+	});
+});
+
+CodeMirror.modeURL = '/wicket/resource/io.onedev.server.web.asset.codemirror.codemirrorresourcereference/mode/%N/%N.js';

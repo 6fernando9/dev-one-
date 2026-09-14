@@ -1,0 +1,129 @@
+onedev.server.floating = {
+	init: function(floatingId, alignment, noNarrowThanTarget, neverShrink, animation, closeCallback) {
+		var $floating = $("#" + floatingId);
+		$floating.data("closeCallback", closeCallback);
+		$floating.data("animation", animation);
+		
+		$floating.data("mouseUpOrTouchStart", function(e) {
+			if ($(".flatpickr-calendar.open").length == 0 
+					&& $(".pcr-app.visible").length == 0 
+					&& $floating.find(".dropdown-open").length == 0
+					// Select2 may detach its dropdown before this mouseup reaches the document.
+					&& $(e.target).closest(".select2-dropdown").length == 0
+					&& $(".select2-dropdown:visible").length == 0) {
+				/*
+				 * Close the floating panel if mouse clicks outside of the floating. Also we 
+				 * do not close the panel if mouse clicks on the element triggering this 
+				 * floating panel, as normally the triggering element already has the logic 
+				 * closing the floating when it is clicked (to achieve the toggle effect) 
+				 */
+				var x = e.pageX;
+				var y = e.pageY;
+				
+				// add this extra check as otherwise clicking on scroll bar of floating will hide the 
+				// floating in IE
+				var contains = $floating.offset().left<x && $floating.offset().left+$floating.outerWidth()>x
+						&& $floating.offset().top<y && $floating.offset().top+$floating.outerHeight()>y;
+						
+			    if (!$floating.is(e.target) && $floating.has(e.target).length === 0 && !contains) {
+			    	var $trigger = $floating.data("trigger");
+				    if (!$trigger || !$trigger.is(e.target) && $trigger.has(e.target).length === 0) {
+						$floating.data("closeCallback")();
+						$floating.data("mouseUpOrTouchStartEvent", e);
+					}
+			    }
+			}
+		});
+		$(document).on("mouseup touchstart", $floating.data("mouseUpOrTouchStart"));
+		
+		$floating.data("keydown", function(e) {
+			if (e.keyCode == 27 && $(e.target).closest(".flatpickr-calendar").length == 0 
+					&& $floating.find(".dropdown-open").length == 0
+					&& $(".select2-dropdown:visible").length == 0
+					&& $(".flatpickr-calendar.open").length == 0
+					&& $(".pcr-app.visible").length == 0) {
+				$floating.data("closeCallback")();
+				$floating.removeData("mouseUpOrTouchStartEvent");
+			}
+		});
+		
+		// use keydown as keypress does not work in chrome/safari
+		$(document).on("keydown", $floating.data("keydown"));
+
+		if (alignment) {
+			if (alignment.target.element)
+				$(alignment.target.element).addClass("floating-aligned");
+			$floating.data("alignment", alignment);
+		}
+		
+		var openTriggered = false;
+		$floating.data("afterElementReplace", function() {
+			var alignment = $floating.data("alignment");
+			if (alignment && alignment.target && alignment.target.element 
+					&& !document.body.contains(alignment.target.element)) {
+				$floating.data("closeCallback")();
+			} else {
+				if (alignment) {
+					$floating.align(alignment, noNarrowThanTarget, neverShrink);
+					
+					// align again to fix some position/dimension calculation issues
+					$floating.align(alignment, noNarrowThanTarget, neverShrink);
+					$floating.trigger("resized");
+				}
+				if (!openTriggered) {
+					$floating.trigger("open");
+					openTriggered = true;
+				}
+			}
+		});
+		$(document).on("afterElementReplace", $floating.data("afterElementReplace"));
+		if (alignment && $floating.hasClass("inplace-property-edit")) {
+			// Selections can wrap without an Ajax replacement, changing the editor height.
+			var contentResizeObserver = new ResizeObserver(function() {
+				$floating.data("afterElementReplace")();
+			});
+			contentResizeObserver.observe($floating.children(".content")[0]);
+			$floating.data("contentResizeObserver", contentResizeObserver);
+		}
+	}, 
+	
+	close: function(floatingId) {
+		var $floating = $("#" + floatingId);
+		
+		if ($floating.length != 0) {
+			var contentResizeObserver = $floating.data("contentResizeObserver");
+			if (contentResizeObserver)
+				contentResizeObserver.disconnect();
+
+			var $trigger = $floating.data("trigger");
+			var mouseUpOrTouchStartEvent = $floating.data("mouseUpOrTouchStartEvent");
+			if ($trigger && mouseUpOrTouchStartEvent) {
+				setTimeout(function() {	
+					var $parentFloating = $trigger.closest(".floating");
+					if ($parentFloating.length != 0) 
+						$parentFloating.data("mouseUpOrTouchStart")(mouseUpOrTouchStartEvent);
+				}, 0);
+			}
+			var alignment = $floating.data("alignment");
+			
+			if (alignment && alignment.target.element)
+				$(alignment.target.element).removeClass("floating-aligned");
+			
+			$(document).off("mouseup touchstart", $floating.data("mouseUpOrTouchStart"));
+			$(document).off("keydown", $floating.data("keydown"));
+			$(document).off("afterElementReplace", $floating.data("afterElementReplace"));
+			
+			$floating.trigger("close");
+			
+			var animation = $floating.data("animation");
+			if (animation) {
+				$floating.hide("slide", {direction: animation.toLowerCase()}, 200, function() {
+					$floating.remove();
+				});
+			} else {
+				$floating.remove();
+			}
+		}
+	}
+	
+};

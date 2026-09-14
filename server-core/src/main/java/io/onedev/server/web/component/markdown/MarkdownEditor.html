@@ -1,0 +1,92 @@
+<wicket:panel>
+	<div wicket:id="container" class="markdown-editor no-autosize name-changing-listener d-flex flex-column flex-grow-1 overflow-hidden">
+		<div class="halfscreen-resize-handle" role="separator" aria-orientation="horizontal"
+				aria-valuemin="30" aria-valuemax="80" tabindex="0"></div>
+		<div class="head flex-shrink-0">
+			<div class="actions d-flex flex-wrap">
+				<div class="normal-mode flex-wrap d-none d-lg-flex mr-4">
+					<a t:data-tippy-content="Bold" class="do-bold"><wicket:svg href="bold" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Italic" class="do-italic"><wicket:svg href="italic" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="markdown:heading" class="do-header"><wicket:svg href="header" class="icon"></wicket:svg></a>
+					<span class="separator"></span>
+					<a t:data-tippy-content="Link / upload" class="do-link"><wicket:svg href="link" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="markdown:image" class="do-image"><wicket:svg href="image" class="icon"></wicket:svg></a>
+					<span class="separator"></span>
+					<a t:data-tippy-content="Unordered list" class="do-list"><wicket:svg href="unordered-list" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Ordered list" class="do-orderlist"><wicket:svg href="ordered-list" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Task list" class="do-tasklist"><wicket:svg href="tick-box" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Code" class="do-code"><wicket:svg href="code" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Quote" class="do-quote"><wicket:svg href="quote" class="icon"></wicket:svg></a>
+					<span class="separator"></span>
+					<a t:data-tippy-content="Show emojis" class="do-emoji"><wicket:svg href="smile" class="icon"></wicket:svg></a>
+					<a wicket:id="doMention" class="do-mention"><wicket:svg href="at" class="icon"></wicket:svg></a>
+					<a wicket:id="doReference"><wicket:svg href="reference" class="icon"></wicket:svg></a>
+				</div>
+				<div class="compact-mode mr-2">
+					<a wicket:id="actionMenuTrigger"><wicket:svg href="menu" class="icon"></wicket:svg></a>
+				</div>
+				<div class="ml-auto d-flex flex-wrap">
+					<a wicket:id="doSuggestion" t:data-tippy-content="Code suggestion" class="do-suggestion mr-2"><wicket:svg href="diff" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Submit" class="do-submit d-none mr-2"><wicket:svg href="submit" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Toggle fixed width font" class="do-fixedwidth"><wicket:svg href="text-width" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Toggle half screen" class="do-halfscreen"><wicket:svg href="half-screen" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Toggle full screen" class="do-fullscreen"><wicket:svg href="maximize" class="icon"></wicket:svg></a>
+					<a t:data-tippy-content="Help" class="do-help"><wicket:svg href="question" class="icon"></wicket:svg></a>
+					<span class="separator"></span>
+					<a wicket:id="editLink" class="edit" t:data-tippy-content="Edit"><wicket:svg href="edit" class="icon"></wicket:svg></a>
+					<a class="preview" t:data-tippy-content="Preview"><wicket:svg href="eye" class="icon"></wicket:svg></a>
+					<a wicket:id="splitLink" t:data-tippy-content="Split view" class="split"><wicket:svg href="split" class="icon"></wicket:svg></a>
+					<div wicket:id="lazyResourceLoader" class="d-none"></div>
+				</div>						
+			</div>			
+			<div class="warning alert alert-notice alert-light-warning">
+				<a class="close" data-dismiss="alert"><span><wicket:svg href="times" class="icon"/></span></a>
+				<div class="message"><wicket:t>Below content is restored from an unsaved change. <a class="discard-unsaved-change">Discard</a></wicket:t></div>
+			</div>
+			<div class="emojis"></div>
+			<div class="help text-muted font-size-sm">
+				<wicket:svg href="bulb" class="icon icon-sm"></wicket:svg> 
+				<wicket:t>
+				<a href="https://guides.github.com/features/mastering-markdown/" target="_blank">GitHub flavored markdown</a> is accepted, 
+				with <a href="https://docs.onedev.io/appendix/markdown-syntax" target="_blank">mermaid, plantuml and katex support</a>. 
+				</wicket:t>
+				<span wicket:id="canAttachFile"><wicket:t>You may also drop file/image to the input box, or paste image from clipboard</wicket:t></span>
+			</div>
+		</div>
+		<div class="body d-flex flex-grow-1 overflow-hidden position-relative">
+			<div wicket:id="edit" class="edit d-flex flex-column overflow-hidden position-relative flex-grow-1">
+				<textarea wicket:id="input" class="form-control flex-grow-1 overflow-auto"></textarea>
+				<div class="ui-resizable-handle ui-resizable-s flex-shrink-0"></div>
+			</div>
+			<div wicket:id="preview" class="preview position-relative d-flex flex-column flex-grow-1 overflow-hidden">
+				<div wicket:id="rendered" class="markdown-rendered overflow-auto flex-grow-1"></div>
+				<div class="ui-resizable-handle ui-resizable-s flex-shrink-0"></div>
+			</div>
+			<div class="ui-resizable-handle ui-resizable-s flex-shrink-0"></div>
+		</div>
+	</div>
+	<wicket:fragment wicket:id="referenceMenuFrag">
+		<a wicket:id="issue" class="dropdown-item do-reference"><wicket:svg href="issue" class="icon mr-1"></wicket:svg> <wicket:t>Reference Issue</wicket:t></a>
+		<a wicket:id="pullRequest" class="dropdown-item do-reference" data-type="pr"><wicket:svg href="pull-request" class="icon mr-1"></wicket:svg> <wicket:t>Reference Pull Request</wicket:t></a>
+		<a wicket:id="build" class="dropdown-item do-reference" data-type="build"><wicket:svg href="play-circle" class="icon mr-1"></wicket:svg> <wicket:t>Reference Build</wicket:t></a>
+		<a wicket:id="workspace" class="dropdown-item do-reference" data-type="workspace"><wicket:svg href="terminal" class="icon mr-1"></wicket:svg> <wicket:t>Reference Workspace</wicket:t></a>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actionMenuFrag">
+		<a class="dropdown-item do-bold"><wicket:svg href="bold" class="icon mr-1"></wicket:svg> <wicket:t>Bold</wicket:t></a>
+    	<a class="dropdown-item do-italic"><wicket:svg href="italic" class="icon mr-1"></wicket:svg> <wicket:t>Italic</wicket:t></a>
+		<a class="dropdown-item do-header"><wicket:svg href="header" class="icon mr-1"></wicket:svg> <wicket:t>markdown:heading</wicket:t></a>
+		<div class="dropdown-divider"></div>
+		<a class="dropdown-item do-link"><wicket:svg href="link" class="icon mr-1"></wicket:svg> <wicket:t>Link / upload</wicket:t></a>
+		<a class="dropdown-item do-image"><wicket:svg href="image" class="icon mr-1"></wicket:svg> <wicket:t>markdown:image</wicket:t></a>
+		<div class="dropdown-divider"></div>
+		<a class="dropdown-item do-list"><wicket:svg href="unordered-list" class="icon mr-1"></wicket:svg> <wicket:t>Unordered List</wicket:t></a>
+		<a class="dropdown-item do-orderlist"><wicket:svg href="ordered-list" class="icon mr-1"></wicket:svg> <wicket:t>Ordered List</wicket:t></a>
+		<a class="dropdown-item do-tasklist"><wicket:svg href="tick-box" class="icon mr-1"></wicket:svg> <wicket:t>Task List</wicket:t></a>
+		<a class="dropdown-item do-code"><wicket:svg href="code" class="icon mr-1"></wicket:svg> <wicket:t>Code</wicket:t></a>
+		<a class="dropdown-item do-quote"><wicket:svg href="quote" class="icon mr-1"></wicket:svg> <wicket:t>Quote</wicket:t></a>
+		<div class="dropdown-divider"></div>
+		<a class="dropdown-item do-emoji"><wicket:svg href="smile" class="icon mr-1"></wicket:svg> <wicket:t>Show Emojis</wicket:t></a>
+		<a wicket:id="doMention" t:data-tippy-content="Mention someone" class="dropdown-item do-mention"><wicket:svg href="at" class="icon mr-1"></wicket:svg> <wicket:t>Mention Someone</wicket:t></a>
+		<wicket:container wicket:id="doReference"></wicket:container>
+	</wicket:fragment>
+</wicket:panel>

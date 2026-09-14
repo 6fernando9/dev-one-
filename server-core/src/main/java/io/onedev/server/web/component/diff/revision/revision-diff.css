@@ -1,0 +1,117 @@
+.revision-diff>.head {
+	position: sticky;
+	top: 0; 
+	background: white; 
+	z-index: 10;
+	padding-bottom: 1.6rem;
+	height: 64px;
+}
+.dark-mode .revision-diff>.head {
+	background: var(--dark-mode-dark);
+}
+.revision-diff>.head>.navs {
+	padding: 8px 12px;
+	border-style: dashed !important;
+}
+.revision-diff>.body>.title {
+	font-size: 1.2rem;
+	margin-bottom: 1.2rem;	
+}
+.revision-diff>.body>.alert {
+	margin-bottom: 1.2rem;
+}
+.revision-diff>.body>.title>a .icon {
+	transform: rotate(90deg);
+}
+.revision-diff>.body>.title>a.expanded .icon {
+	transform: rotate(-90deg);
+}
+
+.revision-diff>.body>.diff-stats>.diff-stat .dot-square, 
+.revision-diff>.body>.diff-stats>.diff-stat .arrow-square {
+	fill: #D0B44C;
+}
+.revision-diff>.body>.diff-stats>.diff-stat .plus-square {
+	fill: #35C335;
+}
+.revision-diff>.body>.diff-stats>.diff-stat .minus-square {
+	fill: #C33535;
+}
+.revision-diff>.body>.diff-stats>.diff-stat>span>.additions {
+	color: #35C335;
+}
+.revision-diff>.body>.diff-stats>.diff-stat>span>.deletions {
+	color: #C33535;
+}
+.revision-diff>.body>.diff-stats>.diff-stat>span>.additions, 
+.revision-diff>.body>.diff-stats>.diff-stat>span>.deletions {
+	font-size: 1rem;
+	font-weight: bold;
+	margin-right: 0.3rem;
+}
+
+.revision-diff>.body>.detail>.comment,
+.revision-diff>.body>.detail>.navigation {
+	top: 64px;
+	max-height: calc(100vh - 64px - var(--topbar-height));
+}
+
+.revision-diff>.body>.detail>.comment>.ui-resizable-handle,
+.revision-diff>.body>.detail>.navigation>.ui-resizable-handle {
+	border-right: 1px solid var(--light-gray);
+	background: var(--light) url(/~icon/grip3.svg) no-repeat scroll center center;
+	background-size: 18px 18px;
+    cursor: e-resize;
+    width: 4px;
+	position: relative;
+	right: 0;
+}
+.dark-mode .revision-diff>.body>.detail>.comment>.ui-resizable-handle,
+.dark-mode .revision-diff>.body>.detail>.navigation>.ui-resizable-handle {
+	border-right-color: var(--dark-mode-lighter-dark);
+	background: var(--dark-mode-light-dark) url(/~icon/dark-grip3.svg) no-repeat scroll center center;
+	background-size: 18px 18px;
+}
+.revision-diff>.body>.detail>.comment>.ui-resizable-handle {
+	right: 0;
+}
+.revision-diff>.body>.detail>.navigation>.ui-resizable-handle {
+	left: 0;
+}
+.revision-diff>.body>.detail>.diffs:empty {
+	display: none;
+}
+.revision-diff>.body>.detail>.diffs>.diff:last-child {
+	margin-bottom: 0 !important;
+}
+.revision-diff>.body>.detail>.navigation>.content .tree-content>a {
+	display: inline-block;
+	border-radius: 4px;
+	padding: 1px 4px 1px 3px;
+}
+.revision-diff>.body>.detail>.navigation>.content .tree-content>a.active {
+	background: #FCF5DA;
+}
+.dark-mode .revision-diff>.body>.detail>.navigation>.content .tree-content>a.active {
+	background: var(--dark-mode-light-warning);
+}
+.revision-diff>.head>.review-progress {
+	min-width: 120px;
+	height: calc(1.5em + 1.3rem + 2px);
+	border: 1px solid #BBDFF9;
+}
+.dark-mode .revision-diff>.head>.review-progress {
+	border-color: rgb(48, 68, 107);
+}
+.revision-diff>.head>.review-progress>:first-child {
+	background: var(--light-primary);
+	left: 0;
+	top: 0;
+	bottom: 0;
+}
+.revision-diff>.head>.review-progress>:last-child {
+	z-index: 1;
+}
+.dark-mode .revision-diff>.head>.review-progress>:first-child {
+	background: var(--dark-mode-light-primary);
+}

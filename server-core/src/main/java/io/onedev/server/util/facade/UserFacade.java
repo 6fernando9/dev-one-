@@ -1,0 +1,84 @@
+package io.onedev.server.util.facade;
+
+import io.onedev.server.model.User;
+
+import org.jspecify.annotations.Nullable;
+
+public class UserFacade extends EntityFacade {
+	
+	private static final long serialVersionUID = 1L;
+
+	private final String name;
+	
+	private final String fullName;
+
+	private final User.Type type;	
+
+	private final boolean disabled;
+
+	private final boolean entitleToAll;
+
+	private final boolean keepEmailAddressesPrivate;
+	
+	public UserFacade(Long id, String name, @Nullable String fullName, User.Type type, 
+				boolean disabled, boolean entitleToAll, boolean keepEmailAddressesPrivate) {
+		super(id);
+		this.name = name;
+		this.fullName = fullName;
+		this.type = type;
+		this.disabled = disabled;
+		this.entitleToAll = entitleToAll;
+		this.keepEmailAddressesPrivate = keepEmailAddressesPrivate;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public String getDisplayName() {
+		if (getFullName() != null)
+			return getFullName();
+		else
+			return getName();
+	}
+
+	public boolean isRoot() {
+		return User.ROOT_ID.equals(getId());
+	}
+
+	public boolean isSystem() {
+		return User.SYSTEM_ID.equals(getId());
+	}
+
+	public boolean isUnknown() {
+		return User.UNKNOWN_ID.equals(getId());
+	}
+	
+	public static UserFacade of(@Nullable User user) {
+		if (user != null)
+			return user.getFacade();
+		else 
+			return null;
+	}
+
+	public User.Type getType() {
+		return type;
+	}
+
+	public boolean isDisabled() {
+		return disabled;
+	}
+
+	public boolean isEntitleToAll() {
+		return entitleToAll;
+	}
+
+	public boolean isKeepEmailAddressesPrivate() {
+		return keepEmailAddressesPrivate;
+	}
+	
+}

@@ -1,0 +1,34 @@
+---
+description: Do not add or keep Co-authored-by trailers in commit messages
+alwaysApply: true
+---
+
+# No Co-Author Trailers in Commit Messages
+
+**Note:** Do not add co-author or AI attribution info to commit messages in
+future work unless the user explicitly asks for it.
+
+When drafting, generating, or composing a git commit message (including via
+`generate-commit-message` or before `git commit`):
+
+- Do **not** append `Co-authored-by:` lines or other co-author / AI attribution
+  footers to the message.
+- Do **not** add `Co-authored-by: Cursor` or similar agent attribution.
+
+Include only subject, body, and footers required by the project's commit-message
+requirement (e.g. `Fixes #123`, breaking-change notices). Add co-author trailers
+only if the user explicitly asks for them or a non-empty requirement from
+`tod get-commit-message-requirement` mandates them.
+
+## Remove injected co-author trailers
+
+If a commit you just created still contains `Co-authored-by:` or other AI
+attribution footers (for example injected by the environment after
+`git commit` / `git commit --amend`):
+
+1. Verify the commit is yours from this conversation and has not been pushed.
+2. Rewrite the HEAD commit message to the intended text **without** those
+   trailers (for example via `git commit-tree` + `git reset --soft`, or an
+   equivalent rewrite that does not reintroduce the trailer).
+3. Confirm `git log -1 --format='%B'` has no `Co-authored-by:` / AI
+   attribution lines before finishing.

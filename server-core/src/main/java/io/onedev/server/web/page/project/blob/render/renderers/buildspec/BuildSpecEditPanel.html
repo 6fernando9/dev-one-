@@ -1,0 +1,61 @@
+<wicket:panel>
+    <div wicket:id="content" class="build-spec build-spec-edit d-flex flex-column flex-grow-1"></div>
+    <wicket:fragment wicket:id="parseableFrag">
+    	<div class="head">
+    		<a wicket:id="jobs" class="jobs"><wicket:t>Jobs</wicket:t></a>
+    		<a wicket:id="services" class="services"><wicket:t>Services</wicket:t></a>
+    		<a wicket:id="stepTemplates" class="step-templates"><wicket:t>Step Templates</wicket:t></a>
+    		<a wicket:id="properties" class="properties"><wicket:t>Properties</wicket:t></a>
+    		<a wicket:id="imports" class="imports"><wicket:t>Imports</wicket:t></a>
+    	</div>
+        <div wicket:id="body" class="body d-flex flex-column flex-grow-1">
+			<div wicket:id="feedback"></div>
+			<div wicket:id="content" class="content"></div>
+		</div>
+    </wicket:fragment>
+    <wicket:fragment wicket:id="unparseableFrag">
+        <div class="title"><wicket:t>Error parsing build spec</wicket:t></div>
+        <div wicket:id="errorMessage" class="error-message"></div>
+    </wicket:fragment>
+	<wicket:fragment wicket:id="jobsFrag">
+        <div wicket:id="pipeline" class="side autofit pr-2"></div>
+        <div wicket:id="detail" class="main d-flex flex-column flex-grow-1 ml-4 p-2"></div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="elementsFrag">
+        <div class="side autofit flex-shrink-0 pr-2">
+            <!-- do not leave white space between navs and nav element as we are using .navs:not(:empty)
+            in css -->
+            <div wicket:id="navs" class="navs"><div wicket:id="navs" class="nav btn-group btn-block mb-3">
+                <a wicket:id="select" class="select btn btn-outline-secondary text-nowrap justify-content-start">
+                    <wicket:svg href="grip" class="icon drag-indicator flex-shrink-0 mr-1"/>
+                    <span wicket:id="label" class="label"></span>
+                </a>
+				<a wicket:id="actions" t:data-tippy-content="Operations" class="actions btn btn-outline-secondary btn-icon flex-grow-0 flex-shrink-0"><wicket:svg href="arrow" class="icon rotate-90"></wicket:svg></a>
+            </div></div>
+            <div class="add btn-group btn-block">
+                <a wicket:id="create" class="create btn btn-primary justify-content-start no-suggestions">
+                    <wicket:svg href="plus" class="icon flex-shrink-0 mr-1"></wicket:svg> <wicket:t>Add New</wicket:t>
+                </a>
+            </div>
+        </div>
+		<div wicket:id="detail" class="main autofit d-flex flex-column flex-grow-1 ml-4 p-2"></div>
+	</wicket:fragment>
+    <wicket:fragment wicket:id="elementDetailFrag">
+		<div wicket:id="body" class="body autofit flex-grow-1 p-3"></div>
+    </wicket:fragment>
+	<wicket:fragment wicket:id="jobFrag">
+        <a wicket:id="select" class="select btn btn-outline-secondary text-nowrap justify-content-start">
+            <wicket:svg href="grip" class="icon drag-indicator flex-shrink-0 mr-1"/>
+            <span wicket:id="label" class="label"></span>
+        </a>
+		<a wicket:id="actions" t:data-tippy-content="Operations" class="actions btn btn-outline-secondary btn-icon flex-grow-0 flex-shrink-0"><wicket:svg href="arrow" class="icon rotate-90"></wicket:svg></a>
+	</wicket:fragment>
+    <wicket:fragment wicket:id="addJobFrag">
+        <a wicket:id="create" class="create btn btn-primary justify-content-start text-nowrap">
+            <wicket:svg href="plus" class="icon flex-shrink-0 mr-1"></wicket:svg> <wicket:t>Add New</wicket:t>
+        </a>
+        <a wicket:id="suggestions" class="suggestions btn btn-primary flex-grow-0 flex-shrink-0 btn-icon" t:data-tippy-content="Suggestions">
+			<wicket:svg href="wand" class="icon"/>
+		</a>
+    </wicket:fragment>
+</wicket:panel>

@@ -1,0 +1,17 @@
+<wicket:extend>
+	<div class="issue-links">
+		<div class="text-muted mb-4">
+			<wicket:svg href="bulb" class="icon"/> <wicket:t>Links can be used to associate different issues. For instance, an issue can be linked to 
+			sub issues or related issues</wicket:t>
+		</div>
+		<a wicket:id="addNew" class="btn btn-icon btn-primary mb-4" t:data-tippy-content="Add issue link"><wicket:svg href="plus" class="icon"></wicket:svg></a>
+		<table wicket:id="links" class="table table-hover"></table>
+	</div>
+	<wicket:fragment wicket:id="nameColumnFrag">
+		<a wicket:id="link"><span wicket:id="label"></span></a>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actionColumnFrag">
+		<a wicket:id="edit" class="btn btn-xs btn-icon btn-light btn-hover-primary mr-1" t:data-tippy-content="Edit"><wicket:svg href="edit" class="icon align-middle"></wicket:svg></a>
+		<a wicket:id="delete" class="btn btn-xs btn-icon btn-light btn-hover-danger" t:data-tippy-content="Delete this link"><wicket:svg href="trash" class="icon align-middle"></wicket:svg></a>
+	</wicket:fragment>
+</wicket:extend>

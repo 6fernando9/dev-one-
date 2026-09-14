@@ -1,0 +1,234 @@
+/* OneDev's Bootstrap styling for Select2 4.1.0. */
+.select2-container.form-control,
+.select2-container.form-control-sm,
+.select2-container.form-control-lg {
+	background: transparent;
+	border: none;
+	display: block;
+	height: auto;
+	margin: 0;
+	padding: 0;
+}
+.select2-container--default .select2-selection {
+	background: white;
+	border: 1px solid #e4e6ef;
+	border-radius: 0.42rem;
+	color: #555;
+	min-height: calc(1.5em + 1.3rem + 2px);
+	outline: none;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.select2-container--default .select2-selection--single {
+	height: calc(1.5em + 1.3rem + 2px);
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+	color: inherit;
+	line-height: 1.5;
+	padding: 0.65rem 32px 0.65rem 12px;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+	border-left: 1px solid #e4e6ef;
+	height: calc(100% - 2px);
+	width: 24px;
+}
+.select2-container--default .select2-selection--single .select2-selection__clear {
+	height: 100%;
+	margin-right: 28px;
+	padding: 0 4px;
+}
+.select2-container--default .select2-selection .select2-selection__clear {
+	color: inherit;
+}
+.select2-container--default .select2-selection--multiple {
+	padding: 0 5px 5px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+	background: white;
+	border: 1px solid #e4e6ef;
+	color: #555;
+	line-height: 1.5;
+	margin-top: 5px;
+	padding-left: 20px;
+	max-width: 100%;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__display {
+	display: flex;
+	align-items: center;
+	padding: 2px 5px 2px 2px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+	border: none;
+	color: #999;
+	height: 100%;
+	padding: 0 4px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover,
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:focus {
+	background: transparent;
+	color: #555;
+}
+.select2-container .select2-search--inline .select2-search__field {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: 1.5;
+	height: 1.5em;
+	margin-top: 0.65rem;
+	padding: 0;
+	vertical-align: middle;
+	color: inherit;
+	box-shadow: none;
+}
+.select2-container .select2-search--inline .select2-search__field::placeholder {
+	line-height: inherit;
+}
+.select2-container--default .select2-selection__placeholder,
+.select2-container .select2-search__field::placeholder {
+	color: #999;
+	opacity: 1;
+}
+.select2-container.form-control-sm .select2-selection,
+.input-group-sm .select2-container .select2-selection {
+	min-height: 30px;
+	border-radius: 0.28rem;
+}
+.select2-container.form-control-sm .select2-selection--single,
+.input-group-sm .select2-container .select2-selection--single {
+	height: 30px;
+}
+.select2-container.form-control-sm .select2-selection--single .select2-selection__rendered,
+.input-group-sm .select2-selection--single .select2-selection__rendered {
+	padding: 5px 32px 5px 10px;
+}
+.select2-container.form-control-sm .select2-search--inline .select2-search__field,
+.input-group-sm .select2-search--inline .select2-search__field {
+	margin-top: 4px;
+}
+.select2-container.form-control-sm .select2-selection__choice,
+.input-group-sm .select2-container .select2-selection__choice {
+	margin-top: 3px;
+}
+.select2-container.form-control-lg .select2-selection,
+.input-group-lg .select2-container .select2-selection {
+	min-height: 45px;
+}
+.select2-container.form-control-lg .select2-selection--single,
+.input-group-lg .select2-container .select2-selection--single {
+	height: 45px;
+}
+.select2-container.form-control-lg .select2-selection--single .select2-selection__rendered,
+.input-group-lg .select2-selection--single .select2-selection__rendered {
+	padding: 10px 32px 10px 16px;
+}
+.select2-container.form-control-lg .select2-selection__choice,
+.input-group-lg .select2-container .select2-selection__choice {
+	line-height: 24px;
+}
+.select2-container--default.select2-container--focus .select2-selection,
+.select2-container--default.select2-container--open .select2-selection {
+	border-color: #69b3ff;
+}
+.select2-dropdown {
+	/* Bootstrap modal dialogs disable pointer events outside modal-content. */
+	pointer-events: auto;
+	border-color: #69b3ff;
+	border-radius: 0.42rem;
+	/* Keep result backgrounds inside the rounded dropdown border. */
+	overflow: hidden;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+	/* Above floating editors, side panels, and modal dialogs. */
+	z-index: 20000;
+}
+.select2-container--default .select2-search--dropdown .select2-search__field {
+	border: 1px solid #e4e6ef;
+	border-radius: 0.42rem;
+	color: #555;
+	background: white;
+	padding: 6px;
+	outline: none;
+}
+.select2-container--default .select2-results > .select2-results__options {
+	max-height: 240px;
+	overscroll-behavior: contain;
+}
+.select2-results__option {
+	overflow-wrap: anywhere;
+}
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+	background: #4c94f8;
+	color: white;
+}
+.select2-container--default .select2-results__option--selected {
+	background: #f3f6f9;
+}
+.select2-results__message,
+.select2-results__option.loading-results,
+.select2-results__option--load-more {
+	background: #fcf8e3;
+	color: #c09853;
+}
+.select2-container--default.select2-container--disabled .select2-selection {
+	background: #eee;
+	cursor: not-allowed;
+}
+/* The hidden select precedes the generated container in Select2 4.x. */
+.input-group > select:not(:first-child) + .select2-container .select2-selection,
+.input-group.select2-bootstrap-prepend .select2-selection {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.input-group.select2-bootstrap-append .select2-selection {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.dark-mode .select2-container--default .select2-selection,
+.dark-mode .select2-container--default .select2-selection--multiple .select2-selection__choice,
+.dark-mode .select2-container--default .select2-search--dropdown .select2-search__field {
+	background: var(--dark-mode-dark);
+	border-color: #323248;
+	color: white;
+}
+.dark-mode .select2-container--default .select2-selection__arrow {
+	border-color: #323248;
+}
+.select2-container--default.select2-container--open .select2-selection__arrow,
+.select2-container--default.select2-container--disabled .select2-selection__arrow,
+.dark-mode .select2-container--default.select2-container--open .select2-selection__arrow,
+.dark-mode .select2-container--default.select2-container--disabled .select2-selection__arrow {
+	border-left-color: transparent;
+}
+.dark-mode .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover,
+.dark-mode .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:focus {
+	background: transparent;
+	color: white;
+}
+.dark-mode .select2-container--default.select2-container--focus .select2-selection,
+.dark-mode .select2-container--default.select2-container--open .select2-selection {
+	border-color: #474761;
+}
+.dark-mode .select2-dropdown {
+	background: var(--dark-mode-dark);
+	border-color: #474761;
+	color: white;
+}
+.dark-mode .select2-container--default .select2-results__option--selected {
+	background: #323248;
+}
+.dark-mode .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+	background: #4c94f8;
+}
+.dark-mode .select2-results__message,
+.dark-mode .select2-results__option.loading-results,
+.dark-mode .select2-results__option--load-more {
+	background: #392f28;
+	color: #ffa800;
+}
+.dark-mode .select2-container--default.select2-container--disabled .select2-selection {
+	background: #323248;
+}
+/* Match bean validation, including focused controls and detached dropdowns. */
+.select2-container.is-invalid .select2-selection,
+.is-invalid .select2-container .select2-selection,
+.select2-selection.is-invalid,
+.select2-dropdown.is-invalid {
+	border-color: var(--danger) !important;
+}

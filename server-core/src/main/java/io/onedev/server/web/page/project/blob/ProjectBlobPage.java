@@ -1,0 +1,1840 @@
+package io.onedev.server.web.page.project.blob;
+
+import static io.onedev.server.ai.ToolUtils.wrapForChat;
+import static io.onedev.server.web.translation.Translation._T;
+import static org.apache.wicket.ajax.attributes.CallbackParameter.explicit;
+
+import java.io.Serializable;
+import java.net.URISyntaxException;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.inject.Inject;
+
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.wicket.Component;
+import org.apache.wicket.Session;
+import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.attributes.AjaxRequestAttributes;
+import org.apache.wicket.ajax.markup.html.AjaxLink;
+import org.apache.wicket.behavior.AttributeAppender;
+import org.apache.wicket.core.request.handler.IPartialPageRequestHandler;
+import org.apache.wicket.event.IEvent;
+import org.apache.wicket.markup.ComponentTag;
+import org.apache.wicket.markup.head.IHeaderResponse;
+import org.apache.wicket.markup.head.JavaScriptHeaderItem;
+import org.apache.wicket.markup.head.OnDomReadyHeaderItem;
+import org.apache.wicket.markup.html.WebMarkupContainer;
+import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.markup.html.link.BookmarkablePageLink;
+import org.apache.wicket.markup.html.link.ResourceLink;
+import org.apache.wicket.markup.html.panel.Fragment;
+import org.apache.wicket.model.AbstractReadOnlyModel;
+import org.apache.wicket.model.IModel;
+import org.apache.wicket.model.Model;
+import org.apache.wicket.request.IRequestParameters;
+import org.apache.wicket.request.cycle.RequestCycle;
+import org.apache.wicket.request.flow.RedirectToUrlException;
+import org.apache.wicket.request.handler.resource.ResourceReferenceRequestHandler;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
+import org.apache.wicket.util.visit.IVisit;
+import org.apache.wicket.util.visit.IVisitor;
+import org.eclipse.jgit.lib.FileMode;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Sets;
+
+import io.onedev.commons.utils.ExceptionUtils;
+import io.onedev.commons.utils.ExplicitException;
+import io.onedev.commons.utils.FileUtils;
+import io.onedev.commons.utils.PlanarRange;
+import io.onedev.server.ai.ChatTool;
+import io.onedev.server.ai.tools.code.GetFileContent;
+import io.onedev.server.ai.tools.code.GetFilesAndSubfolders;
+import io.onedev.server.ai.tools.code.GetRootFilesAndFolders;
+import io.onedev.server.ai.tools.code.QueryCodeSnippets;
+import io.onedev.server.ai.tools.code.QueryFilePaths;
+import io.onedev.server.ai.tools.code.QuerySymbolDefinitions;
+import io.onedev.server.buildspec.BuildSpec;
+import io.onedev.server.event.project.CommitIndexed;
+import io.onedev.server.git.Blob;
+import io.onedev.server.git.BlobContent;
+import io.onedev.server.git.BlobEdits;
+import io.onedev.server.git.BlobIdent;
+import io.onedev.server.git.GitUtils;
+import io.onedev.server.git.LfsObject;
+import io.onedev.server.git.LfsPointer;
+import io.onedev.server.git.exception.BlobEditException;
+import io.onedev.server.git.exception.NotTreeException;
+import io.onedev.server.git.exception.ObjectAlreadyExistsException;
+import io.onedev.server.git.exception.ObsoleteCommitException;
+import io.onedev.server.git.service.GitService;
+import io.onedev.server.job.JobAuthorizationContext;
+import io.onedev.server.job.JobAuthorizationContextAware;
+import io.onedev.server.model.CodeComment;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.PullRequest;
+import io.onedev.server.model.User;
+import io.onedev.server.search.code.CodeIndexService;
+import io.onedev.server.search.code.CodeSearchService;
+import io.onedev.server.search.code.hit.QueryHit;
+import io.onedev.server.search.code.query.BlobQuery;
+import io.onedev.server.search.code.query.TextQuery;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.CodeCommentService;
+import io.onedev.server.service.PullRequestService;
+import io.onedev.server.service.SettingService;
+import io.onedev.server.util.FileExtension;
+import io.onedev.server.util.FilenameUtils;
+import io.onedev.server.util.ProjectScopedCommit;
+import io.onedev.server.util.ProjectScopedCommitAware;
+import io.onedev.server.web.ajaxlistener.ConfirmLeaveListener;
+import io.onedev.server.web.behavior.AbstractPostAjaxBehavior;
+import io.onedev.server.web.behavior.ChangeObserver;
+import io.onedev.server.web.component.commit.status.CommitStatusLink;
+import io.onedev.server.web.component.floating.FloatingPanel;
+import io.onedev.server.web.component.link.DropdownLink;
+import io.onedev.server.web.component.link.ViewStateAwareAjaxLink;
+import io.onedev.server.web.component.link.ViewStateAwarePageLink;
+import io.onedev.server.web.component.menu.MenuItem;
+import io.onedev.server.web.component.menu.MenuLink;
+import io.onedev.server.web.component.modal.ModalLink;
+import io.onedev.server.web.component.modal.ModalPanel;
+import io.onedev.server.web.component.revision.RevisionPicker;
+import io.onedev.server.web.component.workspace.speclist.WorkspaceSpecListPanel;
+import io.onedev.server.web.page.project.ProjectPage;
+import io.onedev.server.web.page.project.blob.navigator.BlobNavigator;
+import io.onedev.server.web.page.project.blob.render.BlobRenderContext;
+import io.onedev.server.web.page.project.blob.render.BlobRenderer;
+import io.onedev.server.web.page.project.blob.render.commitoption.CommitOptionPanel;
+import io.onedev.server.web.page.project.blob.render.folder.FolderViewPanel;
+import io.onedev.server.web.page.project.blob.render.nocommits.NoCommitsPanel;
+import io.onedev.server.web.page.project.blob.render.noname.NoNameEditPanel;
+import io.onedev.server.web.page.project.blob.render.source.SourceEditPanel;
+import io.onedev.server.web.page.project.blob.render.source.SourceViewPanel;
+import io.onedev.server.web.page.project.blob.render.view.Positionable;
+import io.onedev.server.web.page.project.blob.search.SearchMenuContributor;
+import io.onedev.server.web.page.project.blob.search.advanced.AdvancedSearchPanel;
+import io.onedev.server.web.page.project.blob.search.quick.QuickSearchPanel;
+import io.onedev.server.web.page.project.blob.search.result.SearchResultPanel;
+import io.onedev.server.web.page.project.commits.ProjectCommitsPage;
+import io.onedev.server.web.page.project.overview.ProjectOverviewPage;
+import io.onedev.server.web.resource.RawBlobResource;
+import io.onedev.server.web.resource.RawBlobResourceReference;
+import io.onedev.server.web.upload.FileUpload;
+import io.onedev.server.web.util.EditParamsAware;
+
+public class ProjectBlobPage extends ProjectPage implements BlobRenderContext, 
+		EditParamsAware, JobAuthorizationContextAware, ProjectScopedCommitAware {
+
+	private static final String PARAM_INITIAL_NEW_PATH = "initial-new-path";
+	
+	private static final String PARAM_REQUEST = "request";
+	
+	private static final String PARAM_COMMENT = "comment";
+	
+	private static final String PARAM_MODE = "mode";
+	
+	private static final String PARAM_VIEW_PLAIN = "view-plain";
+	
+	private static final String PARAM_URL_BEFORE_EDIT = "url-before-edit";
+	
+	private static final String PARAM_URL_AFTER_EDIT = "url-after-edit";
+	
+	private static final String PARAM_QUERY = "query";
+	
+	public static final String PARAM_POSITION = "position";
+	
+	public static final String PARAM_CREATED_COMMIT = "created-commit";
+	
+	private static final String PARAM_COVERAGE_REPORT = "coverage-report";
+	
+	private static final String PARAM_PROBLEM_REPORT = "problem-report";
+	
+	private static final String PARAM_RAW = "raw";
+	
+	private static final String REVISION_PICKER_ID = "revisionPicker";
+	
+	private static final String BLOB_NAVIGATOR_ID = "blobNavigator";
+
+	private static final String BLOB_CONTENT_ID = "blobContent";
+		
+	private static final Logger logger = LoggerFactory.getLogger(ProjectBlobPage.class);
+
+	@Inject
+	private GitService gitService;
+
+	@Inject
+	private CodeIndexService codeIndexService;
+
+	@Inject
+	private CodeSearchService codeSearchService;
+
+	@Inject
+	private CodeCommentService codeCommentService;
+
+	@Inject
+	private SettingService settingService;
+
+	@Inject
+	private PullRequestService pullRequestService;
+
+	@Inject
+	private Set<BlobRenderer> blobRenderers;
+	
+	private State state;
+	
+	private ObjectId resolvedRevision;
+	
+	private Component revisionIndexing;
+	
+	private WebMarkupContainer searchResult;
+	
+	private AbstractPostAjaxBehavior ajaxBehavior;
+	
+	public ProjectBlobPage(PageParameters params) {
+		super(params);
+		
+		List<String> revisionAndPathSegments = new ArrayList<>();
+		for (int i=0; i<params.getIndexedCount(); i++) {
+			String segment = params.get(i).toString();
+			if (segment.contains(".."))
+				throw new ExplicitException("Invalid request path");
+			if (segment.length() != 0)
+				revisionAndPathSegments.add(segment);
+		}
+
+		BlobIdent blobIdent = new BlobIdent(getProject(), revisionAndPathSegments); 
+		state = new State(blobIdent);
+
+		String modeStr = params.get(PARAM_MODE).toString();
+		if (modeStr != null)
+			state.mode = Mode.valueOf(modeStr.toUpperCase());
+		
+		String viewPlain = params.get(PARAM_VIEW_PLAIN).toString();
+		state.viewPlain = "true".equals(viewPlain);
+		
+		state.urlBeforeEdit = params.get(PARAM_URL_BEFORE_EDIT).toString();
+		state.urlAfterEdit = params.get(PARAM_URL_AFTER_EDIT).toString();
+
+		if (state.blobIdent.revision != null)
+			resolvedRevision = getProject().getRevCommit(state.blobIdent.revision, true).copy();
+		
+		state.position = params.get(PARAM_POSITION).toString();
+		state.requestId = params.get(PARAM_REQUEST).toOptionalLong();
+		state.commentId = params.get(PARAM_COMMENT).toOptionalLong();
+		state.query = params.get(PARAM_QUERY).toString();
+		state.initialNewPath = params.get(PARAM_INITIAL_NEW_PATH).toString();
+		state.coverageReport = params.get(PARAM_COVERAGE_REPORT).toOptionalString();
+		state.problemReport = params.get(PARAM_PROBLEM_REPORT).toOptionalString();
+		
+		if (state.mode == Mode.ADD || state.mode == Mode.EDIT || state.mode == Mode.DELETE) {
+			if (!isOnBranch()) 
+				throw new IllegalArgumentException("Files can only be edited on branch");
+			
+			String path = state.blobIdent.path;
+			if (path != null && state.blobIdent.isTree())
+				path += "/";
+			
+			var revision = state.blobIdent.revision;
+			if (revision == null)
+				revision = "main";
+			if (!SecurityUtils.canModifyFile(getProject(), revision, path))
+				unauthorized();
+		}
+		
+		if (params.get(PARAM_RAW).toBoolean(false)) {
+			RequestCycle.get().scheduleRequestHandlerAfterCurrent(
+					new ResourceReferenceRequestHandler(new RawBlobResourceReference(),
+							RawBlobResource.paramsOf(getProject(), getBlobIdent())));
+		}
+	}
+	
+	@Override
+	protected void onInitialize() {
+		super.onInitialize();
+
+		newRevisionPicker(null);
+		newCommitStatusLink(null);
+		newWorkspacesLink(null);
+		newBlobNavigator(null);		
+		newBlobOperations(null);
+		
+		add(revisionIndexing = new WebMarkupContainer("revisionIndexing") {
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+
+				if (resolvedRevision != null) {
+					RevCommit commit = getProject().getRevCommit(resolvedRevision, true);
+					if (!codeIndexService.isIndexed(getProject().getId(), commit)) {
+						codeIndexService.indexAsync(getProject().getId(), commit);
+						setVisible(true);
+					} else {
+						setVisible(false);
+					}
+				} else {
+					setVisible(false);
+				}
+			}
+			
+		}.setOutputMarkupPlaceholderTag(true));
+		
+		revisionIndexing.add(new ChangeObserver() {
+			
+			@Override
+			public void onObservableChanged(IPartialPageRequestHandler handler, Collection<String> changedObservables) {
+				super.onObservableChanged(handler, changedObservables);
+				resizeWindow(handler);
+			}
+			
+			@Override
+			public Collection<String> findObservables() {
+				Set<String> observables = new HashSet<>();
+				if (resolvedRevision != null) 
+					observables.add(CommitIndexed.getChangeObservable(getProject().getRevCommit(resolvedRevision, true).name()));
+				return observables;
+			}
+			
+		});
+
+		newBuildSupportNote(null);
+		newBlobContent(null);
+
+		add(searchResult = new WebMarkupContainer("searchResult"));
+
+		List<QueryHit> queryHits;
+		if (state.query != null) {
+			int maxQueryEntries = settingService.getPerformanceSetting().getMaxCodeSearchEntries();
+			BlobQuery query = new TextQuery.Builder(state.query)
+					.wholeWord(true)
+					.caseSensitive(true)
+					.count(maxQueryEntries)
+					.build();
+			queryHits = codeSearchService.search(projectModel.getObject(), 
+					getProject().getRevCommit(resolvedRevision, true), query);
+		} else {
+			queryHits = null;
+		}
+		
+		newSearchResult(null, queryHits);
+
+		add(ajaxBehavior = new AbstractPostAjaxBehavior() {
+			
+			@Override
+			protected void respond(AjaxRequestTarget target) {
+				IRequestParameters params = RequestCycle.get().getRequest().getPostParameters(); 
+				String action = params.getParameterValue("action").toString("");
+				switch (action) {
+				case "quickSearch": 
+					new ModalPanel(target) {
+						
+						@Override
+						protected Component newContent(String id) {
+							return newQuickSearchPanel(id, this);
+						}
+						
+					};
+					break;
+				case "advancedSearch":
+					new ModalPanel(target) {
+						
+						@Override
+						protected Component newContent(String id) {
+							return newAdvancedSearchPanel(id, this);
+						}
+						
+					};
+					break;
+				case "permalink":
+					if (isOnBranch()) {
+						BlobIdent newBlobIdent = new BlobIdent(state.blobIdent);
+						newBlobIdent.revision = resolvedRevision.name();
+						ProjectBlobPage.this.onSelect(target, newBlobIdent, null);
+					}
+					break;
+				default:
+					throw new IllegalStateException("Unexpected action: " + action);
+				}
+			}
+			
+		});
+	}
+
+	/*
+	 * In case we are on a branch, this operation makes sure that the branch resolves
+	 * to a certain commit during the life cycle of our page, unless the page is 
+	 * refreshed. This can avoid the issue that displayed file content and subsequent 
+	 * operations encounters different commit if someone commits to the branch while 
+	 * we are staying on the page. 
+	 */
+	@Override
+	protected Map<String, ObjectId> getObjectIdCache() {
+		Map<String, ObjectId> objectIdCache = new HashMap<>();
+		if (resolvedRevision != null)
+			objectIdCache.put(state.blobIdent.revision, resolvedRevision);
+		return objectIdCache;
+	}
+
+	@Override
+	public CodeComment getOpenComment() {
+		if (state.commentId != null)
+			return codeCommentService.load(state.commentId);
+		else
+			return null;
+	}
+	
+	private void newBlobNavigator(@Nullable AjaxRequestTarget target) {
+		Component blobNavigator = new BlobNavigator(BLOB_NAVIGATOR_ID, this);
+		if (target != null) {
+			replace(blobNavigator);
+			target.add(blobNavigator);
+		} else {
+			add(blobNavigator);
+		}
+	}
+
+	private void newBlobOperations(@Nullable AjaxRequestTarget target) {
+		WebMarkupContainer blobOperations = new WebMarkupContainer("blobOperations");
+		blobOperations.setOutputMarkupId(true);
+		
+		String revision = state.blobIdent.revision;
+		if (revision == null)
+			revision = "main";
+		
+		AtomicBoolean reviewRequired = new AtomicBoolean(true);
+		try {
+			reviewRequired.set(getProject().isReviewRequiredForModification(getLoginUser(), revision, null)); 
+		} catch (Exception e) {
+			logger.error("Error checking review requirement", e);
+		}
+		
+		AtomicBoolean buildRequired = new AtomicBoolean(true);
+		try {
+			buildRequired.set(getProject().isBuildRequiredForModification(getLoginUser(), revision, null));
+		} catch (Exception e) {
+			logger.error("Error checking build requirement", e);
+		}
+
+		AtomicBoolean signatureRequiredButNoSigningKey = new AtomicBoolean(true);
+		try {
+			signatureRequiredButNoSigningKey.set(getProject().isCommitSignatureRequiredButNoSigningKey(getLoginUser(), revision)); 
+		} catch (Exception e) {
+			logger.error("Error checking signature requirement", e);
+		}
+		
+		blobOperations.add(new MenuLink("add") {
+
+			@Override
+			protected List<MenuItem> getMenuItems(FloatingPanel dropdown) {
+				List<MenuItem> menuItems = new ArrayList<>();
+				
+				menuItems.add(new MenuItem() {
+
+					@Override
+					public String getLabel() {
+						return _T("Create New File");
+					}
+
+					@Override
+					public WebMarkupContainer newLink(String id) {
+						return new ViewStateAwareAjaxLink<Void>(id) {
+
+							@Override
+							public void onClick(AjaxRequestTarget target) {
+								onModeChange(target, Mode.ADD, null);
+								dropdown.close();
+							}
+							
+						};
+					}
+					
+				});
+				
+				menuItems.add(new MenuItem() {
+
+					@Override
+					public String getLabel() {
+						return _T("Upload Files");
+					}
+
+					@Override
+					public WebMarkupContainer newLink(String id) {
+						return new ModalLink(id) {
+
+							@Override
+							public void onClick(AjaxRequestTarget target) {
+								super.onClick(target);
+								dropdown.close();
+							}
+
+							@Override
+							protected Component newContent(String id, ModalPanel modal) {
+								return new BlobUploadPanel(id, getDirectory()) {
+
+									@Override
+									protected Project getProject() {
+										return ProjectBlobPage.this.getProject();
+									}
+
+									@Override
+									protected ObjectId uploadFiles(FileUpload upload, String directory, String commitMessage) {
+										return ProjectBlobPage.this.uploadFiles(upload, directory, commitMessage);
+									}
+
+									@Override
+									public void onCancel(AjaxRequestTarget target) {
+										modal.close();
+									}
+
+									@Override
+									public void onCommitted(AjaxRequestTarget target, ObjectId commitId) {
+										ProjectBlobPage.this.onCommitted(target, commitId);
+										modal.close();
+									}
+									
+								};
+							}
+							
+						};
+					}
+					
+				});
+				return menuItems;
+			}
+			
+			@Override
+			protected void onComponentTag(ComponentTag tag) {
+				super.onComponentTag(tag);
+				
+				if (reviewRequired.get()) {
+					tag.append("class", "disabled", " ");
+					tag.put("title", "Review required for this change. Submit pull request instead");
+				} else if (buildRequired.get()) {
+					tag.append("class", "disabled", " ");
+					tag.put("title", "Build required for this change. Submit pull request instead");
+				} else if (signatureRequiredButNoSigningKey.get()) {
+					tag.append("class", "disabled", " ");
+					tag.put("title", "Signature required for this change, please generate system GPG signing key first");
+				} else {
+					tag.put("title", "Add on branch " + state.blobIdent.revision);
+				}
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				
+				Project project = getProject();
+				if ((state.mode == Mode.VIEW || state.mode == Mode.BLAME) 
+						&& isOnBranch() && state.blobIdent.isTree() 
+						&& SecurityUtils.canWriteCode(project)) {
+					setVisible(true);
+					setEnabled(!reviewRequired.get() && !buildRequired.get() && !signatureRequiredButNoSigningKey.get());
+				} else {
+					setVisible(false);
+				}
+			}
+			
+		});
+		
+		blobOperations.add(new MenuLink("search") {
+
+			@Override
+			protected List<MenuItem> getMenuItems(FloatingPanel dropdown) {
+				List<MenuItem> menuItems = new ArrayList<>();
+				menuItems.add(new MenuItem() {
+
+					@Override
+					public String getShortcut() {
+						return "T";
+					}
+
+					@Override
+					public String getLabel() {
+						return _T("Quick Search");
+					}
+
+					@Override
+					public WebMarkupContainer newLink(String id) {
+						return new ModalLink(id) {
+							
+							@Override
+							public void onClick(AjaxRequestTarget target) {
+								super.onClick(target);
+								dropdown.close();
+							}
+
+							@Override
+							protected Component newContent(String id, ModalPanel modal) {
+								return newQuickSearchPanel(id, modal);
+							}
+							
+						};
+					}
+					
+				});
+				menuItems.add(new MenuItem() {
+
+					@Override
+					public String getShortcut() {
+						return "V";
+					}
+
+					@Override
+					public String getLabel() {
+						return _T("Advanced Search");
+					}
+
+					@Override
+					public WebMarkupContainer newLink(String id) {
+						return new ModalLink(id) {
+							
+							@Override
+							public void onClick(AjaxRequestTarget target) {
+								super.onClick(target);
+								dropdown.close();
+							}
+
+							@Override
+							protected Component newContent(String id, ModalPanel modal) {
+								return newAdvancedSearchPanel(id, modal);
+							}
+							
+						};
+					}
+					
+				});
+				
+				IVisitor<Component, Component> visitor = new IVisitor<Component, Component>() {
+
+					@Override
+					public void component(Component object, IVisit<Component> visit) {
+						visit.stop(object);
+					}
+					
+				};
+				SearchMenuContributor contributor = (SearchMenuContributor) getPage().visitChildren(
+						SearchMenuContributor.class, visitor);
+				if (contributor != null)
+					menuItems.addAll(contributor.getMenuItems(dropdown));
+				
+				return menuItems;
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+
+				setVisible(state.mode == Mode.VIEW || state.mode == Mode.BLAME);
+			}
+			
+		});
+		
+		String compareWith = resolvedRevision!=null?resolvedRevision.name():null;
+		String query;
+		if (state.blobIdent.path != null)
+			query = String.format("path(%s)", state.blobIdent.path);
+		else
+			query = null;
+		blobOperations.add(new ViewStateAwarePageLink<Void>("history", ProjectCommitsPage.class, 
+				ProjectCommitsPage.paramsOf(getProject(), query, compareWith)) {
+			
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+
+				setVisible(state.mode == Mode.VIEW || state.mode == Mode.BLAME);
+			}
+			
+		});
+		
+		blobOperations.add(new DropdownLink("getCode") {
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(state.blobIdent.path == null);
+			}
+
+			@Override
+			protected void onInitialize(FloatingPanel dropdown) {
+				super.onInitialize(dropdown);
+				dropdown.add(AttributeAppender.append("class", "get-code"));
+			}
+
+			@Override
+			protected Component newContent(String id, FloatingPanel dropdown) {
+				return new GetCodePanel(id, this) {
+					
+					@Override
+					protected Project getProject() {
+						return ProjectBlobPage.this.getProject();
+					}
+
+					@Override
+					protected String getRevision() {
+						return state.blobIdent.revision;
+					}
+					
+				};
+			}
+
+		});
+		
+		if (target != null) {
+			replace(blobOperations);
+			target.add(blobOperations);
+		} else {
+			add(blobOperations);
+		}
+	}
+
+	private QuickSearchPanel newQuickSearchPanel(String id, ModalPanel modal) {
+		return new QuickSearchPanel(id, projectModel, new AbstractReadOnlyModel<String>() {
+
+			@Override
+			public String getObject() {
+				return state.blobIdent.revision;
+			}
+			
+		}) {
+
+			@Override
+			protected void onSelect(AjaxRequestTarget target, QueryHit hit) {
+				BlobIdent selected = new BlobIdent(state.blobIdent.revision, hit.getFilePath(), 
+						FileMode.REGULAR_FILE.getBits()); 
+				ProjectBlobPage.this.onSelect(target, selected, BlobRenderer.getSourcePosition(hit.getHitPos()));
+				modal.close();
+			}
+			
+			@Override
+			protected void onMoreQueried(AjaxRequestTarget target, List<QueryHit> hits) {
+				newSearchResult(target, hits);
+				resizeWindow(target);
+				modal.close();
+			}
+
+			@Override
+			protected void onCancel(AjaxRequestTarget target) {
+				modal.close();
+			}
+			
+		};
+	}
+	
+	private AdvancedSearchPanel advancedSearchPanel;
+	
+	private ModalPanel advancedSearchPanelModal;
+	
+	private AdvancedSearchPanel newAdvancedSearchPanel(String id, ModalPanel modal) {
+		/*
+		 * Re-use advanced search panel instance so that search options can be preserved in the page
+		 */
+		advancedSearchPanelModal = modal;
+		if (advancedSearchPanel == null) {
+			advancedSearchPanel = new AdvancedSearchPanel(id, projectModel, new AbstractReadOnlyModel<String>() {
+	
+				@Override
+				public String getObject() {
+					return state.blobIdent.revision;
+				}
+				
+			}) {
+	
+				@Override
+				protected void onSearchComplete(AjaxRequestTarget target, List<QueryHit> hits) {
+					newSearchResult(target, hits);
+					resizeWindow(target);
+					advancedSearchPanelModal.close();
+				}
+	
+				@Override
+				protected void onCancel(AjaxRequestTarget target) {
+					advancedSearchPanelModal.close();
+				}
+	
+				@Override
+				protected BlobIdent getCurrentBlob() {
+					return state.blobIdent;
+				}
+				
+			};
+		} 
+		return advancedSearchPanel;
+	}
+	
+	private Blob getBlob(boolean mustExist) {
+		return getProject().getBlob(getBlobIdent(), mustExist);
+	}
+	
+	private void newBlobContent(@Nullable AjaxRequestTarget target) {
+		Component blobContent = null;
+		if (getMode() == Mode.VIEW && getBlobIdent().revision == null) {
+			blobContent = new NoCommitsPanel(BLOB_CONTENT_ID, this);
+		} else if (getMode() == Mode.DELETE) {
+			blobContent = new CommitOptionPanel(BLOB_CONTENT_ID, this, null);
+		} else if (getMode() == Mode.VIEW && getBlobIdent().isTree()) {
+			blobContent = new FolderViewPanel(BLOB_CONTENT_ID, this);
+		} else if (getMode() == Mode.ADD && getNewPath() == null) {
+			blobContent = new NoNameEditPanel(BLOB_CONTENT_ID, this);
+		} else {
+			if (getMode() == Mode.VIEW) {
+				LfsPointer lfsPointer = getBlob(true).getLfsPointer();
+				if (lfsPointer != null && !new LfsObject(getProject().getId(), lfsPointer.getObjectId()).exists()) 
+					blobContent = new Fragment(BLOB_CONTENT_ID, "lfsObjectMissingFrag", this);
+			}
+			
+			if (blobContent == null) {
+				for (BlobRenderer contribution: blobRenderers) {
+					blobContent = contribution.render(BLOB_CONTENT_ID, this);
+					if (blobContent != null) 
+						break;
+				}
+			}
+			
+			if (blobContent == null) {
+				if (getMode() == Mode.ADD 
+						|| getMode() == Mode.EDIT 
+								&& getBlob(true).getText() != null
+								&& getBlob(true).getLfsPointer() == null
+								&& !getBlob(true).isPartial()) {
+					blobContent = new SourceEditPanel(BLOB_CONTENT_ID, this);
+				} else if ((getMode() == Mode.VIEW || getMode() == Mode.BLAME) 
+						&& getBlobIdent().isFile() 
+						&& getBlob(true).getText() != null
+						&& getBlob(true).getLfsPointer() == null) {
+					blobContent = new SourceViewPanel(BLOB_CONTENT_ID, this, null);
+				} else {
+					Fragment fragment = new Fragment(BLOB_CONTENT_ID, "binaryOrLargeFileFrag", this);
+
+					Blob blob = getBlob(true);
+					if (blob.getText() == null || blob.getLfsPointer() != null) {
+						fragment.add(new Label("message", "Binary file"));
+					} else {
+						fragment.add(new Label("message", "File is too large"));
+					}
+
+					long size;
+					if (blob.getLfsPointer() != null)
+						size = blob.getLfsPointer().getObjectSize();
+					else
+						size = blob.getSize();
+					fragment.add(new Label("size", FileUtils.byteCountToDisplaySize(size)));
+					fragment.add(new WebMarkupContainer("lfsHint").setVisible(blob.getLfsPointer() != null));
+					
+					fragment.add(new ResourceLink<Void>("download", new RawBlobResourceReference(), 
+							RawBlobResource.paramsOf(getProject(), getBlobIdent())));
+					
+					WebMarkupContainer deleteContainer = new WebMarkupContainer("delete");
+					fragment.add(deleteContainer);
+					
+					if (SecurityUtils.canWriteCode(getProject()) && isOnBranch()) {
+						User user = SecurityUtils.getAuthUser();
+						String revision = getBlobIdent().revision;
+						String path = getBlobIdent().path;
+						boolean reviewRequired = getProject().isReviewRequiredForModification(user, revision, path);
+						boolean buildRequired = getProject().isBuildRequiredForModification(user, revision, path);
+						
+						String title;
+						if (reviewRequired) 
+							title = _T("Review required for deletion. Submit pull request instead");
+						else if (buildRequired) 
+							title = _T("Build required for deletion. Submit pull request instead");
+						else 
+							title = MessageFormat.format(_T("Delete from branch {0}"), getBlobIdent().revision);
+						deleteContainer.add(AttributeAppender.append("data-tippy-content", title));
+						
+						AjaxLink<Void> deleteLink = new ViewStateAwareAjaxLink<Void>("link") {
+
+							@Override
+							protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+								super.updateAjaxAttributes(attributes);
+								attributes.getAjaxCallListeners().add(new ConfirmLeaveListener());
+							}
+							
+							@Override
+							public void onClick(AjaxRequestTarget target) {
+								onModeChange(target, Mode.DELETE, null);
+							}
+
+						};
+
+						if (reviewRequired || buildRequired) {
+							deleteLink.add(AttributeAppender.append("class", "disabled"));
+							deleteLink.setEnabled(false);
+						}
+						deleteContainer.add(deleteLink);
+					} else {
+						deleteContainer.add(new WebMarkupContainer("link")).setVisible(false);
+					}					
+					blobContent = fragment;
+				}		
+			}
+		}
+		
+		blobContent.setOutputMarkupId(true);
+		
+		if (target != null) {
+			replace(blobContent);
+			target.add(blobContent);
+		} else {
+			add(blobContent);
+		}
+	}
+	
+	private void pushState(AjaxRequestTarget target) {
+		PageParameters params = paramsOf(getProject(), state);
+		CharSequence url = RequestCycle.get().urlFor(ProjectBlobPage.class, params);
+		pushState(target, url.toString(), state);
+	}
+	
+	private void replaceState(AjaxRequestTarget target) {
+		PageParameters params = paramsOf(getProject(), state);
+		CharSequence url = RequestCycle.get().urlFor(ProjectBlobPage.class, params);
+		replaceState(target, url.toString(), state);
+	}
+	
+	private void newCommitStatusLink(@Nullable AjaxRequestTarget target) {
+		Component commitStatusLink;
+		if (resolvedRevision != null) {
+			commitStatusLink = new CommitStatusLink("buildStatus", resolvedRevision, getRefName()) {
+
+				@Override
+				protected Project getProject() {
+					return ProjectBlobPage.this.getProject();
+				}
+
+				@Override
+				protected PullRequest getPullRequest() {
+					return null;
+				}
+
+				@Override
+				protected ObjectId getSeenBranchTip(String branch) {
+					var refName = getRefName();
+					if (refName != null && GitUtils.ref2branch(refName) != null)
+						return resolvedRevision;
+					else
+						return null;
+				}
+				
+			};
+		} else {
+			commitStatusLink = new WebMarkupContainer("buildStatus").add(AttributeAppender.append("class", "d-none"));
+		}
+		
+		commitStatusLink.setOutputMarkupPlaceholderTag(true);
+		
+		if (target != null) {
+			replace(commitStatusLink);
+			target.add(commitStatusLink);
+		} else {
+			add(commitStatusLink);
+		}
+	}
+	
+	private void newWorkspacesLink(@Nullable AjaxRequestTarget target) {
+		var workspacesLink = new DropdownLink("workspaces") {
+
+			@Override
+			protected Component newContent(String id, FloatingPanel dropdown) {
+				var refName = getRefName();
+				var branch = refName != null ? GitUtils.ref2branch(refName) : null;
+				return new WorkspaceSpecListPanel(id) {
+
+					@Override
+					protected Project getProject() {
+						return ProjectBlobPage.this.getProject();
+					}
+
+					@Override
+					protected String getBranch() {
+						return branch;
+					}
+
+					@Override
+					protected ObjectId getCommitId() {
+						return Preconditions.checkNotNull(ProjectBlobPage.this.getCommit()).copy();
+					}
+
+				};
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(state.blobIdent.revision != null 
+						&& SecurityUtils.canCreateWorkspaces(getProject())
+						&& !getProject().getHierarchyWorkspaceSpecs().isEmpty());
+			}
+
+		};
+
+		workspacesLink.setOutputMarkupPlaceholderTag(true);
+
+		if (target != null) {
+			replace(workspacesLink);
+			target.add(workspacesLink);
+		} else {
+			add(workspacesLink);
+		}
+	}
+
+	private void newBuildSupportNote(@Nullable AjaxRequestTarget target) {
+		Component buildSupportNote = new WebMarkupContainer("buildSupportNote") {
+
+			@Override
+			protected void onInitialize() {
+				super.onInitialize();
+				
+				String branch;
+				if (state.blobIdent.revision != null)
+					branch = state.blobIdent.revision;
+				else
+					branch = "main";
+				add(new ViewStateAwareAjaxLink<Void>("addFile") {
+
+					@Override
+					public void onClick(AjaxRequestTarget target) {
+						User user = SecurityUtils.getAuthUser();
+						Project project = getProject();
+						String file = BuildSpec.BLOB_PATH;
+						if (user == null) {
+							Session.get().warn(_T("Please login to perform this operation"));
+						} else if (!SecurityUtils.canWriteCode(project)) {	
+							Session.get().warn(_T("Code write permission is required for this operation"));
+						} else if (project.isReviewRequiredForModification(user, branch, file)
+								|| project.isBuildRequiredForModification(user, branch, file)
+								|| project.isCommitSignatureRequiredButNoSigningKey(user, branch)) {
+							Session.get().warn(_T("This operation is disallowed by branch protection rule"));
+						} else {
+							onModeChange(target, Mode.ADD, BuildSpec.BLOB_PATH);
+						}
+					}
+
+					@Override
+					public IModel<?> getBody() {
+						return Model.of(_T("adding " + BuildSpec.BLOB_PATH));
+					}
+					
+				});
+				setOutputMarkupPlaceholderTag(true);
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				if (resolvedRevision != null && isOnBranch() && state.blobIdent.path == null && state.mode == Mode.VIEW) {
+					BlobIdent oldBlobIdent = new BlobIdent(resolvedRevision.name(), ".onedev-buildspec", FileMode.TYPE_FILE);
+					BlobIdent blobIdent = new BlobIdent(resolvedRevision.name(), BuildSpec.BLOB_PATH, FileMode.TYPE_FILE);
+					setVisible(getProject().getBlob(blobIdent, false) == null 
+							&& getProject().getBlob(oldBlobIdent, false) == null);
+				} else {
+					setVisible(false);
+				}
+			}
+			
+		};
+		
+		if (target != null) {
+			replace(buildSupportNote);
+			target.add(buildSupportNote);
+		} else {
+			add(buildSupportNote);
+		}
+	}
+	
+	private void newRevisionPicker(@Nullable AjaxRequestTarget target) {
+		String revision = state.blobIdent.revision;
+		boolean canCreateRef;
+		if (revision == null) {
+			revision = "main";
+			canCreateRef = false;
+		} else {
+			canCreateRef = true;
+		}
+		
+		Component revisionPicker = new RevisionPicker(REVISION_PICKER_ID, projectModel, revision, canCreateRef) {
+	
+			@Override
+			protected void onComponentTag(ComponentTag tag) {
+				super.onComponentTag(tag);
+				if (isOnBranch())
+					tag.put("data-tippy-content", _T("Press 'y' to get permalink"));
+			}
+
+			@Override
+			protected String getRevisionUrl(String revision) {
+				BlobIdent blobIdent = new BlobIdent(revision, null, FileMode.TREE.getBits());
+				State state = new State(blobIdent);
+				PageParameters params = ProjectBlobPage.paramsOf(projectModel.getObject(), state);
+				return urlFor(ProjectBlobPage.class, params).toString();
+			}
+
+			@Override
+			protected void onSelect(AjaxRequestTarget target, String revision) {
+				BlobIdent newBlobIdent = new BlobIdent(state.blobIdent);
+				newBlobIdent.revision = revision;
+				if (newBlobIdent.path != null) {
+					newBlobIdent.mode = getProject().getMode(revision, newBlobIdent.path);
+					if (newBlobIdent.mode == 0) {
+						newBlobIdent.path = null;
+						newBlobIdent.mode = FileMode.TREE.getBits();
+					}
+				}
+				
+				ProjectBlobPage.this.onSelect(target, newBlobIdent, null);
+			}
+			
+		}; 
+		if (target != null) {
+			replace(revisionPicker);
+			target.add(revisionPicker);
+		} else {
+			add(revisionPicker);
+		}
+	}
+	
+	/*
+	 * This method represents changing of resolved revision, instead of the named revision. 
+	 * It is possible that resolved revision changes while named revision remains unchanged. 
+	 * For instance when a file on a branch is edited from this page, the named revision 
+	 * remains unchanged (still point to the branch), but the underlying resolved revision 
+	 * (the commit) has been changed 
+	 *   
+	 * @param target
+	 */
+	private void onResolvedRevisionChange(AjaxRequestTarget target) {
+		/* 
+		 * A hack to reset resolved revision to null to disable getObjectIdCache()
+		 * temporarily as otherwise getObjectId() method below will always 
+		 * resolved to existing value of resolvedRevision
+		 */
+		resolvedRevision = null;
+		resolvedRevision = getProject().getRevCommit(state.blobIdent.revision, true).copy();
+		
+		newRevisionPicker(target);
+		newCommitStatusLink(target);
+		newWorkspacesLink(target);
+		target.add(revisionIndexing);
+		newBlobNavigator(target);
+		newBlobOperations(target);
+		newBuildSupportNote(target);
+		newBlobContent(target);
+	}
+	
+	@Override
+	public void renderHead(IHeaderResponse response) {
+		super.renderHead(response);
+
+		response.render(JavaScriptHeaderItem.forReference(new ProjectBlobResourceReference()));
+		
+		String callback = ajaxBehavior.getCallbackFunction(explicit("action")).toString();
+		String script = String.format("onedev.server.projectBlob.onDomReady(%s);", callback);
+		
+		response.render(OnDomReadyHeaderItem.forScript(script));
+	}
+
+	public static State getState(CodeComment comment) {
+		BlobIdent blobIdent = new BlobIdent(comment.getMark().getCommitHash(), comment.getMark().getPath(), 
+				FileMode.REGULAR_FILE.getBits());
+		State state = new State(blobIdent);
+		state.commentId = comment.getId();
+		state.position = BlobRenderer.getSourcePosition(comment.getMark().getRange());
+		return state;
+	}	
+	
+	public static PageParameters paramsOf(Project project, BlobIdent blobIdent) {
+		return paramsOf(project, new State(blobIdent));
+	}
+	
+	public static void fillParams(PageParameters params, State state) {
+		int index = 0;
+		if (state.blobIdent.revision != null) {
+			for (String segment: Splitter.on("/").split(state.blobIdent.revision)) {
+				params.set(index, segment);
+				index++;
+			}
+		}
+		if (state.blobIdent.path != null) {
+			for (String segment: Splitter.on("/").split(state.blobIdent.path)) {
+				params.set(index, segment);
+				index++;
+			}
+		}
+		if (state.position != null)
+			params.add(PARAM_POSITION, state.position.toString());
+		if (state.requestId != null)
+			params.add(PARAM_REQUEST, state.requestId);
+		if (state.commentId != null)
+			params.add(PARAM_COMMENT, state.commentId);
+		if (state.mode != Mode.VIEW)
+			params.add(PARAM_MODE, state.mode.name().toLowerCase());
+		if (state.mode == Mode.VIEW && state.viewPlain)
+			params.add(PARAM_VIEW_PLAIN, true);
+		if (state.urlBeforeEdit != null)
+			params.add(PARAM_URL_BEFORE_EDIT, state.urlBeforeEdit);
+		if (state.urlAfterEdit != null)
+			params.add(PARAM_URL_AFTER_EDIT, state.urlAfterEdit);
+		if (state.coverageReport != null)
+			params.add(PARAM_COVERAGE_REPORT, state.coverageReport);
+		if (state.problemReport != null)
+			params.add(PARAM_PROBLEM_REPORT, state.problemReport);
+			
+		if (state.query != null)
+			params.add(PARAM_QUERY, state.query);
+		if (state.initialNewPath != null)
+			params.add(PARAM_INITIAL_NEW_PATH, state.initialNewPath);
+	}
+	
+	public static PageParameters paramsOf(Project project, State state) {
+		PageParameters params = paramsOf(project);
+		fillParams(params, state);
+		return params;
+	}
+	
+	private void newSearchResult(@Nullable AjaxRequestTarget target, @Nullable List<QueryHit> hits) {
+		Component content;
+		if (hits != null) {
+			content = new SearchResultPanel("content", this, hits) {
+				
+				@Override
+				protected void onClose(AjaxRequestTarget target) {
+					newSearchResult(target, null);
+					resizeWindow(target);
+				}
+				
+			};
+			if (target != null) {
+				target.appendJavaScript(""
+						+ "$('.project-blob>.search-result').css('display', 'flex'); "
+						+ "$('.project-blob .search-result>.body').focus();");
+			}
+		} else {
+			content = new WebMarkupContainer("content").setOutputMarkupId(true);
+			if (target != null) 
+				target.appendJavaScript("$('.project-blob>.search-result').hide();");
+			else 
+				searchResult.add(AttributeAppender.replace("style", "display: none;"));
+		}
+		if (target != null) {
+			searchResult.replace(content);
+			target.add(content);
+		} else {
+			searchResult.add(content);
+		}
+	}
+	
+	@Override
+	protected void onPopState(AjaxRequestTarget target, Serializable data) {
+		super.onPopState(target, data);
+
+		State popState = (State) data;
+		if (popState.blobIdent.revision != null 
+				&& !popState.blobIdent.revision.equals(state.blobIdent.revision)) {
+			state = popState;
+			newSearchResult(target, null);
+			onResolvedRevisionChange(target);
+		} else {
+			state = popState;
+			newBlobNavigator(target);
+			newBlobOperations(target);
+			newBuildSupportNote(target);
+			newBlobContent(target);
+		}
+	}
+	
+	@Override
+	public BlobIdent getBlobIdent() {
+		return state.blobIdent;
+	}
+	
+	@Override
+	public String getPosition() {
+		return state.position;
+	}
+
+	@Override
+	public void onPosition(AjaxRequestTarget target, String position) {
+		state.position = position;
+		pushState(target);
+	}
+
+	@Override
+	public String getPositionUrl(String position) {
+		State positionState = SerializationUtils.clone(state);
+		positionState.blobIdent.revision = resolvedRevision.name();
+		positionState.commentId = null;
+		positionState.position = position;
+		PageParameters params = paramsOf(getProject(), positionState);		
+		return RequestCycle.get().urlFor(ProjectBlobPage.class, params).toString();
+	}
+	
+	@Override
+	public Mode getMode() {
+		return state.mode;
+	}
+
+	@Override
+	public boolean isViewPlain() {
+		return state.viewPlain;
+	}
+
+	@Override
+	public String getUrlBeforeEdit() {
+		return state.urlBeforeEdit;
+	}
+
+	@Override
+	public String getUrlAfterEdit() {
+		return state.urlAfterEdit;
+	}
+	
+	@Override
+	public PageParameters getParamsBeforeEdit() {
+		return paramsOf(getProject(), state);
+	}
+
+	@Override
+	public PageParameters getParamsAfterEdit() {
+		return paramsOf(getProject(), state);
+	}
+
+	@Override
+	public void onSelect(AjaxRequestTarget target, BlobIdent blobIdent, @Nullable String position) {
+		String prevPosition = state.position;
+		state.position = position;
+		if (!blobIdent.revision.equals(state.blobIdent.revision)) {
+			state.blobIdent = blobIdent;
+			state.mode = Mode.VIEW;
+			state.requestId = null;
+			newSearchResult(target, null);
+			onResolvedRevisionChange(target);
+			newWorkspacesLink(target);
+			resizeWindow(target);
+		} else if (!Objects.equal(state.blobIdent.path, blobIdent.path)) {
+			state.blobIdent.path = blobIdent.path;
+			state.blobIdent.mode = blobIdent.mode;
+			state.mode = Mode.VIEW;
+			newBlobNavigator(target);
+			newBlobOperations(target);
+			newBuildSupportNote(target);
+			newBlobContent(target);
+			resizeWindow(target);
+		} else if (state.position != null) {
+			if (get(BLOB_CONTENT_ID) instanceof Positionable) {
+				// This logic is added for performance reason, we do not want to 
+				// reload the file if go to different mark positions in same file
+				((Positionable)get(BLOB_CONTENT_ID)).position(target, state.position);
+			} else {
+				state.mode = Mode.VIEW;
+				newBlobOperations(target);
+				newBuildSupportNote(target);
+				newBlobContent(target);
+				resizeWindow(target);
+			}
+		} else if (prevPosition != null) {
+			state.mode = Mode.VIEW;
+			newBlobOperations(target);
+			newBuildSupportNote(target);
+			newBlobContent(target);
+			resizeWindow(target);
+		}
+		pushState(target);
+	}
+
+	@Override
+	public void pushState(AjaxRequestTarget target, BlobIdent blobIdent, @Nullable String position) {
+		state.blobIdent = blobIdent;
+		state.position = position;
+		pushState(target);
+	}
+	
+	@Override
+	public void replaceState(AjaxRequestTarget target, BlobIdent blobIdent, @Nullable String position) {
+		state.blobIdent = blobIdent;
+		state.position = position;
+		replaceState(target);
+	}
+	
+	@Override
+	public void onSearchComplete(AjaxRequestTarget target, List<QueryHit> hits) {
+		newSearchResult(target, hits);
+		resizeWindow(target);
+	}
+
+	@Override
+	public void onCommentOpened(AjaxRequestTarget target, CodeComment comment, PlanarRange range) {
+		state.commentId = comment.getId();
+		state.position = BlobRenderer.getSourcePosition(range);
+		pushState(target);
+	}
+
+	@Override
+	public void onCommentClosed(AjaxRequestTarget target) {
+		state.commentId = null;
+		state.position = null;
+		pushState(target);
+	}
+	
+	@Override
+	public void onAddComment(AjaxRequestTarget target, PlanarRange range) {
+		state.commentId = null;
+		state.position = BlobRenderer.getSourcePosition(range);
+		pushState(target);
+	}
+	
+	@Override
+	public boolean isOnBranch() {
+		return state.blobIdent.revision == null || getProject().getBranchRef(state.blobIdent.revision) != null;
+	}
+
+	@Override
+	public String getRefName() {
+		if (state.blobIdent.revision != null)
+			return getProject().getRefName(state.blobIdent.revision);
+		else
+			return null;
+	}
+	
+	@Override
+	public RevCommit getCommit() {
+		if (resolvedRevision != null)
+			return getProject().getRevCommit(resolvedRevision, true);
+		else
+			return null;
+	}
+	
+	public static class State implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
+
+		public BlobIdent blobIdent;
+		
+		public Long requestId;
+		
+		public Long commentId;
+		
+		public String position;
+		
+		public Mode mode = Mode.VIEW;
+		
+		/*
+		 * Some blob can be rendered in a way for easier understanding, such as .onedev-buildspec.yml, 
+		 * In these cases, the VIEW_PLAIN mode enables to view plain text of the blob. Applicable
+		 * only when mode is VIEW 
+		 */
+		public boolean viewPlain;
+		
+		public String coverageReport;
+		
+		public String problemReport;
+		
+		public String urlBeforeEdit;
+		
+		public String urlAfterEdit;
+		
+		public String query;
+		
+		public String initialNewPath;
+
+		public State(BlobIdent blobIdent) {
+			this.blobIdent = blobIdent;
+		}
+
+		public State() {
+			blobIdent = new BlobIdent();
+		}
+
+	}
+
+	@Override
+	public void onModeChange(AjaxRequestTarget target, Mode mode, @Nullable String newPath) {
+		onModeChange(target, mode, false, newPath);
+	}
+	
+	@Override
+	public void onModeChange(AjaxRequestTarget target, Mode mode, boolean viewPlain, @Nullable String newPath) {
+		state.viewPlain = viewPlain;
+		state.initialNewPath = newPath;
+		
+		/*
+		 * User might be changing blob name when adding a file, and onModeChange will be called. 
+		 * In this case, we only need to re-create blob content
+		 */
+		if (mode != Mode.ADD || state.mode != Mode.ADD) {
+			state.mode = mode;
+			pushState(target);
+			if (state.mode == Mode.VIEW || state.mode == Mode.EDIT || state.mode == Mode.ADD) {
+				newBlobNavigator(target);
+				newBlobOperations(target);
+			}
+		}			
+		newBuildSupportNote(target);
+		newBlobContent(target);
+		resizeWindow(target);
+	}
+
+	@Override
+	public void onCommitted(@Nullable AjaxRequestTarget target, ObjectId commitId) {
+		Project project = getProject();
+		if (state.blobIdent.revision == null) {
+			state.blobIdent.revision = "main";
+			resolvedRevision = commitId;
+			project.setDefaultBranch("main");
+		}
+		String branch = state.blobIdent.revision;
+		
+		getProject().cacheObjectId(branch, commitId);
+		
+		if (target != null) {
+			if (state.urlAfterEdit != null) {
+				try {
+					URIBuilder builder = new URIBuilder(state.urlAfterEdit);
+					builder.addParameter(PARAM_CREATED_COMMIT, commitId.name());
+					throw new RedirectToUrlException(builder.build().toString());
+				} catch (URISyntaxException e) {
+					throw new RuntimeException(e);
+				}
+			} else {
+				BlobIdent newBlobIdent;
+				if (state.mode == Mode.DELETE) {
+					String parentPath = gitService.getClosestPath(
+							getProject(), commitId, StringUtils.substringBeforeLast(state.blobIdent.path, "/"));
+					newBlobIdent = new BlobIdent(branch, parentPath, FileMode.TREE.getBits());
+				} else if (state.mode == Mode.ADD) {
+					newBlobIdent = new BlobIdent(branch, getNewPath(), FileMode.REGULAR_FILE.getBits());
+				} else if (state.mode == Mode.EDIT) {
+					newBlobIdent = new BlobIdent(branch, getNewPath(), FileMode.REGULAR_FILE.getBits());
+				} else {
+					// We've uploaded some files
+					newBlobIdent = null;
+				}
+				
+				if (newBlobIdent != null) {
+					state.blobIdent = newBlobIdent;
+					state.commentId = null;
+					state.mode = Mode.VIEW;
+					onResolvedRevisionChange(target);
+					pushState(target);
+				} else {
+					state.mode = Mode.VIEW;
+					onResolvedRevisionChange(target);
+				}
+			}
+		}
+	}
+		
+	@Override
+	public String getInitialNewPath() {
+		return state.initialNewPath;
+	}
+	
+	@Override
+	public String getDirectory() {
+		String path;
+		if (state.mode == Mode.ADD || state.mode == Mode.EDIT) {
+			path = getNewPath();
+			if (path != null) {
+				if (path.contains("/"))
+					path = StringUtils.substringBeforeLast(path, "/");
+				else
+					path = null;
+			} else {
+				throw new IllegalStateException();
+			}
+		} else if (state.blobIdent.isTree()) {
+			path = state.blobIdent.path;
+		} else if (state.blobIdent.path.contains("/")) {
+			path = StringUtils.substringBeforeLast(state.blobIdent.path, "/");
+		} else {
+			path = null;
+		}
+		return path;
+	}
+	
+	@Override
+	public String getDirectoryUrl() {
+		String revision = state.blobIdent.revision;
+		BlobIdent blobIdent = new BlobIdent(revision, getDirectory(), FileMode.TREE.getBits());
+		ProjectBlobPage.State state = new ProjectBlobPage.State(blobIdent);
+		return urlFor(ProjectBlobPage.class, ProjectBlobPage.paramsOf(getProject(), state)).toString();
+	}
+
+	@Override
+	public String getRootDirectoryUrl() {
+		BlobIdent blobIdent = new BlobIdent(state.blobIdent.revision, null, FileMode.TREE.getBits());
+		return RequestCycle.get().urlFor(ProjectBlobPage.class, 
+				ProjectBlobPage.paramsOf(getProject(), blobIdent)).toString();
+	}
+	
+	@Override
+	public String getNewPath() {
+		BlobNavigator blobNavigator = (BlobNavigator) get(BLOB_NAVIGATOR_ID);
+		return blobNavigator.getNewPath();
+	}
+
+	@Override
+	public void onEvent(IEvent<?> event) {
+		super.onEvent(event);
+		if (event.getPayload() instanceof RevisionResolved) {
+			RevisionResolved revisionResolveEvent = (RevisionResolved) event.getPayload();
+			resolvedRevision = revisionResolveEvent.getResolvedRevision();
+		} 
+	}
+
+	@Override
+	public String getCoverageReport() {
+		return state.coverageReport;
+	}
+
+	@Override
+	public String getProblemReport() {
+		return state.problemReport;
+	}
+
+	@Override
+	public ObjectId uploadFiles(FileUpload upload, String directory, String commitMessage) {
+		Map<String, BlobContent> newBlobs = new HashMap<>();
+		
+		String parentPath = directory;
+
+		User user = Preconditions.checkNotNull(SecurityUtils.getAuthUser());
+		BlobIdent blobIdent = getBlobIdent();
+		
+		boolean signRequired = false;
+		for (var item: upload.getItems()) {
+			String blobPath = FilenameUtils.sanitizeFileName(FileUpload.getFileName(item));
+			if (parentPath != null)
+				blobPath = parentPath + "/" + blobPath;
+			blobPath = GitUtils.normalizePath(blobPath);
+			if (blobPath == null)
+				throw new BlobEditException("Invalid upload path");
+			var blobType = FileExtension.getExtension(blobPath);
+
+			var disallowedFileTypes = getProject().getBranchProtection(blobIdent.revision, user).getDisallowedFileTypes();
+			if (disallowedFileTypes.stream().anyMatch(type -> type.equalsIgnoreCase(blobType))) {
+				throw new BlobEditException(MessageFormat.format(_T("Not allowed file type: {0}"), blobType));
+			}
+
+			if (getProject().isReviewRequiredForModification(user, blobIdent.revision, blobPath)) 
+				throw new BlobEditException(_T("Review required for this change. Please submit pull request instead"));
+			else if (getProject().isBuildRequiredForModification(user, blobIdent.revision, blobPath)) 
+				throw new BlobEditException(_T("Build required for this change. Please submit pull request instead"));
+			else if (getProject().isCommitSignatureRequiredButNoSigningKey(user, blobIdent.revision)) 
+				signRequired = true;
+			
+			BlobContent blobContent = new BlobContent(item.get(), FileMode.REGULAR_FILE.getBits());
+			newBlobs.put(blobPath, blobContent);
+		}
+
+		BlobEdits blobEdits = new BlobEdits(Sets.newHashSet(), newBlobs);
+		String refName = blobIdent.revision!=null? GitUtils.branch2ref(blobIdent.revision):"refs/heads/main";
+
+		ObjectId prevCommitId;
+		if (blobIdent.revision != null)
+			prevCommitId = getProject().getRevCommit(blobIdent.revision, true).copy();
+		else
+			prevCommitId = ObjectId.zeroId();
+
+		while (true) {
+			try {
+				return gitService.commit(getProject(), blobEdits, refName, prevCommitId, 
+						prevCommitId, user.asPerson(), commitMessage, signRequired);
+			} catch (Exception e) {
+				ObjectAlreadyExistsException objectAlreadyExistsException = 
+						ExceptionUtils.find(e, ObjectAlreadyExistsException.class);
+				NotTreeException notTreeException = ExceptionUtils.find(e, NotTreeException.class);
+				ObsoleteCommitException obsoleteCommitException = 
+						ExceptionUtils.find(e, ObsoleteCommitException.class);
+				
+				if (objectAlreadyExistsException != null)
+					throw new BlobEditException(objectAlreadyExistsException.getMessage());
+				else if (notTreeException != null)
+					throw new BlobEditException(notTreeException.getMessage());
+				else if (obsoleteCommitException != null)
+					prevCommitId = obsoleteCommitException.getOldCommitId();
+				else
+					throw ExceptionUtils.unchecked(e);
+			}
+		}
+	}
+	
+	@Override
+	protected boolean isPermitted() {
+		return SecurityUtils.canReadCode(getProject());
+	}
+
+	@Override
+	public String appendRaw(String url) {
+		return doAppendRaw(url);
+	}
+
+	public static String doAppendRaw(String url) {
+		try {
+			URIBuilder builder;
+			builder = new URIBuilder(url);
+			for (NameValuePair pair: builder.getQueryParams()) {
+				if (pair.getName().equals(PARAM_RAW))
+					return url;
+			}
+			return builder.addParameter(PARAM_RAW, "true").build().toString();
+		} catch (URISyntaxException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	@Override
+	protected String getPageTitle() {
+		if (state.blobIdent.revision == null)
+			return getProject().getPath();
+		else if (state.blobIdent.path == null) 
+			return state.blobIdent.revision + " - " + getProject().getPath();
+		else if (state.blobIdent.isFile())
+			return state.blobIdent.getName() + " at " + state.blobIdent.revision + " - " + getProject().getPath();
+		else
+			return state.blobIdent.path + " at " + state.blobIdent.revision + " - " + getProject().getPath();
+	}
+
+	@Override
+	protected Component newProjectTitle(String componentId) {
+		return new Label(componentId, _T("Files"));
+	}
+
+	@Override
+	public PullRequest getPullRequest() {
+		if (state.requestId != null)
+			return pullRequestService.load(state.requestId);
+		else
+			return null;
+	}
+
+	@Override
+	public JobAuthorizationContext getJobAuthorizationContext() {
+		return new JobAuthorizationContext(getProject(), getCommit(), null);
+	}
+
+	@Override
+	protected BookmarkablePageLink<Void> navToProject(String componentId, Project project) {
+		if (project.isCodeManagement() && SecurityUtils.canReadCode(project)) {
+			return new ViewStateAwarePageLink<Void>(componentId, ProjectBlobPage.class, ProjectBlobPage.paramsOf(project));
+		} else {
+			return new ViewStateAwarePageLink<Void>(componentId, ProjectOverviewPage.class, 
+					ProjectOverviewPage.paramsOf(project.getId()));
+		}
+	}
+	
+	@Override
+	public List<ChatTool> getChatTools() {
+		var tools = super.getChatTools();
+		if (getCommit() != null) {
+			var projectId = getProject().getId();
+			var commitId = getCommit().copy();
+
+			tools.add(wrapForChat(new GetRootFilesAndFolders() {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId() {
+					return commitId;
+				}
+
+			}));
+			tools.add(wrapForChat(new GetFilesAndSubfolders() {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId() {
+					return commitId;
+				}
+
+			}));
+			tools.add(wrapForChat(new GetFileContent(false) {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId(boolean oldRevision) {
+					return commitId;
+				}
+
+			}));
+			tools.add(wrapForChat(new QuerySymbolDefinitions(false) {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId(boolean oldRevision) {
+					return commitId;
+				}
+
+			}));
+			tools.add(wrapForChat(new QueryCodeSnippets(false) {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId(boolean oldRevision) {
+					return commitId;
+				}
+
+			}));
+			tools.add(wrapForChat(new QueryFilePaths() {
+
+				@Override
+				protected Long getProjectId() {
+					return projectId;
+				}
+
+				@Override
+				protected ObjectId getCommitId() {
+					return commitId;
+				}
+
+			}));
+		}
+		return tools;
+	}
+
+	@Override
+	public ProjectScopedCommit getProjectScopedCommit() {
+		return new ProjectScopedCommit(getProject(), getCommit().copy());
+	}
+
+}

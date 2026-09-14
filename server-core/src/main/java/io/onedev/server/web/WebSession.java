@@ -1,0 +1,182 @@
+package io.onedev.server.web;
+
+import java.time.ZoneId;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.servlet.http.HttpSession;
+
+import org.apache.shiro.SecurityUtils;
+import org.apache.wicket.protocol.http.WicketServlet;
+import org.apache.wicket.request.Request;
+import org.jspecify.annotations.Nullable;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.model.Chat;
+import io.onedev.server.web.util.Cursor;
+
+public class WebSession extends org.apache.wicket.protocol.http.WebSession {
+
+	private static final long serialVersionUID = 1L;	
+	
+	private volatile Cursor issueCursor; 
+
+	private volatile Cursor buildCursor; 
+	
+	private volatile Cursor packCursor;
+	
+	private volatile Cursor pullRequestCursor; 
+
+	private volatile Cursor workspaceCursor;
+
+	private volatile ZoneId zoneId;
+	
+	private Map<Class<?>, String> redirectUrlsAfterDelete = new ConcurrentHashMap<>(); 
+	
+	private volatile boolean chatVisible;
+		
+	private volatile Long activeChatId;
+
+ 	private volatile Map<Long, Chat> anonymousChats = new ConcurrentHashMap<>();
+
+	private volatile String chatInput;
+
+	private volatile String ssoLogoutUrl;
+	
+	public WebSession(Request request) {
+		super(request);
+	}
+
+	public static WebSession get() {
+		return (WebSession) org.apache.wicket.protocol.http.WebSession.get();
+	}
+	
+	public void logout() {
+		SecurityUtils.getSubject().logout();
+        replaceSession();
+	}
+
+	@Override
+	public void replaceSession() {
+		super.replaceSession();
+		issueCursor = null;
+		buildCursor = null;
+		packCursor = null;
+		pullRequestCursor = null;
+		workspaceCursor = null;
+		zoneId = null;
+		redirectUrlsAfterDelete.clear();
+		chatVisible = false;
+		activeChatId = null;
+		anonymousChats.clear();
+		chatInput = null;
+		ssoLogoutUrl = null;
+	}	
+
+	@Nullable
+	public String getSsoLogoutUrl() {
+		return ssoLogoutUrl;
+	}
+
+	public void setSsoLogoutUrl(@Nullable String ssoLogoutUrl) {
+		this.ssoLogoutUrl = ssoLogoutUrl;
+	}
+
+	@Nullable
+	public Cursor getIssueCursor() {
+		return issueCursor;
+	}
+
+	@Nullable
+	public Cursor getBuildCursor() {
+		return buildCursor;
+	}
+
+	public Cursor getPackCursor() {
+		return packCursor;
+	}
+
+	@Nullable
+	public Cursor getPullRequestCursor() {
+		return pullRequestCursor;
+	}
+	
+	public void setIssueCursor(@Nullable Cursor issueCursor) {
+		this.issueCursor = issueCursor;
+	}
+
+	public void setBuildCursor(@Nullable Cursor buildCursor) {
+		this.buildCursor = buildCursor;
+	}
+
+	public void setPackCursor(@Nullable Cursor packCursor) {
+		this.packCursor = packCursor;
+	}
+	
+	public void setPullRequestCursor(@Nullable Cursor pullRequestCursor) {
+		this.pullRequestCursor = pullRequestCursor;
+	}
+
+	@Nullable
+	public Cursor getWorkspaceCursor() {
+		return workspaceCursor;
+	}
+
+	public void setWorkspaceCursor(@Nullable Cursor workspaceCursor) {
+		this.workspaceCursor = workspaceCursor;
+	}
+	
+	@Nullable
+	public String getRedirectUrlAfterDelete(Class<?> clazz) {
+		return redirectUrlsAfterDelete.get(clazz);
+	}
+
+	public void setRedirectUrlAfterDelete(Class<?> clazz, String redirectUrlAfterDelete) {
+		redirectUrlsAfterDelete.put(clazz, redirectUrlAfterDelete);
+	}
+	
+	@Nullable
+	public ZoneId getZoneId() {
+		return zoneId;
+	}
+
+	public void setZoneId(@Nullable ZoneId zoneId) {
+		this.zoneId = zoneId;
+	}
+
+	public boolean isChatVisible() {
+		return chatVisible;
+	}
+
+	public void setChatVisible(boolean chatVisible) {
+		this.chatVisible = chatVisible;
+	}
+
+	@Nullable
+	public Long getActiveChatId() {
+		return activeChatId;
+	}
+
+	public void setActiveChatId(Long activeChatId) {
+		this.activeChatId = activeChatId;
+	}
+
+	public Map<Long, Chat> getAnonymousChats() {
+		return anonymousChats;
+	}
+
+	@Nullable
+	public String getChatInput() {
+		return chatInput;
+	}
+
+	public void setChatInput(String chatInput) {
+		this.chatInput = chatInput;
+	}
+
+	public static WebSession from(HttpSession session) {
+		String attributeName = "wicket:" + OneDev.getInstance(WicketServlet.class).getServletName() + ":session";
+		return (WebSession) session.getAttribute(attributeName);		
+	}
+	
+}

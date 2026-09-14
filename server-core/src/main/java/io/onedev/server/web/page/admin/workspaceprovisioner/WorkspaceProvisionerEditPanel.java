@@ -1,0 +1,194 @@
+package io.onedev.server.web.page.admin.workspaceprovisioner;
+
+import static io.onedev.server.web.translation.Translation._T;
+
+import java.util.List;
+
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.markup.html.AjaxLink;
+import org.apache.wicket.ajax.markup.html.form.AjaxButton;
+import org.apache.wicket.event.IEvent;
+import org.apache.wicket.feedback.FencedFeedbackPanel;
+import org.apache.wicket.markup.ComponentTag;
+import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.panel.Panel;
+import org.apache.wicket.util.visit.IVisitor;
+import org.jspecify.annotations.Nullable;
+
+import io.onedev.server.annotation.SubscriptionRequired;
+import io.onedev.server.model.support.administration.workspaceprovisioner.WorkspaceProvisioner;
+import io.onedev.server.util.Path;
+import io.onedev.server.util.PathNode;
+import io.onedev.server.web.behavior.DisableAwareBehavior;
+import io.onedev.server.web.component.taskbutton.TestButton;
+import io.onedev.server.web.editable.BeanContext;
+import io.onedev.server.web.editable.BeanEditor;
+import io.onedev.server.web.editable.BeanUpdating;
+import io.onedev.server.web.util.Testable;
+import io.onedev.server.web.util.WicketUtils;
+
+abstract class WorkspaceProvisionerEditPanel extends Panel {
+
+	private final List<WorkspaceProvisioner> provisioners;
+
+	private final int provisonerIndex;
+
+	@Nullable
+	private final WorkspaceProvisioner provisioner;
+
+	public WorkspaceProvisionerEditPanel(String id, List<WorkspaceProvisioner> provisioners, int provisonerIndex) {
+		this(id, provisioners, provisonerIndex, null);
+	}
+
+	public WorkspaceProvisionerEditPanel(String id, List<WorkspaceProvisioner> provisioners, int provisonerIndex,
+			@Nullable WorkspaceProvisioner provisioner) {
+		super(id);
+		this.provisioners = provisioners;
+		this.provisonerIndex = provisonerIndex;
+		this.provisioner = provisioner;
+	}
+
+	@Nullable
+	private WorkspaceProvisioner getProvisioner(String name) {
+		for (WorkspaceProvisioner provisioner : provisioners) {
+			if (provisioner.getName().equals(name))
+				return provisioner;
+		}
+		return null;
+	}
+
+	@Override
+	protected void onInitialize() {
+		super.onInitialize();
+
+		WorkspaceProvisionerBean bean = new WorkspaceProvisionerBean();
+		if (provisioner != null)
+			bean.setProvisioner(SerializationUtils.clone(provisioner));
+		else if (provisonerIndex != -1)
+			bean.setProvisioner(SerializationUtils.clone(provisioners.get(provisonerIndex)));
+
+		BeanEditor editor = BeanContext.edit("editor", bean);
+
+		AjaxButton saveButton = new AjaxButton("save") {
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setEnabled(isProvisionerLicensed(editor));
+			}
+
+			@Override
+			protected void onComponentTag(ComponentTag tag) {
+				super.onComponentTag(tag);
+				if (!isEnabled())
+					tag.put("disabled", "disabled");
+			}
+
+			@Override
+			protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
+				super.onSubmit(target, form);
+
+				WorkspaceProvisioner provisioner = bean.getProvisioner();
+				if (provisonerIndex != -1) {
+					WorkspaceProvisioner oldProvisioner = provisioners.get(provisonerIndex);
+					if (!provisioner.getName().equals(oldProvisioner.getName()) && getProvisioner(provisioner.getName()) != null) {
+						editor.error(new Path(new PathNode.Named("provisioner"), new PathNode.Named("name")),
+								_T("This name has already been used by another workspace provisioner"));
+					}
+				} else if (getProvisioner(provisioner.getName()) != null) {
+					editor.error(new Path(new PathNode.Named("provisioner"), new PathNode.Named("name")),
+							_T("This name has already been used by another workspace provisioner"));
+				}
+
+				if (editor.isValid()) {
+					if (provisonerIndex != -1)
+						provisioners.set(provisonerIndex, provisioner);
+					else
+						provisioners.add(provisioner);
+					onSave(target);
+				} else {
+					target.add(form);
+				}
+			}
+
+			@Override
+			protected void onError(AjaxRequestTarget target, Form<?> form) {
+				super.onError(target, form);
+				target.add(form);
+			}
+
+		};
+		saveButton.add(new DisableAwareBehavior());
+
+		AjaxLink<Void> cancelButton = new AjaxLink<Void>("cancel") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				onCancel(target);
+			}
+
+		};
+
+		TestButton testButton = new TestButton("testingProvisioner", editor, "Workspace provisioner tested successfully") {
+
+			@Override
+			protected void onComponentTag(ComponentTag tag) {
+				super.onComponentTag(tag);
+				if (!isEnabled())
+					tag.put("disabled", "disabled");
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setEnabled(isProvisionerLicensed(editor));
+			}
+
+			@Override
+			protected Testable<?> getTestable() {
+				return (Testable<?>) bean.getProvisioner();
+			}
+
+		};
+
+		Form<?> form = new Form<Void>("form") {
+
+			@Override
+			public void onEvent(IEvent<?> event) {
+				super.onEvent(event);
+
+				if (event.getPayload() instanceof BeanUpdating) {
+					BeanUpdating beanUpdating = (BeanUpdating) event.getPayload();
+					beanUpdating.getHandler().add(saveButton);
+					beanUpdating.getHandler().add(testButton);
+				}
+
+			}
+
+		};
+
+		form.add(new FencedFeedbackPanel("feedback", form));
+		form.add(editor);
+		form.add(saveButton);
+		form.add(testButton);
+		form.add(cancelButton);
+
+		add(form);
+		setOutputMarkupId(true);
+	}
+
+	protected abstract void onSave(AjaxRequestTarget target);
+
+	protected abstract void onCancel(AjaxRequestTarget target);
+
+	private static boolean isProvisionerLicensed(BeanEditor editor) {
+		BeanEditor beanEditor = editor.visitChildren(
+				BeanEditor.class,
+				(IVisitor<BeanEditor, BeanEditor>) (component, visit) -> visit.stop(component));
+		return beanEditor == null
+				|| beanEditor.getDescriptor().getBeanClass().getAnnotation(SubscriptionRequired.class) == null
+				|| WicketUtils.isSubscriptionActive();
+	}
+
+}

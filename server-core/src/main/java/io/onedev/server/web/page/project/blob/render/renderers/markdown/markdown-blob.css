@@ -1,0 +1,26 @@
+.markdown-blob-view>.markdown-content>.markdown-viewer {
+	padding: 1.6rem;
+}
+.markdown-blob-view>.markdown-content>.markdown-viewer>.markdown-rendered {
+	max-width: 900px;
+	margin-left: auto;
+	margin-right: auto;
+}
+.blob-edit .markdown-editor .ui-resizable-handle {
+	display: none;
+}
+
+.blob-edit .markdown-editor>.head {
+	border: none;
+}
+.blob-edit .markdown-editor>.body>.edit>textarea, 
+.blob-edit .markdown-editor>.body>.preview>.markdown-rendered {
+	border-radius: 0 !important;
+} 
+
+@media (max-width: 991.98px) {
+	.markdown-outline-option,
+	.markdown-blob-view>.markdown-outline {
+		display: none !important;
+	}
+}

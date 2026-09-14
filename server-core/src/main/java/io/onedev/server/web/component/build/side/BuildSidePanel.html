@@ -1,0 +1,123 @@
+<wicket:panel>
+	<div class="build-side">
+        <div wicket:id="general" class="general properties">
+        	<div>
+        		<div class="name"><wicket:t>Commit</wicket:t></div>
+        		<div class="value">
+        			<a wicket:id="commit"><span wicket:id="label"></span></a>
+        		</div>
+        	</div>
+			<wicket:enclosure child="branch">
+        	<div>
+        		<div class="name"><wicket:t>Branch</wicket:t></div>
+        		<div class="value">
+        			<a wicket:id="branch"><span wicket:id="label"></span></a>
+        		</div>
+        	</div>
+			</wicket:enclosure>
+			<wicket:enclosure child="tag">
+        	<div>
+        		<div class="name"><wicket:t>Tag</wicket:t></div>
+        		<div class="value">
+        			<a wicket:id="tag"><span wicket:id="label"></span></a>
+        		</div>
+        	</div>
+			</wicket:enclosure>
+            <div>
+                <div class="name"><wicket:t>Job</wicket:t></div>
+                <div class="value text-break">
+                    <a wicket:id="job"><span wicket:id="label"></span></a>
+					<a wicket:id="editJob" class="ml-2 btn btn-icon btn-xs btn-light btn-hover-primary" t:data-tippy-content="Edit job"><wicket:svg href="edit" class="icon icon-sm"/></a>
+                </div>
+            </div>
+			<wicket:enclosure child="agent">
+            <div>
+                <div class="name"><wicket:t>Agent</wicket:t></div>
+                <div class="value">
+                    <a wicket:id="agent"></a>
+                </div>
+            </div>
+			</wicket:enclosure>
+            <div>
+                <div class="name"><wicket:t>Submitted By</wicket:t></div>
+                <div class="value">
+                    <a wicket:id="submitter"></a>
+                </div>
+            </div>
+            <div>
+                <div class="name"><wicket:t>Submitted At</wicket:t></div>
+                <div class="value"><span wicket:id="submitDate"></span></div>
+            </div>
+            <wicket:enclosure child="submitReason">
+            <div>
+                <div class="name"><wicket:t>Submit Reason</wicket:t></div>
+                <div class="value"><span wicket:id="submitReason"></span></div>
+            </div>
+            </wicket:enclosure>
+            <wicket:enclosure child="retryDate">
+            <div>
+                <div class="name"><wicket:t>Retried At</wicket:t></div>
+                <div class="value"><span wicket:id="retryDate"></span></div>
+            </div>
+            </wicket:enclosure>
+            <wicket:enclosure child="queueingTakes">            
+            <div>
+                <div class="name"><wicket:t>Queueing Takes</wicket:t></div>
+                <div class="value"><span wicket:id="queueingTakes"></span></div>
+            </div>
+            </wicket:enclosure>
+            <wicket:enclosure child="runningTakes">
+            <div>
+                <div class="name"><wicket:t>Running Takes</wicket:t></div>
+                <div class="value"><span wicket:id="runningTakes"></span></div>
+            </div>
+            </wicket:enclosure>
+            <wicket:enclosure child="canceller">
+            <div>
+                <div class="name"><wicket:t>Cancelled By</wicket:t></div>
+                <div class="value">
+                    <a wicket:id="canceller"></a>
+                </div>
+            </div>
+            </wicket:enclosure>
+        </div>
+        <div wicket:id="labels" class="labels">
+			<div wicket:id="head" class="d-flex align-items-center justify-content-between mb-3">
+		        <span class="font-weight-bolder"><wicket:t>Labels</wicket:t></span>
+				<wicket:svg href="gear" class="icon icon-sm"></wicket:svg>
+			</div>
+	        <div wicket:id="body" class="body d-flex align-items-center"></div>
+			<span wicket:id="labelsHelp" class="form-text font-size-sm text-muted"><wicket:svg href="bulb" class="icon icon-sm"/> <wicket:t>Labels can be defined in Administration / Label Management</wicket:t></span>
+        </div>
+        <div wicket:id="pullRequest" class="pull-request">
+	        <div class="font-weight-bolder mb-3"><wicket:t>Pull Request</wicket:t></div>
+	        <div class="body d-flex align-items-center">
+            	<a wicket:id="title" class="title mr-4"><span wicket:id="label"></span></a>
+                <div wicket:id="status" class="ml-auto status"></div>
+	        </div>
+        </div>
+        <wicket:enclosure child="params">
+        <div class="params properties">
+            <div wicket:id="params">
+                <div wicket:id="name" class="name"></div>
+                <div wicket:id="value" class="value"></div>
+            </div>
+        </div>
+        </wicket:enclosure>
+        <div wicket:id="dependences" class="dependences">
+            <wicket:enclosure child="dependencies">
+            <wicket:t>Depends on <a wicket:id="dependencies"><span wicket:id="label"></span></a></wicket:t>
+            </wicket:enclosure>
+            <span wicket:id="comma">, </span>
+            <wicket:enclosure child="dependents">
+            <wicket:t><a wicket:id="dependents"><span wicket:id="label"></span></a> depends on me</wicket:t>
+            </wicket:enclosure>
+        </div>
+		<div wicket:id="reference"></div>
+		<wicket:enclosure child="delete">
+			<div class="actions">
+				<a wicket:id="delete" class="delete btn btn-light-danger"><wicket:t>Delete</wicket:t></a>
+			</div>
+		</wicket:enclosure>
+	</div>
+</wicket:panel>

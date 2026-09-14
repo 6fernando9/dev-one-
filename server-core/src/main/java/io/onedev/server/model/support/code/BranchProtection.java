@@ -1,0 +1,422 @@
+package io.onedev.server.model.support.code;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.validation.Valid;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
+
+import org.eclipse.jgit.lib.ObjectId;
+import org.jspecify.annotations.Nullable;
+
+import com.google.common.base.Splitter;
+
+import io.onedev.commons.codeassist.InputSuggestion;
+import io.onedev.commons.utils.match.PathMatcher;
+import io.onedev.server.OneDev;
+import io.onedev.server.annotation.Editable;
+import io.onedev.server.annotation.JobChoice;
+import io.onedev.server.annotation.Patterns;
+import io.onedev.server.buildspec.BuildSpec;
+import io.onedev.server.git.service.GitService;
+import io.onedev.server.model.Build;
+import io.onedev.server.model.Build.Status;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
+import io.onedev.server.service.BuildService;
+import io.onedev.server.util.patternset.PatternSet;
+import io.onedev.server.util.reviewrequirement.ReviewRequirement;
+import io.onedev.server.util.usage.Usage;
+import io.onedev.server.util.usermatch.Anyone;
+import io.onedev.server.util.usermatch.UserMatch;
+import io.onedev.server.web.util.SuggestionUtils;
+
+@Editable
+public class BranchProtection implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private boolean enabled = true;
+	
+	private String branches;
+	
+	private String userMatch = new Anyone().toString();
+	
+	private boolean preventForcedPush = true;
+	
+	private boolean preventDeletion = true;
+	
+	private boolean preventCreation = true;
+	
+	private boolean commitSignatureRequired = false;
+
+	private CommitMessageChecker commitMessageChecker;
+	
+	private Integer maxCommitMessageLineLength;
+
+	private List<String> disallowedFileTypes = new ArrayList<>();
+	
+	private String reviewRequirement;
+	
+	private transient ReviewRequirement parsedReviewRequirement;
+	
+	private List<String> jobNames = new ArrayList<>();
+	
+	private List<FileProtection> fileProtections = new ArrayList<>();
+	
+	private boolean requireStrictBuilds;
+
+	public boolean isEnabled() {
+		return enabled;
+	}
+
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	@Editable(order=100, description="Specify space-separated branches to be protected. Use '**', '*' or '?' for <a href='https://docs.onedev.io/appendix/path-wildcard' target='_blank'>path wildcard match</a>. "
+			+ "Prefix with '-' to exclude")
+	@Patterns(suggester = "suggestBranches", path=true)
+	@NotEmpty
+	public String getBranches() {
+		return branches;
+	}
+
+	public void setBranches(String branches) {
+		this.branches = branches;
+	}
+
+	@SuppressWarnings("unused")
+	private static List<InputSuggestion> suggestBranches(String matchWith) {
+		return SuggestionUtils.suggestBranches(Project.get(), matchWith);
+	}
+	
+	@Editable(order=150, name="Applicable Users", description="Rule will apply only if the user changing the branch matches criteria specified here")
+	@io.onedev.server.annotation.UserMatch
+	@NotEmpty(message="may not be empty")
+	public String getUserMatch() {
+		return userMatch;
+	}
+
+	public void setUserMatch(String userMatch) {
+		this.userMatch = userMatch;
+	}
+
+	@Editable(order=200, description="Check this to prevent forced push")
+	public boolean isPreventForcedPush() {
+		return preventForcedPush;
+	}
+
+	public void setPreventForcedPush(boolean preventForcedPush) {
+		this.preventForcedPush = preventForcedPush;
+	}
+
+	@Editable(order=300, description="Check this to prevent branch deletion")
+	public boolean isPreventDeletion() {
+		return preventDeletion;
+	}
+
+	public void setPreventDeletion(boolean preventDeletion) {
+		this.preventDeletion = preventDeletion;
+	}
+
+	@Editable(order=350, description="Check this to prevent branch creation")
+	public boolean isPreventCreation() {
+		return preventCreation;
+	}
+
+	public void setPreventCreation(boolean preventCreation) {
+		this.preventCreation = preventCreation;
+	}
+
+	@Editable(order=360, description="Check this to require valid signature of head commit")
+	public boolean isCommitSignatureRequired() {
+		return commitSignatureRequired;
+	}
+
+	public void setCommitSignatureRequired(boolean commitSignatureRequired) {
+		this.commitSignatureRequired = commitSignatureRequired;
+	}
+
+	@Editable(order=370, name="Commit Message Checker", placeholder = "No commit message checker", description = """
+			Optionally specify a commit message checker to validate commit messages. Only applicable for non-merge commits""")
+	@Valid
+	@Nullable
+	public CommitMessageChecker getCommitMessageChecker() {
+		return commitMessageChecker;
+	}
+
+	public void setCommitMessageChecker(CommitMessageChecker commitMessageChecker) {
+		this.commitMessageChecker = commitMessageChecker;
+	}
+
+	@Editable(order=395, placeholder = "No limit")
+	@Min(40)
+	public Integer getMaxCommitMessageLineLength() {
+		return maxCommitMessageLineLength;
+	}
+
+	public void setMaxCommitMessageLineLength(Integer maxCommitMessageLineLength) {
+		this.maxCommitMessageLineLength = maxCommitMessageLineLength;
+	}
+	
+	@Editable(order=400, name="Required Reviewers", placeholder="No one", description="Optionally specify "
+			+ "required reviewers for changes of specified branch")
+	@io.onedev.server.annotation.ReviewRequirement
+	public String getReviewRequirement() {
+		return reviewRequirement;
+	}
+
+	public void setReviewRequirement(String reviewRequirement) {
+		this.reviewRequirement = reviewRequirement;
+	}
+
+	public ReviewRequirement getParsedReviewRequirement() {
+		if (parsedReviewRequirement == null)
+			parsedReviewRequirement = ReviewRequirement.parse(reviewRequirement);
+		return parsedReviewRequirement;
+	}
+	
+	public void setParsedReviewRequirement(ReviewRequirement parsedReviewRequirement) {
+		this.parsedReviewRequirement = parsedReviewRequirement;
+		reviewRequirement = parsedReviewRequirement.toString();
+	}
+	
+	@Editable(order=410, placeholder = "No disallowed file types", description = "Optionally specify disallowed file types by extensions (hit ENTER to add value), for instance <code>exe</code>, <code>bin</code>. Leave empty to allow all file types")
+	public List<String> getDisallowedFileTypes() {
+		return disallowedFileTypes;
+	}
+
+	public void setDisallowedFileTypes(List<String> disallowedFileTypes) {
+		this.disallowedFileTypes = disallowedFileTypes;
+	}
+
+	@Editable(order=500, name="Required Builds", placeholder="No any", description="Optionally choose required builds. You may also " +
+			"input jobs not listed here, and press ENTER to add them")
+	@JobChoice(tagsMode=true)
+	public List<String> getJobNames() {
+		return jobNames;
+	}
+
+	public void setJobNames(List<String> jobNames) {
+		this.jobNames = jobNames;
+	}
+	
+	@Editable(order=700, description="Optionally specify path protection rules")
+	@Valid
+	public List<FileProtection> getFileProtections() {
+		return fileProtections;
+	}
+
+	public void setFileProtections(List<FileProtection> fileProtections) {
+		this.fileProtections = fileProtections;
+	}
+
+	@Editable(order=800, name="Require Strict Pull Request Builds", description = "When target branch of a pull request " +
+			"has new commits, merge commit of the pull request will be recalculated, and this option tells whether or " +
+			"not to accept pull request builds ran on previous merged commit. If enabled, you will need to re-run " +
+			"required builds on the new merge commit. This setting takes effect only when required builds are specified")
+	public boolean isRequireStrictBuilds() {
+		return requireStrictBuilds;
+	}
+
+	public void setRequireStrictBuilds(boolean requireStrictBuilds) {
+		this.requireStrictBuilds = requireStrictBuilds;
+	}
+
+	public FileProtection getFileProtection(String file) {
+		Set<String> jobNames = new HashSet<>();
+		ReviewRequirement reviewRequirement = ReviewRequirement.parse(null);
+		for (FileProtection protection: fileProtections) {
+			if (PatternSet.parse(protection.getPaths()).matches(new PathMatcher(), file)) {
+				jobNames.addAll(protection.getJobNames());
+				reviewRequirement.mergeWith(protection.getParsedReviewRequirement());
+			}
+		}
+		FileProtection protection = new FileProtection();
+		protection.setJobNames(new ArrayList<>(jobNames));
+		protection.setParsedReviewRequirement(reviewRequirement);
+		return protection;
+	}
+	
+	public void onRenameGroup(String oldName, String newName) {
+		userMatch = UserMatch.onRenameGroup(userMatch, oldName, newName);
+		reviewRequirement = ReviewRequirement.onRenameGroup(reviewRequirement, oldName, newName);
+		
+		for (FileProtection fileProtection: getFileProtections()) {
+			fileProtection.setReviewRequirement(ReviewRequirement.onRenameGroup(
+					fileProtection.getReviewRequirement(), oldName, newName));
+		}
+	}
+	
+	public Usage onDeleteGroup(String groupName) {
+		Usage usage = new Usage();
+		if (UserMatch.isUsingGroup(userMatch, groupName))
+			usage.add("applicable users");
+		if (ReviewRequirement.isUsingGroup(reviewRequirement, groupName))
+			usage.add("required reviewers");
+
+		for (FileProtection protection: getFileProtections()) {
+			if (ReviewRequirement.isUsingGroup(protection.getReviewRequirement(), groupName)) {
+				usage.add("file protections");
+				break;
+			}
+		}
+		return usage.prefix("branch protection '" + getBranches() + "'").prefix("code");
+	}
+	
+	public void onRenameUser(String oldName, String newName) {
+		userMatch = UserMatch.onRenameUser(userMatch, oldName, newName);
+		reviewRequirement = ReviewRequirement.onRenameUser(reviewRequirement, oldName, newName);
+		
+		for (FileProtection fileProtection: getFileProtections()) {
+			fileProtection.setReviewRequirement(ReviewRequirement.onRenameUser(
+					fileProtection.getReviewRequirement(), oldName, newName));
+		}	
+	}
+	
+	public Usage onDeleteUser(String userName) {
+		Usage usage = new Usage();
+		if (UserMatch.isUsingUser(userMatch, userName))
+			usage.add("applicable users");
+		if (ReviewRequirement.isUsingUser(reviewRequirement, userName))
+			usage.add("required reviewers");
+
+		for (FileProtection protection: getFileProtections()) {
+			if (ReviewRequirement.isUsingUser(protection.getReviewRequirement(), userName)) {
+				usage.add("file protections");
+				break;
+			}
+		}
+		return usage.prefix("branch protection '" + getBranches() + "'").prefix("code");
+	}
+	
+	/**
+	 * Check if specified user can modify specified file in specified branch.
+	 *
+	 * @param file
+	 * 			file to be checked
+	 * @return
+	 * 			result of the check. 
+	 */
+	public boolean isReviewRequiredForModification(@Nullable String file) {
+		ReviewRequirement requirement = getParsedReviewRequirement();
+		if (!requirement.getUsers().isEmpty() || !requirement.getGroups().isEmpty()) 
+			return true;
+		
+		if (file != null) {
+			requirement = getFileProtection(file).getParsedReviewRequirement();
+			return !requirement.getUsers().isEmpty() || !requirement.getGroups().isEmpty();
+		} 
+		
+		return false;
+	}
+
+	public boolean canModifyBuildSpecRoughly(User user) {
+		ReviewRequirement requirement = getParsedReviewRequirement();
+		if (!requirement.canBeSatisfiedByUserRoughly(user))
+			return false;
+		requirement = getFileProtection(BuildSpec.BLOB_PATH).getParsedReviewRequirement();
+		return requirement.canBeSatisfiedByUserRoughly(user);
+	}
+	
+	public boolean isBuildRequiredForModification(@Nullable String file) {
+		return !getJobNames().isEmpty() || file != null && !getFileProtection(file).getJobNames().isEmpty();
+	}
+
+	/**
+	 * Check if specified user can push specified commit to specified ref.
+	 *
+	 * @param oldObjectId
+	 * 			old object id of the ref
+	 * @param newObjectId
+	 * 			new object id of the ref
+	 * @param gitEnvs
+	 * 			git environments
+	 * @return
+	 * 			result of the check
+	 */
+	public boolean isReviewRequiredForPush(Project project, ObjectId oldObjectId, 
+			ObjectId newObjectId, Map<String, String> gitEnvs) {
+		ReviewRequirement requirement = getParsedReviewRequirement();
+		if (!requirement.getUsers().isEmpty() || !requirement.getGroups().isEmpty()) 
+			return true;
+		
+		for (String changedFile: getGitService().getChangedFiles(project, oldObjectId, newObjectId, gitEnvs)) {
+			requirement = getFileProtection(changedFile).getParsedReviewRequirement();
+			if (!requirement.getUsers().isEmpty() || !requirement.getGroups().isEmpty())
+				return true;
+		}
+
+		return false;
+	}
+
+	public Collection<String> getViolatedFileTypes(Project project, ObjectId oldObjectId, ObjectId newObjectId,
+			Map<String, String> gitEnvs) {
+		if (disallowedFileTypes.isEmpty()) {
+			return Collections.emptySet();
+		} else {
+			var changedFiles = getGitService().getChangedFiles(project, oldObjectId, newObjectId, gitEnvs);
+			return getDisallowedFileTypes().stream()
+				.filter(type -> changedFiles.stream().anyMatch(file -> file.toLowerCase().endsWith("." + type.toLowerCase())))
+				.collect(Collectors.toSet());
+		}
+	}
+
+	public BuildRequirement getBuildRequirement(Project project, ObjectId oldObjectId, ObjectId newObjectId,
+												Map<String, String> gitEnvs) {
+		Collection<String> requiredJobs = new LinkedHashSet<>(getJobNames());
+		for (String changedFile: getGitService().getChangedFiles(project, oldObjectId, newObjectId, gitEnvs)) 
+			requiredJobs.addAll(getFileProtection(changedFile).getJobNames());
+		return new BuildRequirement(requiredJobs, isRequireStrictBuilds());
+	}
+	
+	private GitService getGitService() {
+		return OneDev.getInstance(GitService.class);
+	}
+	
+	public boolean isBuildRequiredForPush(Project project, ObjectId oldObjectId, ObjectId newObjectId, 
+			Map<String, String> gitEnvs) {
+		Collection<String> requiredJobs = getBuildRequirement(project, oldObjectId, newObjectId, gitEnvs).getRequiredJobs();
+
+		Collection<Build> builds = OneDev.getInstance(BuildService.class).query(project, newObjectId, null);
+		for (Build build: builds) {
+			if (requiredJobs.contains(build.getJobName()) && build.getStatus() != Status.SUCCESSFUL)
+				return true;
+		}
+		requiredJobs.removeAll(builds.stream().map(it->it.getJobName()).collect(Collectors.toSet()));
+		return !requiredJobs.isEmpty();			
+	}
+
+	@Nullable
+	public String checkCommitMessage(String commitMessage, boolean merged) {
+		var lines = Splitter.on('\n').trimResults().splitToList(commitMessage);
+		if (lines.isEmpty())
+			return "Message is empty";
+		
+		if (commitMessageChecker != null) {
+			var error = commitMessageChecker.checkCommitMessage(commitMessage, merged);
+			if (error != null)
+				return error;
+		}
+		
+		if (maxCommitMessageLineLength != null) {
+			for (int i=0; i<lines.size(); i++) {
+				var line = lines.get(i);
+				if (line.length() > maxCommitMessageLineLength) 
+					return "Line " + (i+1) + ": Length exceeds " + maxCommitMessageLineLength;
+			}
+		}
+		return null;
+	}
+			
+}

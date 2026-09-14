@@ -1,0 +1,134 @@
+package io.onedev.server.git.signatureverification.ssh;
+
+import com.trilead.ssh2.packets.TypesReader;
+import com.trilead.ssh2.packets.TypesWriter;
+import io.onedev.server.service.EmailAddressService;
+import io.onedev.server.service.SshKeyService;
+import io.onedev.server.git.signatureverification.SignatureVerifier;
+import io.onedev.server.git.signatureverification.VerificationResult;
+import io.onedev.server.exception.ExceptionUtils;
+import org.apache.sshd.common.digest.BuiltinDigests;
+import org.bouncycastle.crypto.Signer;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.digests.SHA512Digest;
+import org.bouncycastle.crypto.signers.Ed25519Signer;
+import org.bouncycastle.crypto.signers.RSADigestSigner;
+import org.bouncycastle.util.io.pem.PemReader;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.io.StringReader;
+
+import static io.onedev.server.web.translation.Translation._T;
+import static org.apache.sshd.common.digest.DigestUtils.getFingerPrint;
+import static org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil.parsePublicKey;
+
+@Singleton
+public class SshSignatureVerifier implements SignatureVerifier {
+	
+	private final SshKeyService sshKeyService;
+	
+	private final EmailAddressService emailAddressService;
+	
+	@Inject
+	public SshSignatureVerifier(SshKeyService sshKeyService, EmailAddressService emailAddressService) {
+		this.sshKeyService = sshKeyService;
+		this.emailAddressService = emailAddressService;
+	}
+
+	@Override
+	public VerificationResult verify(byte[] data, byte[] signatureData, String emailAddressValue) {
+		var normalizedSignature = normalizePem(new String(signatureData));
+		try (var pemReader = new PemReader(new StringReader(normalizedSignature))) {
+			var signatureBlob = pemReader.readPemObject().getContent();
+			var signatureBlobReader = new TypesReader(signatureBlob);
+			var magicPreamble = new String(signatureBlobReader.readBytes(6));
+			if (!magicPreamble.equals("SSHSIG"))
+				return new SshVerificationFailed(null, _T("Malformed ssh signature"));
+			var version = signatureBlobReader.readUINT32();
+			if (version != 1)
+				return new SshVerificationFailed(null, _T("Unsupported ssh signature version: ") + version);
+			var publicKeyBytes = signatureBlobReader.readByteString();
+			var keyType = new TypesReader(publicKeyBytes).readString();
+			var fingerprint = getFingerPrint(BuiltinDigests.sha256, publicKeyBytes);
+			var keyInfo = new SshKeyInfo(keyType, fingerprint);
+			
+			var sshKey = sshKeyService.findByFingerprint(fingerprint);
+			if (sshKey == null)
+				return new SshVerificationFailed(keyInfo, _T("Signed with an unknown ssh key"));
+			
+			var emailAddress = emailAddressService.findByValue(emailAddressValue);
+			if (emailAddress == null 
+					|| !emailAddress.isVerified() 
+					|| !emailAddress.getOwner().equals(sshKey.getOwner())) {
+				return new SshVerificationFailed(keyInfo, _T("Not a verified email of signing ssh key owner"));
+			}
+			
+			var namespace = signatureBlobReader.readString();
+			if (!namespace.equals("git"))
+				return new SshVerificationFailed(keyInfo, _T("Unexpected ssh signature namespace: ") + namespace);
+			var reserved = signatureBlobReader.readString();
+			
+			var hashAlgorithm = signatureBlobReader.readString();
+			byte[] hash;
+			if (hashAlgorithm.equals("sha256"))  
+				hash = org.apache.commons.codec.digest.DigestUtils.sha256(data);
+			else if (hashAlgorithm.equals("sha512")) 
+				hash = org.apache.commons.codec.digest.DigestUtils.sha512(data);					
+			else 
+				return new SshVerificationFailed(keyInfo, _T("Unexpected ssh signature hash algorithm: ") + hashAlgorithm);
+			
+			var writer = new TypesWriter();
+			writer.writeBytes(magicPreamble.getBytes());
+			writer.writeString(namespace);
+			writer.writeString(reserved);
+			writer.writeString(hashAlgorithm);
+			writer.writeString(hash, 0, hash.length);
+			
+			var sshSignature = signatureBlobReader.readByteString();
+			
+			var sshSignatureReader  = new TypesReader(sshSignature);
+			var signatureAlgorithm = sshSignatureReader.readString();
+			Signer signer;
+			switch (signatureAlgorithm) {
+				case "rsa-sha2-256":
+					signer = new RSADigestSigner(new SHA256Digest());
+					break;
+				case "rsa-sha2-512":
+					signer = new RSADigestSigner(new SHA512Digest());
+					break;
+				case "ssh-ed25519":
+					signer = new Ed25519Signer();
+					break;
+				default:
+					return new SshVerificationFailed(keyInfo, _T("Unsupported ssh signature algorithm: ") + signatureAlgorithm);
+			}
+
+			var publicKey = parsePublicKey(publicKeyBytes);
+			signer.init(false, publicKey);
+			var signBytes = writer.getBytes();
+			signer.update(signBytes, 0, signBytes.length);
+			if (signer.verifySignature(sshSignatureReader.readByteString()))
+				return new SshVerificationSuccessful(keyInfo);
+			else
+				return new SshVerificationFailed(keyInfo, _T("Invalid ssh signature"));
+		} catch (Exception e) {
+			throw ExceptionUtils.unchecked(e);
+		}
+	}
+
+	@Override
+	public String getPrefix() {
+		return "-----BEGIN SSH SIGNATURE-----";
+	}
+
+	private String normalizePem(String pem) {
+		var lines = pem.split("\n");
+		var result = new StringBuilder();
+		for (var line : lines) {
+			result.append(line.stripLeading()).append("\n");
+		}
+		return result.toString();
+	}
+
+}

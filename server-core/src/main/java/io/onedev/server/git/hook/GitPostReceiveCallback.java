@@ -1,0 +1,173 @@
+package io.onedev.server.git.hook;
+
+import static io.onedev.server.security.SecurityUtils.asPrincipals;
+import static io.onedev.server.security.SecurityUtils.asSubject;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.shiro.util.ThreadContext;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+
+import io.onedev.commons.utils.StringUtils;
+import io.onedev.server.event.ListenerRegistry;
+import io.onedev.server.event.project.RefUpdated;
+import io.onedev.server.git.GitUtils;
+import io.onedev.server.model.Project;
+import io.onedev.server.persistence.SessionService;
+import io.onedev.server.persistence.annotation.Sessional;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.ProjectService;
+import io.onedev.server.service.PullRequestService;
+import io.onedev.server.service.UrlService;
+import io.onedev.server.service.UserService;
+import io.onedev.server.util.ProjectAndBranch;
+
+@Singleton
+public class GitPostReceiveCallback extends HttpServlet {
+
+	private static final Logger logger = LoggerFactory.getLogger(GitPostReceiveCallback.class);
+	
+    public static final String PATH = "/git-postreceive-callback";
+    
+	@Inject
+    private ProjectService projectService;
+
+	@Inject
+	private UserService userService;
+    
+    @Inject
+    private UrlService urlService;
+
+    @Inject
+    private SessionService sessionService;
+    
+    @Inject
+    private ListenerRegistry listenerRegistry;
+
+	@Inject
+	private PullRequestService pullRequestService;
+    
+    @Sessional
+    @Override
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        List<String> fields = StringUtils.splitAndTrim(request.getPathInfo(), "/");
+        Preconditions.checkState(fields.size() == 3);
+        
+        if (!fields.get(2).equals(HookUtils.RECEIVE_HOOK_TOKEN)) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                    "Git hook callbacks can only be accessed by OneDev itself");
+            return;
+        }
+		
+        var principal = fields.get(1);
+        Long projectId = Long.valueOf(fields.get(0));
+        
+        ThreadContext.bind(asSubject(asPrincipals(principal)));
+
+        String refUpdateInfo = request.getParameter(HookUtils.PARAM_REF_UPDATES);
+        Preconditions.checkState(refUpdateInfo != null, "Git ref update information is not available");
+
+		Output output = new Output(response.getOutputStream());
+        
+        /*
+         * If multiple refs are updated, the hook stdin puts each ref update on a separate
+         * line. Parse correctly even if those line breaks are missing.  
+         */
+        refUpdateInfo = StringUtils.reverse(StringUtils.remove(refUpdateInfo, '\n'));
+        
+        fields.clear();
+        fields.addAll(StringUtils.splitAndTrim(refUpdateInfo, " "));
+
+        List<Triple<String, ObjectId, ObjectId>> updateInfos = new ArrayList<>();
+        
+        int pos = 0;
+        while (true) {
+        	String refName = StringUtils.reverse(fields.get(pos));
+        	pos++;
+        	ObjectId newObjectId = ObjectId.fromString(StringUtils.reverse(fields.get(pos)));
+        	pos++;
+        	String field = fields.get(pos);
+        	ObjectId oldObjectId = ObjectId.fromString(StringUtils.reverse(field.substring(0, 40)));
+        	
+        	Repository repository = projectService.getRepository(projectId);
+        	String branch = GitUtils.ref2branch(refName);
+        	String defaultBranch = GitUtils.getDefaultBranch(repository);
+        	if (branch != null && defaultBranch == null) {
+        		RefUpdate refUpdate = GitUtils.getRefUpdate(repository, "HEAD");
+        		GitUtils.linkRef(refUpdate, refName);
+        	}
+
+        	if (branch != null && defaultBranch != null && !branch.equals(defaultBranch) 
+        			&& !SecurityUtils.isSystem(principal) && !newObjectId.equals(ObjectId.zeroId())) {
+        		var source = new ProjectAndBranch(projectId, branch);
+        		boolean hasOpenPullRequest = pullRequestService.queryOpen(source).stream()
+        				.anyMatch(it -> it.getSourceProject().getId().equals(projectId) && it.getSourceBranch().equals(branch));
+        		if (!hasOpenPullRequest)
+        			showPullRequestCreateLink(output, projectId, branch, defaultBranch);
+        	}
+        	
+        	try (RevWalk revWalk = new RevWalk(repository)) {
+            	if (!oldObjectId.equals(ObjectId.zeroId())) 
+            		oldObjectId = revWalk.parseCommit(oldObjectId).copy();
+            	if (!newObjectId.equals(ObjectId.zeroId())) 
+            		newObjectId = revWalk.parseCommit(newObjectId).copy();
+        	}
+        	
+        	updateInfos.add(new ImmutableTriple<>(refName, oldObjectId, newObjectId));
+    		
+        	field = field.substring(40);
+        	if (field.length() == 0)
+        		break;
+        	else
+        		fields.set(pos, field);
+        }
+        
+		var userId = SecurityUtils.getUser().getId();
+        sessionService.runAsyncAfterCommit(() -> {
+			Project project = projectService.load(projectId);
+			try {
+				for (var updateInfo: updateInfos) {
+					RefUpdated event = new RefUpdated(userService.load(userId), project, 
+							updateInfo.getLeft(), updateInfo.getMiddle(), updateInfo.getRight());
+					listenerRegistry.invokeListeners(event);
+				}
+			} catch (Exception e) {
+				logger.error("Error posting ref updated event", e);
+			}
+		});
+	}
+
+	private void showPullRequestCreateLink(Output output, Long projectId, String branch, String defaultBranch) {
+    	output.writeLine();
+    	output.writeLine("Create a pull request for '"+ branch +"' by visiting:");
+		output.writeLine("    " + urlService.urlForProject(projectId, true) 
+				+"/~pulls/new?target=" 
+				+ projectId 
+				+ ":" 
+				+ defaultBranch 
+				+ "&source=" 
+				+ projectId
+				+ ":"
+				+ branch);
+		output.writeLine();
+	}
+	
+}

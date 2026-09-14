@@ -1,0 +1,27 @@
+<wicket:panel>
+	<table wicket:id="selected" class="selected table table-borderless">
+		<tr wicket:id="selectedItems" class="clearfix">
+			<td class="drag-indicator">
+				<wicket:svg href="grip" class="icon"/>
+			</td>
+			<td class="index"><span wicket:id="index"></span></td>
+			<td class="name text-nowrap"><span wicket:id="name"></span></td>
+			<td class="checkbox">
+				<label class="checkbox text-nowrap">
+					<input wicket:id="descending" type="checkbox"> <wicket:t>descending</wicket:t>
+				</label>
+			</td>
+			<td class="actions">
+				<a wicket:id="remove" t:data-tippy-content="Remove"><wicket:svg href="times" class="icon"/></a>
+			</td>
+		</tr>
+	</table>
+	<ul wicket:id="available" class="available list-unstyled mb-0">
+		<li wicket:id="availableItems">
+			<a wicket:id="add" t:data-tippy-content="Add" class="d-flex align-items-center text-hover-gray-dark text-nowrap">
+				<wicket:svg href="plus" class="icon"></wicket:svg>
+				<span wicket:id="name"></span>
+			</a>
+		</li>
+	</ul>
+</wicket:panel>

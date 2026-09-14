@@ -1,0 +1,1002 @@
+package io.onedev.server.web.component.codecomment;
+
+import static io.onedev.server.web.translation.Translation._T;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+
+import org.apache.wicket.AttributeModifier;
+import org.apache.wicket.Component;
+import org.apache.wicket.ajax.AjaxRequestTarget;
+import org.apache.wicket.ajax.attributes.AjaxRequestAttributes;
+import org.apache.wicket.ajax.markup.html.AjaxLink;
+import org.apache.wicket.ajax.markup.html.form.AjaxButton;
+import org.apache.wicket.behavior.AttributeAppender;
+import org.apache.wicket.behavior.Behavior;
+import org.apache.wicket.core.request.handler.IPartialPageRequestHandler;
+import org.apache.wicket.event.Broadcast;
+import org.apache.wicket.event.IEvent;
+import org.apache.wicket.feedback.FencedFeedbackPanel;
+import org.apache.wicket.markup.ComponentTag;
+import org.apache.wicket.markup.head.CssHeaderItem;
+import org.apache.wicket.markup.head.IHeaderResponse;
+import org.apache.wicket.markup.html.WebMarkupContainer;
+import org.apache.wicket.markup.html.basic.Label;
+import org.apache.wicket.markup.html.form.Form;
+import org.apache.wicket.markup.html.link.ExternalLink;
+import org.apache.wicket.markup.html.panel.Fragment;
+import org.apache.wicket.markup.html.panel.Panel;
+import org.apache.wicket.markup.repeater.RepeatingView;
+import org.apache.wicket.model.IModel;
+import org.apache.wicket.model.LoadableDetachableModel;
+import org.apache.wicket.model.Model;
+import org.apache.wicket.request.cycle.AbstractRequestCycleListener;
+import org.apache.wicket.request.cycle.RequestCycle;
+import org.apache.wicket.util.visit.IVisit;
+import org.apache.wicket.util.visit.IVisitor;
+import org.jspecify.annotations.Nullable;
+
+import com.google.common.collect.Sets;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.ai.ChatTool;
+import io.onedev.server.ai.ChatToolAware;
+import io.onedev.server.ai.ToolUtils;
+import io.onedev.server.ai.tools.codecomment.GetCodeCommentReplies;
+import io.onedev.server.ai.tools.codecomment.GetCodeComment;
+import io.onedev.server.attachment.AttachmentSupport;
+import io.onedev.server.attachment.ProjectAttachmentSupport;
+import io.onedev.server.data.migration.VersionedXmlDoc;
+import io.onedev.server.model.CodeComment;
+import io.onedev.server.model.CodeCommentReply;
+import io.onedev.server.model.CodeCommentStatusChange;
+import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
+import io.onedev.server.model.support.CompareContext;
+import io.onedev.server.persistence.TransactionService;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.AuditService;
+import io.onedev.server.service.CodeCommentReplyService;
+import io.onedev.server.service.CodeCommentService;
+import io.onedev.server.service.CodeCommentStatusChangeService;
+import io.onedev.server.service.UrlService;
+import io.onedev.server.util.DateUtils;
+import io.onedev.server.web.ajaxlistener.ConfirmClickListener;
+import io.onedev.server.web.ajaxlistener.ConfirmLeaveListener;
+import io.onedev.server.web.behavior.ChangeObserver;
+import io.onedev.server.web.component.comment.CommentInput;
+import io.onedev.server.web.component.link.copytoclipboard.CopyToClipboardLink;
+import io.onedev.server.web.component.markdown.ContentQuoted;
+import io.onedev.server.web.component.markdown.MarkdownEditor;
+import io.onedev.server.web.component.markdown.MarkdownViewer;
+import io.onedev.server.web.component.markdown.SuggestionSupport;
+import io.onedev.server.web.component.user.ident.Mode;
+import io.onedev.server.web.component.user.ident.UserIdentPanel;
+import io.onedev.server.web.page.base.BasePage;
+import io.onedev.server.xodus.VisitInfoService;
+
+public abstract class CodeCommentPanel extends Panel implements ChatToolAware {
+
+	private final Long commentId;
+	
+	private RepeatingView activitiesView;
+	
+	/**
+	 * We pass comment id instead of comment model as we want to make sure that 
+	 * comment is always loaded upon usage as this panel is involved in websocket
+	 * update and websocket update does not detach models at end of request which 
+	 * may result in Hibernate lazy load exception when the comment is used again
+	 * in next request 
+	 * 
+	 * @param id
+	 * @param commentId
+	 */
+	public CodeCommentPanel(String id, Long commentId) {
+		super(id);
+		this.commentId = commentId;
+	}
+
+	public CodeComment getComment() {
+		return OneDev.getInstance(CodeCommentService.class).load(commentId);
+	}
+	
+	private WebMarkupContainer newCommentOrReplyContainer() {
+		WebMarkupContainer viewFragment = new Fragment("comment", "commentOrReplyViewFrag", this);
+		viewFragment.setOutputMarkupId(true);
+		
+		viewFragment.add(AttributeAppender.append("class", new LoadableDetachableModel<String>() {
+
+			@Override
+			protected String load() {
+				var comment = getComment();
+				if (!comment.getUser().equals(SecurityUtils.getAuthUser()) && !comment.isVisitedAfter(getComment().getCreateDate()))
+					return "new";
+				else
+					return "";
+			}
+			
+		}));
+		
+		viewFragment.add(new UserIdentPanel("userAvatar", getComment().getUser(), Mode.AVATAR));
+		viewFragment.add(new Label("userName", getComment().getUser().getDisplayName()));
+		viewFragment.add(new Label("action", "commented"));
+		viewFragment.add(new Label("date", DateUtils.formatAge(getComment().getCreateDate()))
+				.add(new AttributeAppender("data-tippy-content", DateUtils.formatDateTime(getComment().getCreateDate()))));
+		if (isContextDifferent(getComment().getCompareContext())) {
+			String url = OneDev.getInstance(UrlService.class).urlFor(getComment(), false);
+			viewFragment.add(new ExternalLink("context", url) {
+
+				@Override
+				protected void onComponentTag(ComponentTag tag) {
+					super.onComponentTag(tag);
+					tag.put("data-tippy-content", _T("Current context is different from the context when this comment is added, click to show the comment context"));
+				}
+				
+			});
+		} else {
+			viewFragment.add(new WebMarkupContainer("context").setVisible(false));
+		}
+
+		viewFragment.add(new MarkdownViewer("content", new IModel<String>() {
+
+			@Override
+			public String getObject() {
+				return getComment().getContent();
+			}
+
+			@Override
+			public void detach() {
+			}
+
+			@Override
+			public void setObject(String object) {
+				CodeComment comment = getComment();
+				comment.setContent(object);
+				OneDev.getInstance(CodeCommentService.class).update(comment);
+			}
+			
+		}, null) {
+
+			@Override
+			protected SuggestionSupport getSuggestionSupport() {
+				return CodeCommentPanel.this.getSuggestionSupport();
+			}
+
+		});
+		
+		viewFragment.add(new WebMarkupContainer("anchor").setVisible(false));
+		viewFragment.add(new AjaxLink<Void>("edit") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				Fragment editFragment = new Fragment(viewFragment.getId(), "commentOrReplyEditFrag", CodeCommentPanel.this);
+				
+				Form<?> form = new Form<Void>("form");
+				form.setOutputMarkupId(true);
+				
+				CommentInput contentInput = new CommentInput("content", Model.of(getComment().getContent()), true) {
+
+					@Override
+					protected AttachmentSupport getAttachmentSupport() {
+						return new ProjectAttachmentSupport(getComment().getProject(), getComment().getUUID(), 
+								SecurityUtils.canManageCodeComments(getProject()));
+					}
+
+					@Override
+					protected String getAutosaveKey() {
+						return "code-comment:" + getComment().getId() + ":content";
+					}
+
+					@Override
+					protected SuggestionSupport getSuggestionSupport() {
+						return CodeCommentPanel.this.getSuggestionSupport();
+					}
+
+					@Override
+					protected Project getProject() {
+						return getComment().getProject();
+					}
+
+					@Override
+					protected List<User> getParticipants() {
+						return getComment().getParticipants();
+					}
+					
+				};
+				form.add(contentInput);
+				contentInput.setRequired(true);
+				contentInput.setLabel(Model.of(_T("Comment")));
+				
+				FencedFeedbackPanel feedback = new FencedFeedbackPanel("feedback", form); 
+				feedback.setOutputMarkupPlaceholderTag(true);
+				form.add(feedback);
+				
+				form.add(new AjaxLink<Void>("cancel") {
+
+					@Override
+					protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+						super.updateAjaxAttributes(attributes);
+						attributes.getAjaxCallListeners().add(new ConfirmLeaveListener(form));
+					}
+					
+					@Override
+					public void onClick(AjaxRequestTarget target) {
+						WebMarkupContainer commentOrReplyContainer = newCommentOrReplyContainer();
+						editFragment.replaceWith(commentOrReplyContainer);
+						target.add(commentOrReplyContainer);
+					}
+					
+				});
+				
+				form.add(new AjaxButton("save") {
+
+					@Override
+					protected void onInitialize() {
+						super.onInitialize();
+						add(new Label("label", "Save"));
+						add(AttributeAppender.append("class", "dirty-aware"));
+					}
+
+					@Override
+					protected void onError(AjaxRequestTarget target, Form<?> form) {
+						super.onError(target, form);
+						target.add(feedback);
+					}
+
+					@Override
+					protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
+						super.onSubmit(target, form);
+
+						String content = contentInput.getModelObject();
+						if (content.length() > CodeComment.MAX_CONTENT_LEN) {
+							error(_T("Comment too long"));
+							target.add(feedback);
+						} else {
+							CodeComment comment = getComment();
+							
+							comment.setContent(contentInput.getModelObject());
+							WebMarkupContainer commentOrReplyContainer = newCommentOrReplyContainer();
+							editFragment.replaceWith(commentOrReplyContainer);
+							target.add(commentOrReplyContainer);
+							onSaveComment(target, comment);
+						}
+					}
+
+				});
+				
+				editFragment.add(form);
+				editFragment.setOutputMarkupId(true);
+				viewFragment.replaceWith(editFragment);
+				target.add(editFragment);
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(SecurityUtils.canModifyOrDelete(getComment()));
+			}
+		});
+
+		viewFragment.add(new AjaxLink<Void>("quote") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				send(getPage(), Broadcast.BREADTH, new ContentQuoted(target, getComment().getContent()));
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(SecurityUtils.getAuthUser() != null);
+			}
+
+		});
+		
+		viewFragment.add(new WebMarkupContainer("delete").setVisible(false));
+		
+		return viewFragment;
+	}
+	
+	private WebMarkupContainer newActionsContainer() {
+		WebMarkupContainer actionsContainer = new Fragment("actions", "actionsFrag", this) {
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(SecurityUtils.getAuthUser() != null);
+			}
+			
+		};
+		actionsContainer.setOutputMarkupId(true);
+		actionsContainer.add(new AjaxLink<Void>("reply") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				onAddReply(target, null);
+			}
+			
+		});
+		actionsContainer.add(new AjaxLink<Void>("resolve") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				onAddReply(target, true);
+			}
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(!getComment().isResolved() && SecurityUtils.canChangeStatus(getComment()));
+			}
+			
+		});
+		actionsContainer.add(new AjaxLink<Void>("unresolve") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				onAddReply(target, false);
+			}
+			
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(getComment().isResolved() && SecurityUtils.canChangeStatus(getComment()));
+			}
+			
+		});
+		actionsContainer.add(new AjaxLink<Void>("delete") {
+
+			@Override
+			protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+				super.updateAjaxAttributes(attributes);
+				String confirmMessage;
+				if (getComment().getReplies().isEmpty()) {
+					confirmMessage = _T("Do you really want to delete this code comment?");
+				} else {
+					confirmMessage = _T("Do you really want to delete this code comment and all its replies?");
+				}
+				attributes.getAjaxCallListeners().add(new ConfirmClickListener(confirmMessage));
+			}
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				OneDev.getInstance(TransactionService.class).run(() -> {
+					onDeleteComment(target, getComment());
+					var oldAuditContent = VersionedXmlDoc.fromBean(getComment()).toXML();
+					OneDev.getInstance(AuditService.class).audit(getComment().getProject(), "deleted code comment on file \"" + getComment().getMark().getPath() + "\"", oldAuditContent, null);
+					OneDev.getInstance(CodeCommentService.class).delete(getComment());
+				});
+			}
+
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(SecurityUtils.canModifyOrDelete(getComment()));
+			}
+		});
+
+		return actionsContainer;
+	}
+	
+	private List<CodeCommentActivity> getActivities() {
+		List<CodeCommentActivity> activities = new ArrayList<>();
+
+		for (CodeCommentStatusChange change: getComment().getChanges()) 
+			activities.add(new CodeCommentStatusChangeActivity(change));
+		
+		for (CodeCommentReply comment: getComment().getReplies())  
+			activities.add(new CodeCommentReplyActivity(comment));
+		
+		activities.sort((o1, o2) -> {
+			if (o1.getDate().getTime()<o2.getDate().getTime())
+				return -1;
+			else if (o1.getDate().getTime()>o2.getDate().getTime())
+				return 1;
+			else 
+				return 0;
+		});
+		
+		return activities;
+	}
+	
+	@Override
+	protected void onInitialize() {
+		super.onInitialize();
+
+		add(newCommentOrReplyContainer());
+		
+		activitiesView = new RepeatingView("activities");
+
+		List<CodeCommentActivity> activities = new ArrayList<>();
+
+		for (CodeCommentStatusChange change: getComment().getChanges()) 
+			activities.add(new CodeCommentStatusChangeActivity(change));
+		
+		for (CodeCommentReply comment: getComment().getReplies())  
+			activities.add(new CodeCommentReplyActivity(comment));
+		
+		activities.sort((o1, o2) -> {
+			if (o1.getDate().getTime()<o2.getDate().getTime())
+				return -1;
+			else if (o1.getDate().getTime()>o2.getDate().getTime())
+				return 1;
+			else 
+				return 0;
+		});
+
+		for (CodeCommentActivity activity: activities) {
+			Component activityContainer = activity.render(activitiesView.newChildId());				
+			if (!getComment().isVisitedAfter(activity.getDate()))
+				activityContainer.add(AttributeAppender.append("class", "new"));
+			activitiesView.add(activityContainer);			
+		}
+		add(activitiesView);
+		add(newActionsContainer());
+		
+		add(new ChangeObserver() {
+			
+			@Override
+			@SuppressWarnings("deprecation")
+			public void onObservableChanged(IPartialPageRequestHandler handler, Collection<String> changedObservables) {
+				Component prevActivityContainer;
+				if (activitiesView.size() > 0)
+					prevActivityContainer = activitiesView.get(activitiesView.size()-1);
+				else
+					prevActivityContainer = null;
+				
+				List<CodeCommentActivity> newActivities = new ArrayList<>();
+				for (CodeCommentActivity activity: getActivities()) {
+					if (prevActivityContainer == null) {
+						newActivities.add(activity);
+					} else {
+						CodeCommentActivity lastActivity = (CodeCommentActivity)prevActivityContainer.getDefaultModelObject();
+						if (activity.getDate().getTime() > lastActivity.getDate().getTime()) 
+							newActivities.add(activity);
+					}
+				}
+
+				var user = SecurityUtils.getAuthUser();
+				for (CodeCommentActivity activity: newActivities) {
+					Component newActivityContainer = activity.render(activitiesView.newChildId());
+					if (user == null || !user.equals(activity.getUser()))
+						newActivityContainer.add(AttributeAppender.append("class", "new"));
+					activitiesView.add(newActivityContainer);
+
+					String script;
+					if (prevActivityContainer != null) {
+						script = String.format("$(\"<div id='%s'></div>\").insertAfter('#%s');", 
+								newActivityContainer.getMarkupId(), prevActivityContainer.getMarkupId());
+					} else {
+						script = String.format("$(\"<div id='%s'></div>\").insertAfter('#%s');", 
+								newActivityContainer.getMarkupId(), CodeCommentPanel.this.get("comment").getMarkupId());
+					}
+					handler.prependJavaScript(script);
+					handler.add(newActivityContainer);
+					prevActivityContainer = newActivityContainer;
+				}
+			}
+			
+			@Override
+			public Collection<String> findObservables() {
+				return Sets.newHashSet(CodeComment.getChangeObservable(commentId));
+			}
+			
+		});
+
+		RequestCycle.get().getListeners().add(new AbstractRequestCycleListener() {
+
+			@Override
+			public void onEndRequest(RequestCycle cycle) {
+				if (SecurityUtils.getAuthUser() != null)
+					OneDev.getInstance(VisitInfoService.class).visitCodeComment(SecurityUtils.getAuthUser(), getComment());
+			}
+
+		});
+		
+		setOutputMarkupId(true);
+	}
+
+	@Override
+	public void renderHead(IHeaderResponse response) {
+		super.renderHead(response);
+		response.render(CssHeaderItem.forReference(new CodeCommentCssResourceReference()));
+	}
+	
+	@Nullable
+	protected abstract SuggestionSupport getSuggestionSupport();
+
+	@Override
+	public void onEvent(IEvent<?> event) {
+		super.onEvent(event);
+		if (event.getPayload() instanceof ContentQuoted) {
+			ContentQuoted contentQuoted = (ContentQuoted) event.getPayload();
+			if (visitChildren(MarkdownEditor.class, new IVisitor<MarkdownEditor, MarkdownEditor>() {
+				@Override
+				public void component(MarkdownEditor object, IVisit<MarkdownEditor> visit) {
+					visit.stop(object);
+				}
+			}) == null) {
+				onAddReply(contentQuoted.getHandler(), null);
+			}
+		}
+	}
+	
+	private void onAddReply(IPartialPageRequestHandler handler, @Nullable Boolean resolved) {
+		Fragment editFragment = new Fragment("actions", "commentOrReplyEditFrag", CodeCommentPanel.this);
+		
+		Form<?> form = new Form<Void>("form");
+
+		CommentInput contentInput = new CommentInput("content", Model.of(""), true) {
+
+			@Override
+			protected AttachmentSupport getAttachmentSupport() {
+				return new ProjectAttachmentSupport(getProject(), getComment().getUUID(),
+						SecurityUtils.canManageCodeComments(getProject()));
+			}
+
+			@Override
+			protected String getAutosaveKey() {
+				return "code-comment:" + getComment().getId() + ":new-reply";
+			}
+
+			@Override
+			protected SuggestionSupport getSuggestionSupport() {
+				return CodeCommentPanel.this.getSuggestionSupport();
+			}
+			
+			@Override
+			protected Project getProject() {
+				return getComment().getProject();
+			}
+
+			@Override
+			protected List<Behavior> getInputBehaviors() {
+				List<Behavior> behaviors = new ArrayList<>();
+				if (resolved != null)
+					behaviors.add(AttributeModifier.replace("placeholder", "Leave a note"));
+				return behaviors;
+			}
+
+			@Override
+			protected List<User> getParticipants() {
+				return getComment().getParticipants();
+			}
+			
+		};
+		contentInput.setRequired(resolved == null);
+		contentInput.setLabel(Model.of(_T("Content")));
+		form.add(contentInput);
+		
+		FencedFeedbackPanel feedback = new FencedFeedbackPanel("feedback", form); 
+		feedback.setOutputMarkupPlaceholderTag(true);
+		form.add(feedback);
+		
+		form.add(new AjaxLink<Void>("cancel") {
+
+			@Override
+			protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+				super.updateAjaxAttributes(attributes);
+				attributes.getAjaxCallListeners().add(new ConfirmLeaveListener(form));
+			}
+			
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				WebMarkupContainer actionsContainer = newActionsContainer();
+				editFragment.replaceWith(actionsContainer);
+				target.add(actionsContainer);
+			}
+			
+		});
+		
+		AjaxButton saveButton = new AjaxButton("save") {
+
+			@Override
+			protected void onInitialize() {
+				super.onInitialize();
+				if (resolved != null) {
+					add(new Label("label", "Ok"));
+				} else {
+					add(new Label("label", "Save"));
+					add(AttributeAppender.append("class", "dirty-aware"));
+				}
+			}
+
+			@Override
+			protected void onError(AjaxRequestTarget target, Form<?> form) {
+				super.onError(target, form);
+				target.add(feedback);
+			}
+
+			@Override
+			protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
+				super.onSubmit(target, form);
+				
+				String content = contentInput.getModelObject();
+				if (content != null && content.length() > CodeCommentReply.MAX_CONTENT_LEN) {
+					error(_T("Comment too long"));
+					target.add(feedback);
+				} else {
+					if (resolved == null) {
+						CodeCommentReply reply = new CodeCommentReply();
+						reply.setComment(getComment());
+						reply.setDate(new Date());
+						reply.setUser(SecurityUtils.getAuthUser());
+						reply.setContent(content);
+						
+						onSaveCommentReply(target, reply);
+					} else {
+						CodeCommentStatusChange change = new CodeCommentStatusChange();
+						change.setComment(getComment());
+						change.setDate(new Date());
+						change.setUser(SecurityUtils.getAuthUser());
+						change.setResolved(resolved);
+						
+						onSaveCommentStatusChange(target, change, contentInput.getModelObject());
+					}
+					
+					WebMarkupContainer actionsContainer = newActionsContainer();
+					editFragment.replaceWith(actionsContainer);
+					target.add(actionsContainer);
+					notifyCodeCommentChange(target, getComment());
+				}
+			}
+
+		};
+		form.add(saveButton);
+		
+		editFragment.add(form);
+		editFragment.add(AttributeAppender.append("class", "activity"));
+		
+		editFragment.setOutputMarkupId(true);
+		get("actions").replaceWith(editFragment);
+		handler.add(editFragment);	
+		
+		String script = String.format(""
+				+ "setTimeout(function() {"
+				+ "  document.getElementById('%s').scrollIntoViewIfNeeded(false);"
+				+ "}, 0);", 
+				saveButton.getMarkupId());
+		handler.appendJavaScript(script);
+	}
+	
+	protected abstract void onDeleteComment(AjaxRequestTarget target, CodeComment comment);
+	
+	protected abstract void onSaveComment(AjaxRequestTarget target, CodeComment comment);
+
+	protected abstract void onSaveCommentReply(AjaxRequestTarget target, CodeCommentReply reply);
+	
+	protected abstract void onSaveCommentStatusChange(AjaxRequestTarget target, CodeCommentStatusChange change, @Nullable String note);
+	
+	protected abstract boolean isContextDifferent(CompareContext compareContext);
+	
+	private interface CodeCommentActivity extends Serializable {
+		
+		Date getDate();
+		
+		Component render(String componentId);
+		
+		User getUser();
+		
+		String getAnchor();
+	}
+	
+	private class CodeCommentStatusChangeActivity implements CodeCommentActivity {
+
+		private final Long changeId;
+		
+		public CodeCommentStatusChangeActivity(CodeCommentStatusChange change) {
+			changeId = change.getId();
+		}
+		
+		@Override
+		public Component render(String componentId) {
+			Fragment fragment = new Fragment(componentId, "statusChangeFrag", CodeCommentPanel.this, Model.of(this));
+			fragment.add(new UserIdentPanel("userAvatar", getChange().getUser(), Mode.AVATAR));
+			fragment.add(new Label("userName", getChange().getUser().getDisplayName()));
+			if (getChange().isResolved())
+				fragment.add(new Label("action", "resolved"));
+			else
+				fragment.add(new Label("action", "unresolved"));
+			fragment.add(new Label("date", DateUtils.formatAge(getChange().getDate()))
+					.add(new AttributeAppender("data-tippy-content", DateUtils.formatDateTime(getChange().getDate()))));
+			if (isContextDifferent(getChange().getCompareContext())) {
+				String url = OneDev.getInstance(UrlService.class).urlFor(getChange(), false);
+				fragment.add(new ExternalLink("context", url) {
+
+					@Override
+					protected void onComponentTag(ComponentTag tag) {
+						super.onComponentTag(tag);
+						tag.put("data-tippy-content", _T("Current context is different from this action, click to show the comment context"));
+					}
+					
+				});
+			} else {
+				fragment.add(new WebMarkupContainer("context").setVisible(false));
+			}
+			fragment.add(AttributeAppender.append("class", "status-change"));
+			fragment.setMarkupId(getChange().getAnchor());
+			
+			fragment.setOutputMarkupId(true);
+			
+			return fragment;
+		}
+
+		public CodeCommentStatusChange getChange() {
+			return OneDev.getInstance(CodeCommentStatusChangeService.class).load(changeId);
+		}
+		
+		@Override
+		public Date getDate() {
+			return getChange().getDate();
+		}
+
+		@Override
+		public String getAnchor() {
+			return getChange().getAnchor();
+		}
+
+		@Override
+		public User getUser() {
+			return getChange().getUser();
+		}
+
+	}
+
+	@Override
+	public List<ChatTool> getChatTools() {
+		return ToolUtils.wrapForChat(List.of(
+				new GetCodeComment(Objects.requireNonNull(commentId)),
+				new GetCodeCommentReplies(Objects.requireNonNull(commentId))));
+	}
+	
+	public class CodeCommentReplyActivity implements CodeCommentActivity {
+
+		private final Long replyId;
+		
+		public CodeCommentReplyActivity(CodeCommentReply reply) {
+			replyId = reply.getId();
+		}
+		
+		@Override
+		public Component render(String componentId) {
+			CodeCommentReply reply = getReply();
+			Fragment viewFragment = new Fragment(componentId, "commentOrReplyViewFrag", 
+					CodeCommentPanel.this, Model.of(this));
+			viewFragment.setOutputMarkupId(true);
+			viewFragment.setMarkupId(reply.getAnchor());
+			viewFragment.add(AttributeAppender.append("name", reply.getAnchor()));
+			
+			viewFragment.add(new UserIdentPanel("userAvatar", reply.getUser(), Mode.AVATAR));
+			viewFragment.add(new Label("userName", reply.getUser().getDisplayName()));
+			viewFragment.add(new Label("action", "replied"));
+			viewFragment.add(new Label("date", DateUtils.formatAge(reply.getDate()))
+					.add(new AttributeAppender("data-tippy-content", DateUtils.formatDateTime(reply.getDate()))));
+			if (isContextDifferent(reply.getCompareContext())) {
+				String url = OneDev.getInstance(UrlService.class).urlFor(reply, false);
+				viewFragment.add(new ExternalLink("context", url) {
+
+					@Override
+					protected void onComponentTag(ComponentTag tag) {
+						super.onComponentTag(tag);
+						tag.put("data-tippy-content", _T("Current context is different from the context when this reply is added, click to show the reply context"));
+					}
+					
+				});
+			} else {
+				viewFragment.add(new WebMarkupContainer("context").setVisible(false));
+			}
+			
+			viewFragment.add(new CopyToClipboardLink("anchor",
+					Model.of(OneDev.getInstance(UrlService.class).urlFor(getReply(), true)),
+					_T("Copy permanent link")));
+			
+			viewFragment.add(new MarkdownViewer("content", new IModel<String>() {
+
+				@Override
+				public void detach() {
+				}
+
+				@Override
+				public String getObject() {
+					return getReply().getContent();
+				}
+
+				@Override
+				public void setObject(String object) {
+					CodeCommentReply reply = getReply();
+					reply.setContent(object);
+					onSaveCommentReply(RequestCycle.get().find(AjaxRequestTarget.class), reply);
+				}
+				
+			}, null) {
+				
+				@Override
+				protected SuggestionSupport getSuggestionSupport() {
+					return CodeCommentPanel.this.getSuggestionSupport();
+				}
+				
+			});			
+			
+			viewFragment.add(new AjaxLink<Void>("edit") {
+
+				@Override
+				public void onClick(AjaxRequestTarget target) {
+					Fragment editFragment = new Fragment(viewFragment.getId(), 
+							"commentOrReplyEditFrag", CodeCommentPanel.this, 
+							Model.of(replyId));
+					
+					Form<?> form = new Form<Void>("form");
+					CommentInput contentInput = new CommentInput("content", Model.of(getReply().getContent()), true) {
+
+						@Override
+						protected SuggestionSupport getSuggestionSupport() {
+							return CodeCommentPanel.this.getSuggestionSupport();
+						}
+
+						@Override
+						protected String getAutosaveKey() {
+							return "code-comment-reply:" + getReply().getId();
+						}
+
+						@Override
+						protected AttachmentSupport getAttachmentSupport() {
+							return new ProjectAttachmentSupport(getProject(), getComment().getUUID(), 
+									SecurityUtils.canManageCodeComments(getProject()));
+						}
+
+						@Override
+						protected Project getProject() {
+							return getComment().getProject();
+						}
+
+						@Override
+						protected List<User> getParticipants() {
+							return getComment().getParticipants();
+						}
+
+					};
+					contentInput.setRequired(true);
+					contentInput.setLabel(Model.of(_T("Content")));
+					form.add(contentInput);
+					
+					FencedFeedbackPanel feedback = new FencedFeedbackPanel("feedback", form); 
+					feedback.setOutputMarkupPlaceholderTag(true);
+					form.add(feedback);
+					
+					form.add(new AjaxLink<Void>("cancel") {
+
+						@Override
+						protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+							super.updateAjaxAttributes(attributes);
+							attributes.getAjaxCallListeners().add(new ConfirmLeaveListener(form));
+						}
+						
+						@Override
+						public void onClick(AjaxRequestTarget target) {
+							Component activityContainer = new CodeCommentReplyActivity(getReply()).render(componentId);
+							editFragment.replaceWith(activityContainer);
+							target.add(activityContainer);
+						}
+						
+					});
+					
+					form.add(new AjaxButton("save") {
+
+						@Override
+						protected void onError(AjaxRequestTarget target, Form<?> form) {
+							super.onError(target, form);
+							target.add(feedback);
+						}
+
+						@Override
+						protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
+							super.onSubmit(target, form);
+							
+							String content = contentInput.getModelObject();
+							if (content.length() > CodeCommentReply.MAX_CONTENT_LEN) {
+								error("Comment too long");
+								target.add(feedback);
+							} else {
+								CodeCommentReply reply = getReply();
+								reply.setContent(content);
+								onSaveCommentReply(target, reply);
+								
+								Component activityContainer = new CodeCommentReplyActivity(reply).render(componentId);
+								editFragment.replaceWith(activityContainer);
+								target.add(activityContainer);
+							}
+						}
+
+					}.add(new Label("label", "Save")));
+					
+					editFragment.add(form);
+					editFragment.setOutputMarkupId(true);
+					editFragment.add(AttributeAppender.append("class", "reply"));
+					
+					viewFragment.replaceWith(editFragment);
+					target.add(editFragment);
+				}
+
+				@Override
+				protected void onConfigure() {
+					super.onConfigure();
+					setVisible(SecurityUtils.canModifyOrDelete(getReply()));
+				}
+			});
+
+			viewFragment.add(new AjaxLink<Void>("quote") {
+
+				@Override
+				public void onClick(AjaxRequestTarget target) {
+					send(getPage(), Broadcast.BREADTH, new ContentQuoted(target, getReply().getContent()));
+				}
+
+				@Override
+				protected void onConfigure() {
+					super.onConfigure();
+					setVisible(SecurityUtils.getAuthUser() != null);
+				}
+
+			});
+			
+			viewFragment.add(new AjaxLink<Void>("delete") {
+
+				@Override
+				protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
+					super.updateAjaxAttributes(attributes);
+					attributes.getAjaxCallListeners().add(new ConfirmClickListener(_T("Do you really want to delete this reply?")));
+				}
+
+				@Override
+				public void onClick(AjaxRequestTarget target) {
+					viewFragment.remove();
+					OneDev.getInstance(CodeCommentReplyService.class).delete(getReply());
+					target.appendJavaScript(String.format("$('#%s').remove();", viewFragment.getMarkupId()));
+					notifyCodeCommentChange(target, getComment());					
+				}
+
+				@Override
+				protected void onConfigure() {
+					super.onConfigure();
+					setVisible(SecurityUtils.canModifyOrDelete(getReply()));
+				}
+			});
+			
+			viewFragment.add(AttributeAppender.append("class", "reply"));
+			
+			return viewFragment;			
+		}
+		
+		public Long getCommentId() {
+			return replyId;
+		}
+		
+		public CodeCommentReply getReply() {
+			return OneDev.getInstance(CodeCommentReplyService.class).load(replyId);
+		}
+
+		@Override
+		public Date getDate() {
+			return getReply().getDate();
+		}
+
+		@Override
+		public String getAnchor() {
+			return getReply().getAnchor();
+		}
+
+		@Override
+		public User getUser() {
+			return getReply().getUser();
+		}
+		
+	}
+
+	private void notifyCodeCommentChange(AjaxRequestTarget target, CodeComment comment) {
+		((BasePage) getPage()).notifyObservableChange(target, CodeComment.getChangeObservable(comment.getId()));
+	}
+	
+}

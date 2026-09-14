@@ -1,0 +1,32 @@
+<wicket:panel>
+	<div class="workspace-spec-list">
+		<div wicket:id="specs" class="spec">
+			<div class="head px-3 py-2 bg-light border-top">
+				<div class="d-flex text-nowrap align-items-center">
+					<span class="d-flex align-items-center mr-auto">
+						<b wicket:id="name"></b>
+						<span wicket:id="task" class="badge badge-info badge-sm ml-2" t:data-tippy-content="for AI task automation"><wicket:t>task</wicket:t></span>
+					</span>
+					<a wicket:id="showInList" class="ml-2 d-flex align-items-center" t:data-tippy-content="Show in workspace list"><wicket:svg href="unordered-list" class="icon"></wicket:svg></a>
+					<a wicket:id="create" class="ml-2 d-flex align-items-center" t:data-tippy-content="Create workspace with this spec"><wicket:svg href="plus" class="icon"></wicket:svg></a>	
+				</div>
+				<div wicket:id="description" class="description text-muted font-size-sm"></div>
+			</div>
+			<div class="body">
+				<div wicket:id="detail"></div>
+			</div>
+		</div>
+	</div>
+	<wicket:fragment wicket:id="hasWorkspacesFrag">
+		<div class="workspace-spec-workspaces has-workspaces">
+			<div class="body py-2">
+				<div wicket:id="workspaces">
+					<a wicket:id="workspace" class="workspace d-flex align-items-center bg-hover-light text-hover-gray-dark px-3 py-2">
+						<svg wicket:id="status" class="status mr-2"></svg>
+						<span wicket:id="title" class="title"></span>
+					</a>
+				</div>
+			</div>
+		</div>
+	</wicket:fragment>
+</wicket:panel>

@@ -1,0 +1,19 @@
+<wicket:panel>
+	<div class="confirm">
+		<form>
+			<div class="modal-header">
+				<h5 id="modal-title" class="modal-title"><wicket:t>Please Confirm</wicket:t></h5>
+				<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+			</div>
+			<div class="modal-body">
+                <div wicket:id="message" class="message"></div>
+                <div wicket:id="feedback" class="feedback"></div>
+				<input wicket:id="input" class="form-control confirm">
+			</div>
+			<div class="modal-footer">
+				<input wicket:id="ok" type="submit" class="btn btn-primary" t:value="Ok">
+				<a wicket:id="cancel" class="btn btn-secondary"><wicket:t>Cancel</wicket:t></a>
+			</div>
+		</form>
+	</div>
+</wicket:panel> 

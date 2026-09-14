@@ -1,0 +1,119 @@
+package io.onedev.server.web.editable;
+
+import com.google.common.collect.Sets;
+import io.onedev.commons.utils.ExplicitException;
+import io.onedev.server.annotation.Editable;
+import io.onedev.server.util.BeanUtils;
+
+import org.jspecify.annotations.Nullable;
+import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+
+public class BeanDescriptor implements Serializable {
+
+	private final Class<?> beanClass;
+	
+	protected final Map<String, List<PropertyDescriptor>> properties;
+	
+	public BeanDescriptor(Class<?> beanClass) {
+		this(beanClass, Sets.newHashSet(), true);
+	}
+	
+	public BeanDescriptor(Class<?> beanClass, Collection<String> propertyNames, boolean excluded) {
+		this.beanClass = beanClass;
+		
+		properties = new LinkedHashMap<>();
+
+		List<Method> propertyGetters = BeanUtils.findGetters(getBeanClass());
+		EditableUtils.sortAnnotatedElements(propertyGetters);
+		
+		for (Method propertyGetter: propertyGetters) {
+			Editable editable = propertyGetter.getAnnotation(Editable.class);
+			if (editable != null) {
+				String group = editable.group();
+				List<PropertyDescriptor> groupProperties = properties.get(group);
+				if (groupProperties == null) {
+					groupProperties = new ArrayList<>();
+					properties.put(group, groupProperties);
+				}
+				PropertyDescriptor property = new PropertyDescriptor(propertyGetter); 
+				groupProperties.add(property);
+				String propertyName = BeanUtils.getPropertyName(propertyGetter);
+				property.setPropertyExcluded(BeanUtils.findSetter(propertyGetter) == null 
+						|| propertyNames.contains(propertyName) && excluded 
+						|| !propertyNames.contains(propertyName) && !excluded);
+				property.setPropertyHidden(editable.hidden());
+			}
+		}
+	}
+	
+	public BeanDescriptor(BeanDescriptor descriptor) {
+		this.beanClass = descriptor.getBeanClass();
+		this.properties = descriptor.getProperties();
+	}
+	
+	public Class<?> getBeanClass() {
+		return beanClass;
+	}
+
+	public Map<String, List<PropertyDescriptor>> getProperties() {
+		return properties;
+	}
+	
+	public Map<String, PropertyDescriptor> getMapOfDisplayNameToProperty() {
+		Map<String, PropertyDescriptor> properties = new HashMap<>();
+		for (List<PropertyDescriptor> groupProperties: getProperties().values()) {
+			for (PropertyDescriptor property: groupProperties)
+				properties.put(EditableUtils.getDisplayName(property.getPropertyGetter()), property);
+		}
+		return properties;
+	}
+
+	public void copyProperties(Object from, Object to) {
+		for (List<PropertyDescriptor> groupProperties: getProperties().values()) {
+			for (PropertyDescriptor property: groupProperties) {
+				if (!property.isPropertyExcluded())
+					property.copyProperty(from, to);
+			}
+		}
+	}
+	
+	@Nullable
+	public PropertyDescriptor getProperty(String propertyNameOrDisplayName) {
+		for (List<PropertyDescriptor> groupProperties: getProperties().values()) {
+			for (PropertyDescriptor property: groupProperties) {
+				String displayName = property.getDisplayName();
+				if (property.getPropertyName().equals(propertyNameOrDisplayName) || displayName.equals(propertyNameOrDisplayName))
+					return property;
+			}
+		}
+		return null;
+	}
+
+	public Object newBeanInstance() {
+		try {
+			return getBeanClass().getDeclaredConstructor().newInstance();
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException 
+				| InvocationTargetException | NoSuchMethodException | SecurityException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public boolean isPropertyVisible(String propertyNameOrDisplayName) {
+		return getProperty(propertyNameOrDisplayName).isPropertyVisible(new HashMap<>(), this);
+	}
+
+	public String getPropertyName(String propertyNameOrDisplayName) {
+		for (List<PropertyDescriptor> groupProperties: properties.values()) {
+			for (PropertyDescriptor property: groupProperties) {
+				String displayName = property.getDisplayName();
+				if (property.getPropertyName().equals(propertyNameOrDisplayName) || displayName.equals(propertyNameOrDisplayName))
+					return property.getPropertyName();
+			}
+		}
+		throw new ExplicitException("No property found with name: " + propertyNameOrDisplayName);
+	}
+	
+}

@@ -1,0 +1,475 @@
+package io.onedev.server.model;
+
+import static io.onedev.server.search.entity.EntitySort.Direction.ASCENDING;
+import static io.onedev.server.search.entity.EntitySort.Direction.DESCENDING;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Stack;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Index;
+import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+
+import org.eclipse.jgit.lib.ObjectId;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.jspecify.annotations.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Lists;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.cluster.ClusterService;
+import io.onedev.server.entityreference.WorkspaceReference;
+import io.onedev.server.git.GitUtils;
+import io.onedev.server.logging.WorkspaceLoggingSupport;
+import io.onedev.server.model.support.workspace.spec.WorkspaceSpec;
+import io.onedev.server.search.entity.SortField;
+import io.onedev.server.web.util.TextUtils;
+
+@Entity
+@Table(
+		indexes={
+				@Index(columnList="o_user_id"),
+				@Index(columnList="o_project_id"),
+				@Index(columnList="o_issue_id"),
+				@Index(columnList="o_request_id"),
+				@Index(columnList="o_agent_id"),
+				@Index(columnList=Workspace.PROP_SPEC),
+				@Index(columnList= Workspace.PROP_STATUS),
+				@Index(columnList= Workspace.PROP_BRANCH),
+				@Index(columnList= Workspace.PROP_CREATE_DATE),
+				@Index(columnList= Workspace.PROP_ACTIVE_DATE),
+				@Index(columnList=AbstractEntity.PROP_NUMBER),
+				@Index(columnList="o_numberScope_id")},
+		uniqueConstraints={@UniqueConstraint(columnNames={"o_numberScope_id", AbstractEntity.PROP_NUMBER})}
+)
+@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+public class Workspace extends AbstractEntity {
+
+	private static final long serialVersionUID = 1L;
+
+	private static ThreadLocal<Stack<Workspace>> stack = ThreadLocal.withInitial(Stack::new);
+
+	public static final int MAX_ERROR_MESSAGE_LEN = 2048;
+
+	public static final String PROP_USER = "user";
+
+	public static final String PROP_PROJECT = "project";
+
+	public static final String PROP_ISSUE = "issue";
+
+	public static final String PROP_PULL_REQUEST = "request";
+
+	public static final String PROP_SPEC = "specName";
+
+	public static final String PROP_BRANCH = "branch";
+
+	public static final String PROP_COMMIT_HASH = "commitHash";
+
+	public static final String PROP_STATUS = "status";
+
+	public static final String PROP_PROVISIONER_NAME = "provisionerName";
+
+	public static final String PROP_K8S_PVC_NAME = "k8sPvcName";
+
+	public static final String PROP_SERVER_ADDRESS = "serverAddress";
+
+	public static final String PROP_AGENT = "agent";
+
+	public static final String NAME_USER = "User";
+
+	public static final String NAME_PROJECT = "Project";
+
+	public static final String NAME_ISSUE = "Issue";
+
+	public static final String NAME_PULL_REQUEST = "Pull Request";
+
+	public static final String NAME_BRANCH = "Branch";
+
+	public static final String NAME_COMMIT = "Commit";
+
+	public static final String NAME_SPEC = "Spec";
+
+	public static final String NAME_STATUS = "Status";
+
+	public static final String NAME_CREATE_DATE = "Create Date";
+
+	public static final String PROP_CREATE_DATE = "createDate";
+
+	public static final String NAME_ACTIVE_DATE = "Active Date";
+
+	public static final String PROP_ACTIVE_DATE = "activeDate";
+
+	public static final List<String> QUERY_FIELDS = Lists.newArrayList(
+			NAME_NUMBER, NAME_PROJECT, NAME_ISSUE, NAME_PULL_REQUEST, NAME_BRANCH, NAME_COMMIT,
+			NAME_SPEC, NAME_CREATE_DATE, NAME_ACTIVE_DATE);
+
+	public static final Map<String, SortField<Workspace>> SORT_FIELDS = new LinkedHashMap<>();
+	static {
+		SORT_FIELDS.put(NAME_NUMBER, new SortField<>(PROP_NUMBER, DESCENDING));
+		SORT_FIELDS.put(NAME_USER, new SortField<>(PROP_USER));
+		SORT_FIELDS.put(NAME_PROJECT, new SortField<>(PROP_PROJECT));
+		SORT_FIELDS.put(NAME_BRANCH, new SortField<>(PROP_BRANCH));
+		SORT_FIELDS.put(NAME_SPEC, new SortField<>(PROP_SPEC));
+		SORT_FIELDS.put(NAME_STATUS, new SortField<>(PROP_STATUS, ASCENDING));
+		SORT_FIELDS.put(NAME_CREATE_DATE, new SortField<>(PROP_CREATE_DATE, DESCENDING));
+		SORT_FIELDS.put(NAME_ACTIVE_DATE, new SortField<>(PROP_ACTIVE_DATE, DESCENDING));
+	}
+
+	public enum Status {
+		PENDING, ACTIVE, INACTIVE;
+
+		@Override
+		public String toString() {
+			return TextUtils.getDisplayValue(this);
+		}
+
+	}
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn(nullable=false)
+	private Project numberScope;
+
+	private long number;
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn(nullable=false)
+	private User user;
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn(nullable=false)
+	private Project project;
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn
+	private Issue issue;
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn
+	private PullRequest request;
+
+	@Column(nullable=false)
+	private String specName;
+
+	@Column(length=255)
+	private String branch;
+
+	@Column(nullable=false)
+	private String commitHash;
+
+	@Column(nullable=false)
+	private Status status = Status.PENDING;
+
+	@Column(nullable=false)
+	private Date createDate = new Date();
+
+	private Date activeDate;
+
+	private Date inactiveDate;
+
+	@Column(length=255)
+	private String provisionerName;
+
+	@Column(length=255)
+	private String k8sPvcName;
+
+	@Column(length=255)
+	private String serverAddress;
+
+	private boolean forTaskAutomation;
+
+	private boolean mergeIfAcceptable;
+
+	@JsonIgnore
+	@Lob
+	private ArrayList<Long> participatingUserIds = new ArrayList<>();
+
+	@ManyToOne(fetch=FetchType.LAZY)
+	@JoinColumn
+	private Agent agent;
+
+	private transient Optional<WorkspaceSpec> specOptional;
+
+	@JsonIgnore
+	@Column(nullable=false)
+	private String token;
+
+	public Project getNumberScope() {
+		return numberScope;
+	}
+
+	public void setNumberScope(Project numberScope) {
+		this.numberScope = numberScope;
+	}
+
+	public long getNumber() {
+		return number;
+	}
+
+	public void setNumber(long number) {
+		this.number = number;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	public Project getProject() {
+		return project;
+	}
+
+	public void setProject(Project project) {
+		this.project = project;
+	}
+
+	@Nullable
+	public Issue getIssue() {
+		return issue;
+	}
+
+	public void setIssue(@Nullable Issue issue) {
+		this.issue = issue;
+	}
+
+	@Nullable
+	public PullRequest getRequest() {
+		return request;
+	}
+
+	public void setRequest(@Nullable PullRequest request) {
+		this.request = request;
+	}
+
+	public String getSpecName() {
+		return specName;
+	}
+
+	public void setSpecName(String specName) {
+		this.specName = specName;
+	}
+
+	@Nullable
+	public String getBranch() {
+		return branch;
+	}
+
+	public void setBranch(String branch) {
+		this.branch = branch;
+	}
+
+	public String getCommitHash() {
+		if (commitHash.equals(ObjectId.zeroId().name())) 
+			commitHash = getProject().getObjectId(getBranch(), true).name();
+		return commitHash;
+	}
+
+	public void setCommitHash(String commitHash) {
+		this.commitHash = commitHash;
+	}
+
+	public Status getStatus() {
+		return status;
+	}
+
+	public void setStatus(Status status) {
+		this.status = status;
+	}
+
+	public Date getCreateDate() {
+		return createDate;
+	}
+
+	public void setCreateDate(Date createDate) {
+		this.createDate = createDate;
+	}
+
+	@Nullable
+	public Date getActiveDate() {
+		return activeDate;
+	}
+
+	public void setActiveDate(Date activeDate) {
+		this.activeDate = activeDate;
+	}
+
+	@Nullable
+	public Date getInactiveDate() {
+		return inactiveDate;
+	}
+
+	public void setInactiveDate(Date inactiveDate) {
+		this.inactiveDate = inactiveDate;
+	}
+	
+	public String getToken() {
+		return token;
+	}
+
+	public void setToken(String token) {
+		this.token = token;
+	}
+
+	@Nullable
+	public String getProvisionerName() {
+		return provisionerName;
+	}
+
+	public void setProvisionerName(String provisionerName) {
+		this.provisionerName = provisionerName;
+	}
+
+	@Nullable
+	public String getK8sPvcName() {
+		return k8sPvcName;
+	}
+
+	public void setK8sPvcName(String k8sPvcName) {
+		this.k8sPvcName = k8sPvcName;
+	}
+
+	@Nullable
+	public String getServerAddress() {
+		return serverAddress;
+	}
+
+	public void setServerAddress(String serverAddress) {
+		this.serverAddress = serverAddress;
+	}
+
+	@Nullable
+	public Agent getAgent() {
+		return agent;
+	}
+
+	public void setAgent(@Nullable Agent agent) {
+		this.agent = agent;
+	}
+
+	public String getOnDescription() {
+		if (getIssue() != null)
+			return "issue " + getIssue().getReference().toString(getProject());
+		else if (getRequest() != null)
+			return "pull request " + getRequest().getReference().toString(getProject());
+		else if (getBranch() != null)
+			return "branch " + getBranch();
+		else
+			return "commit " + GitUtils.abbreviateSHA(getCommitHash());
+	}
+
+	public static String getLogLockName(Long projectId, Long workspaceNumber) {
+		return "workspace-log:" + projectId + ":" + workspaceNumber;
+	}
+
+	public WorkspaceLoggingSupport getLoggingSupport() {
+		return new WorkspaceLoggingSupport(this);
+	}
+
+	@Nullable
+	public WorkspaceSpec getSpec() {
+		if (specOptional == null) {
+			specOptional = getProject().getHierarchyWorkspaceSpecs().stream()
+				.filter(it -> it.getName().equals(getSpecName()))
+				.findFirst();
+		}
+		return specOptional.orElse(null);
+	}
+
+	public Collection<String> getMaskSecrets() {
+		var maskSecrets = new HashSet<String>();
+		maskSecrets.add(getToken());
+		maskSecrets.add(OneDev.getInstance(ClusterService.class).getCredential());
+
+		var spec = getSpec();
+		if (spec == null)
+			return maskSecrets;
+		
+		for (var envVar: spec.getEnvVars()) {
+			if (envVar.isSecret()) 
+				maskSecrets.add(envVar.getSecretValue());
+		}
+
+		for (var registryLogin: spec.getRegistryLogins()) 
+			maskSecrets.add(registryLogin.getPassword());
+		for (var cacheConfig: spec.getCacheConfigs()) {
+			if (cacheConfig.getUploadAccessToken() != null)
+				maskSecrets.add(cacheConfig.getUploadAccessToken());
+		}
+
+		return maskSecrets;
+	}
+
+	public static void push(@Nullable Workspace workspace) {
+		stack.get().push(workspace);
+	}
+
+	public static void pop() {
+		stack.get().pop();
+	}
+
+	@Nullable
+	public static Workspace get() {
+		if (!stack.get().isEmpty()) 
+			return stack.get().peek();
+		else 
+			return null;
+	}
+
+	public boolean isForTaskAutomation() {
+		return forTaskAutomation;
+	}
+
+	public void setForTaskAutomation(boolean forTaskAutomation) {
+		this.forTaskAutomation = forTaskAutomation;
+	}
+
+	public boolean isMergeIfAcceptable() {
+		return mergeIfAcceptable;
+	}
+
+	public void setMergeIfAcceptable(boolean mergeIfAcceptable) {
+		this.mergeIfAcceptable = mergeIfAcceptable;
+	}
+
+	public ArrayList<Long> getParticipatingUserIds() {
+		return participatingUserIds;
+	}
+
+	public void setParticipatingUserIds(ArrayList<Long> participatingUserIds) {
+		this.participatingUserIds = participatingUserIds;
+	}
+
+	public WorkspaceReference getReference() {
+		return new WorkspaceReference(getProject(), getNumber());
+	}
+
+	public static String getLogChangeObservable(Long workspaceId) {
+		return "workspace-log:" + workspaceId;
+	}
+
+	public String getStatusChangeObservable() {
+		return "workspace-status:" + getId();
+	}
+
+	public String getTerminalChangeObservable() {
+		return "workspace-terminal:" + getId();
+	}
+
+}

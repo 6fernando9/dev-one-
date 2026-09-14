@@ -1,0 +1,54 @@
+package io.onedev.server.event.project.issue;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.service.IssueCommentService;
+import io.onedev.server.service.UrlService;
+import io.onedev.server.model.IssueComment;
+import io.onedev.server.util.commenttext.CommentText;
+import io.onedev.server.util.commenttext.MarkdownText;
+
+import java.util.Collection;
+
+public class IssueCommentCreated extends IssueEvent {
+
+	private static final long serialVersionUID = 1L;
+
+	private final Long commentId;
+	
+	private final Collection<String> listeningEmailAddresses;
+	
+	public IssueCommentCreated(IssueComment comment, Collection<String> listeningEmailAddresses) {
+		super(comment.getUser(), comment.getDate(), comment.getIssue());
+		commentId = comment.getId();
+		this.listeningEmailAddresses = listeningEmailAddresses;
+	}
+
+	public IssueComment getComment() {
+		return OneDev.getInstance(IssueCommentService.class).load(commentId);
+	}
+
+	@Override
+	protected CommentText newCommentText() {
+		return new MarkdownText(getProject(), getComment().getContent());
+	}
+
+	@Override
+	public boolean affectsListing() {
+		return false;
+	}
+
+	public Collection<String> getListeningEmailAddresses() {
+		return listeningEmailAddresses;
+	}
+
+	@Override
+	public String getActivity() {
+		return "commented";
+	}
+
+	@Override
+	public String getUrl() {
+		return OneDev.getInstance(UrlService.class).urlFor(getComment(), true);
+	}
+
+}

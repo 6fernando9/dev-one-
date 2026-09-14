@@ -1,0 +1,11 @@
+.issue-operations>.state>.issue-state {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.925rem;
+	border: 1px solid transparent;
+    line-height: 1.35;
+	display: block;
+}
+.issue-operations .issue-progress .completion-rate {
+	width: 30px !important;
+	height: 30px !important;
+}

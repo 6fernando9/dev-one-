@@ -1,0 +1,112 @@
+<wicket:extend>
+	<div wicket:id="title" class="title"></div>
+	<div wicket:id="description" class="alert alert-notice alert-light mb-4"></div>
+	<div class="method-detail border-top pt-3">
+		<dl class="content">
+			<dt><wicket:t>Http Method</wicket:t></dt>
+			<dd wicket:id="method"></dd>
+			<dt><wicket:t>End Point</wicket:t></dt>
+			<dd>
+				<div wicket:id="path"></div>
+				<wicket:enclosure child="pathPlaceholders">
+				<table class="table mt-4">
+					<thead>
+						<tr>
+							<td><wicket:t>Placeholder</wicket:t></td>
+							<td><wicket:t>Description</wicket:t></td>
+							<td><wicket:t>Example</wicket:t></td>
+						</tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="pathPlaceholders">
+							<td wicket:id="name"></td>
+							<td wicket:id="description"></td>
+							<td wicket:id="example"></td>
+						</tr>
+					</tbody>
+				</table>
+				</wicket:enclosure>
+			</dd>
+			<wicket:enclosure child="queryParams">
+			<dt><wicket:t>Query Parameters</wicket:t></dt>
+			<dd>
+			<table class="table">
+				<thead>
+					<tr>
+						<td><wicket:t>Parameter</wicket:t></td>
+						<td><wicket:t>Description</wicket:t></td>
+						<td><wicket:t>Required</wicket:t></td>
+						<td><wicket:t>Example</wicket:t></td>
+					</tr>
+				</thead>
+				<tbody>
+					<tr wicket:id="queryParams">
+						<td wicket:id="name"></td>
+						<td wicket:id="description"></td>
+						<td wicket:id="required"></td>
+						<td wicket:id="example"></td>
+					</tr>
+				</tbody>
+			</table>
+			</dd>
+			</wicket:enclosure>
+			<wicket:enclosure child="contentType">
+			<dt><wicket:t>Request Body</wicket:t></dt>
+			<dd>
+				<dl>
+					<dt><wicket:t>Content Type</wicket:t></dt>
+					<dd wicket:id="contentType">application/json</dd>
+					<wicket:enclosure child="requestBodyExample">
+						<dt><wicket:t>Example</wicket:t> <a wicket:id="copyRequestBodyExample" class="ml-1" t:data-tippy-content="Copy to clipboard"><wicket:svg href="copy" class="icon icon-sm"/></a></dt>
+						<dd wicket:id="requestBodyExample"></dd>
+					</wicket:enclosure>
+				</dl>
+			</dd>
+			</wicket:enclosure>
+			<dt><wicket:t>Response</wicket:t></dt>
+			<dd>
+				<dl>
+					<dt><wicket:t>Operation Successful</wicket:t></dt>
+					<dd>
+						<dl>
+							<dt><wicket:t>Status Code</wicket:t></dt>
+							<dd>200</dd>
+							<dt><wicket:t>Response Body</wicket:t></dt>
+							<dd wicket:id="successResponseBody"></dd>
+						</dl>
+					</dd>
+					<dt><wicket:t>Operation Failed</wicket:t></dt>
+					<dd>
+						<dl>
+							<dt><wicket:t>Status code</wicket:t></dt>
+							<dd><wicket:t>Status code other than 200 indicating the error type</wicket:t></dd>
+							<dt><wicket:t>Response Body</wicket:t></dt>
+							<dd><wicket:t>Error detail of content type &quot;text/plain&quot;</wicket:t></dd>
+						</dl>
+					</dd>
+				</dl>
+			</dd>
+			<dt><wicket:t>cURL Example</wicket:t> <a wicket:id="copyCurlExample" class="ml-1" t:data-tippy-content="Copy to clipboard"><wicket:svg href="copy" class="icon icon-sm"/></a></dt>
+			<dd>
+				<code wicket:id="curlExample"></code>
+			</dd>
+		</dl>
+	</div>
+	<wicket:fragment wicket:id="topbarTitleFrag">
+		<a wicket:id="resources"><wicket:t>Resources</wicket:t></a> 
+		<span class="dot"></span> 
+		<a wicket:id="resource"><span wicket:id="label"></span></a>
+		<span class="dot"></span> 
+		<span wicket:id="method"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="hasResponseBodyFrag">
+		<dl>
+			<dt><wicket:t>Content Type</wicket:t></dt>
+			<dd wicket:id="contentType">application/json</dd>
+			<wicket:enclosure child="example">
+				<dt><wicket:t>Example</wicket:t> <a wicket:id="copyExample" class="ml-1" t:data-tippy-content="Copy to clipboard"><wicket:svg href="copy" class="icon icon-sm"/></a></dt>
+				<dd wicket:id="example"></dd>
+			</wicket:enclosure>
+		</dl>
+	</wicket:fragment>
+</wicket:extend>

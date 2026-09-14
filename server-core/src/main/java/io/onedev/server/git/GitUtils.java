@@ -1,0 +1,1000 @@
+package io.onedev.server.git;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.eclipse.jgit.lib.Constants.R_HEADS;
+import static org.eclipse.jgit.lib.Constants.R_TAGS;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.Strings;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.BCPGOutputStream;
+import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
+import org.eclipse.jgit.diff.DiffEntry;
+import org.eclipse.jgit.diff.DiffEntry.ChangeType;
+import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.RawTextComparator;
+import org.eclipse.jgit.errors.AmbiguousObjectException;
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.errors.MissingObjectException;
+import org.eclipse.jgit.errors.RevisionSyntaxException;
+import org.eclipse.jgit.lib.AnyObjectId;
+import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.GpgSignature;
+import org.eclipse.jgit.lib.ObjectBuilder;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.ObjectInserter;
+import org.eclipse.jgit.lib.ObjectLoader;
+import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.merge.Merger;
+import org.eclipse.jgit.merge.ResolveMerger;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevObject;
+import org.eclipse.jgit.revwalk.RevTree;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.revwalk.RevWalkUtils;
+import org.eclipse.jgit.revwalk.filter.RevFilter;
+import org.eclipse.jgit.transport.PacketLineOut;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
+import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.treewalk.filter.TreeFilter;
+import org.eclipse.jgit.util.QuotedString;
+import org.eclipse.jgit.util.SystemReader;
+import org.eclipse.jgit.util.io.NullOutputStream;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
+
+import io.onedev.agent.Agent;
+import io.onedev.commons.bootstrap.SecretMasker;
+import io.onedev.commons.utils.ExplicitException;
+import io.onedev.commons.utils.FileUtils;
+import io.onedev.commons.utils.PathUtils;
+import io.onedev.commons.utils.StringUtils;
+import io.onedev.commons.utils.command.Commandline;
+import io.onedev.commons.utils.command.ExecutionResult;
+import io.onedev.commons.utils.command.LineConsumer;
+import io.onedev.commons.utils.match.PathMatcher;
+import io.onedev.k8shelper.KubernetesHelper;
+import io.onedev.server.OneDev;
+import io.onedev.server.cluster.ClusterService;
+import io.onedev.server.exception.NotFoundException;
+import io.onedev.server.git.command.AdvertiseReceiveRefsCommand;
+import io.onedev.server.git.command.AdvertiseUploadRefsCommand;
+import io.onedev.server.git.command.FileChange;
+import io.onedev.server.git.command.IsAncestorCommand;
+import io.onedev.server.git.command.ReceivePackCommand;
+import io.onedev.server.git.command.UploadPackCommand;
+import io.onedev.server.git.exception.ObsoleteCommitException;
+import io.onedev.server.git.exception.RefUpdateException;
+import io.onedev.server.git.location.GitLocation;
+import io.onedev.server.git.service.DiffEntryFacade;
+import io.onedev.server.git.service.RefFacade;
+import io.onedev.server.util.GpgUtils;
+import io.onedev.server.util.patternset.PatternSet;
+
+public class GitUtils {
+
+	public static final int SHORT_SHA_LENGTH = 8;
+	
+	private static final String MIN_VERSION = "2.11.1";
+
+	private static final Logger logger = LoggerFactory.getLogger(GitUtils.class);
+
+	public static String abbreviateSHA(String sha, int length) {
+		Preconditions.checkArgument(ObjectId.isId(sha));
+		return sha.substring(0, length);
+	}
+
+	public static String abbreviateSHA(String sha) {
+		return abbreviateSHA(sha, SHORT_SHA_LENGTH);
+	}
+
+	@Nullable
+	public static String getDefaultBranch(Repository repository) {
+		try {
+			Ref headRef = repository.findRef("HEAD");
+			if (headRef != null
+					&& headRef.isSymbolic()
+					&& headRef.getTarget().getName().startsWith(R_HEADS)
+					&& headRef.getObjectId() != null) {
+				return Repository.shortenRefName(headRef.getTarget().getName());
+			} else {
+				return null;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void setDefaultBranch(Repository repository, String defaultBranch) {
+		var defaultBranchRef = branch2ref(defaultBranch);
+		try {
+			Preconditions.checkArgument(!defaultBranch.contains(".."));
+			if (repository.findRef(defaultBranchRef) != null) {
+				RefUpdate refUpdate = getRefUpdate(repository, "HEAD");
+				linkRef(refUpdate, branch2ref(defaultBranch));
+			} else {
+				throw new ExplicitException("Branch not exist: " + defaultBranch);	
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void diff(Repository repository, AnyObjectId oldRevId, AnyObjectId newRevId, @Nullable String excludedFiles, OutputStream stdout) {
+		try (var diffFormatter = new DiffFormatter(stdout);
+			 var revWalk = new RevWalk(repository);
+			 var reader = repository.newObjectReader()) {
+			configureDiffFormatter(diffFormatter, repository);
+
+			var oldTreeParser = new CanonicalTreeParser();
+			if (!oldRevId.equals(ObjectId.zeroId()))
+				oldTreeParser.reset(reader, revWalk.parseCommit(oldRevId).getTree());
+
+			var newTreeParser = new CanonicalTreeParser();
+			if (!newRevId.equals(ObjectId.zeroId()))
+				newTreeParser.reset(reader, revWalk.parseCommit(newRevId).getTree());
+
+			if (excludedFiles != null) {
+				var patternSet = PatternSet.parse(excludedFiles);
+				var matcher = new PathMatcher();
+				for (var entry : diffFormatter.scan(oldTreeParser, newTreeParser)) {
+					var oldPath = entry.getOldPath();
+					if (DiffEntry.DEV_NULL.equals(oldPath))
+						oldPath = null;
+					var newPath = entry.getNewPath();
+					if (DiffEntry.DEV_NULL.equals(newPath))
+						newPath = null;
+					boolean shouldExclude = (oldPath != null && patternSet.matches(matcher, oldPath))
+							|| (newPath != null && patternSet.matches(matcher, newPath));
+					if (!shouldExclude)
+						diffFormatter.format(entry);
+				}
+			} else {
+				diffFormatter.format(oldTreeParser, newTreeParser);
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static List<DiffEntry> diff(Repository repository, AnyObjectId oldRevId, AnyObjectId newRevId) {
+		List<DiffEntry> diffs = new ArrayList<>();
+		try (var diffFormatter = new DiffFormatter(NullOutputStream.INSTANCE);
+			 var revWalk = new RevWalk(repository);
+			 var reader = repository.newObjectReader();) {
+			configureDiffFormatter(diffFormatter, repository);
+
+			var oldTreeParser = new CanonicalTreeParser();
+			if (!oldRevId.equals(ObjectId.zeroId()))
+				oldTreeParser.reset(reader, revWalk.parseCommit(oldRevId).getTree());
+
+			var newTreeParser = new CanonicalTreeParser();
+			if (!newRevId.equals(ObjectId.zeroId()))
+				newTreeParser.reset(reader, revWalk.parseCommit(newRevId).getTree());
+
+			for (var entry : diffFormatter.scan(oldTreeParser, newTreeParser)) {
+				if (!Objects.equal(entry.getOldPath(), entry.getNewPath())
+						|| !Objects.equal(entry.getOldMode(), entry.getNewMode()) || entry.getOldId() == null
+						|| !entry.getOldId().isComplete() || entry.getNewId() == null || !entry.getNewId().isComplete()
+						|| !entry.getOldId().equals(entry.getNewId())) {
+					diffs.add(entry);
+				}
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return diffs;
+	}
+
+	static void configureDiffFormatter(DiffFormatter diffFormatter, Repository repository) {
+		diffFormatter.setRepository(repository);
+		diffFormatter.setDetectRenames(true);
+		diffFormatter.getRenameDetector().setRenameLimit(-1);
+		diffFormatter.setDiffComparator(RawTextComparator.DEFAULT);
+	}
+
+	public static InputStream getInputStream(Repository repository, ObjectId revId, String path) {
+		try (RevWalk revWalk = new RevWalk(repository)) {
+			RevTree revTree = revWalk.parseCommit(revId).getTree();
+			TreeWalk treeWalk = TreeWalk.forPath(repository, path, revTree);
+			if (treeWalk != null) {
+				ObjectLoader objectLoader = treeWalk.getObjectReader().open(treeWalk.getObjectId(0));
+				return objectLoader.openStream();
+			} else {
+				throw new NotFoundException("Unable to find blob path '" + path + "' in revision '" + revId + "'");
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	public static Collection<String> getBlobPaths(Repository repository, ObjectId commitId) {
+		Collection<String> blobPaths = new HashSet<>();
+		try (RevWalk revWalk = new RevWalk(repository);
+			 TreeWalk treeWalk = new TreeWalk(repository)) {
+			RevCommit commit = revWalk.parseCommit(commitId);
+			treeWalk.addTree(commit.getTree());
+			treeWalk.setRecursive(true);
+			treeWalk.setFilter(TreeFilter.ANY_DIFF);
+			
+			while (treeWalk.next()) {
+				blobPaths.add(treeWalk.getPathString());
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return blobPaths;
+	}
+
+	@Nullable
+	public static RevCommit getLastCommit(Repository repository) {
+		RevCommit lastCommit = null;
+		try (RevWalk revWalk = new RevWalk(repository)) {
+			for (Ref ref: repository.getRefDatabase().getRefsByPrefix(R_HEADS)) {
+				if (ref.getObjectId() != null) {
+					RevCommit commit =  parseCommit(revWalk, ref.getObjectId());
+					if (commit != null && (lastCommit == null || lastCommit.getCommitTime() < commit.getCommitTime())) {
+						lastCommit = commit;
+					}
+				}
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return lastCommit;
+	}
+
+	@Nullable
+	public static String getDetailMessage(RevCommit commit) {
+		int start = 0;
+		String fullMessage = commit.getFullMessage();
+		while (true) {
+			int index = fullMessage.indexOf('\n', start);
+			if (index == -1)
+				return null;
+			start = index + 1;
+			int nextIndex = fullMessage.indexOf('\n', start);
+			if (nextIndex == -1)
+				return null;
+			start = nextIndex + 1;
+			if (fullMessage.substring(index, nextIndex).trim().length() == 0) {
+				String detailMessage = fullMessage.substring(start).trim();
+				return detailMessage.length() != 0 ? detailMessage : null;
+			}
+		}
+	}
+
+	public static PersonIdent newPersonIdent(String name, String email, Date when) {
+		return new PersonIdent(name, email, when.getTime(), SystemReader.getInstance().getTimezone(when.getTime()));
+	}
+
+	/**
+	 * Parse the original git raw date to Java date. The raw git date is in unix
+	 * timestamp with timezone like: 1392312299 -0800
+	 *
+	 * @param input the input raw date string
+	 * @return Java date
+	 */
+	public static Date parseRawDate(String input) {
+		String[] pieces = Iterables.toArray(Splitter.on(" ").split(input), String.class);
+		return new Date(Long.valueOf(pieces[0]) * 1000L);
+	}
+
+	public static int comparePath(@Nullable String path1, @Nullable String path2) {
+		List<String> segments1 = splitPath(path1);
+		List<String> segments2 = splitPath(path2);
+
+		int index = 0;
+		for (String segment1 : segments1) {
+			if (index < segments2.size()) {
+				int result = segment1.compareTo(segments2.get(index));
+				if (result != 0)
+					return result;
+			} else {
+				return 1;
+			}
+			index++;
+		}
+		if (index < segments2.size())
+			return -1;
+		else
+			return 0;
+	}
+
+	public static List<String> splitPath(@Nullable String path) {
+		List<String> pathSegments;
+		if (path != null)
+			pathSegments = Splitter.on("/").omitEmptyStrings().splitToList(path);
+		else
+			pathSegments = new ArrayList<>();
+		return pathSegments;
+	}
+
+	public static @Nullable String normalizePath(@Nullable String path) {
+		List<String> pathSegments = splitPath(PathUtils.normalizeDots(path));
+		if (!pathSegments.isEmpty())
+			return Joiner.on("/").join(pathSegments);
+		else
+			return null;
+	}
+
+	/**
+	 * Convert a git reference name to branch name.
+	 *
+	 * @param refName name of the git reference
+	 * @return name of the branch, or <tt>null</tt> if specified ref does not
+	 *         represent a branch
+	 */
+	public static @Nullable String ref2branch(String refName) {
+		return KubernetesHelper.ref2branch(refName);
+	}
+
+	public static String branch2ref(String branch) {
+		return KubernetesHelper.branch2ref(branch);
+	}
+
+	/**
+	 * Convert a git reference name to tag name.
+	 *
+	 * @param refName name of the git reference
+	 * @return name of the tag, or <tt>null</tt> if specified ref does not represent
+	 *         a tag
+	 */
+	public static @Nullable String ref2tag(String refName) {
+		if (refName.startsWith(R_TAGS))
+			return refName.substring(R_TAGS.length());
+		else
+			return null;
+	}
+
+	public static String tag2ref(String tag) {
+		if (!tag.startsWith(R_TAGS))
+			return R_TAGS + tag;
+		else 
+			return tag;
+	}
+
+	public static BlobIdent getOldBlobIdent(DiffEntryFacade diffEntry, String oldRev) {
+		BlobIdent blobIdent;
+		if (diffEntry.getChangeType() != ChangeType.ADD) {
+			blobIdent = new BlobIdent(oldRev, diffEntry.getOldPath(), diffEntry.getOldMode());
+		} else {
+			blobIdent = new BlobIdent(oldRev, null, null);
+		}
+		return blobIdent;
+	}
+
+	public static Collection<RevCommit> getReachableCommits(Repository repository,
+														   Collection<ObjectId> sinceCommits,
+														   Collection<ObjectId> untilCommits) {
+		try (RevWalk revWalk = new RevWalk(repository)) {
+			var reachableCommits = new LinkedHashSet<RevCommit>();
+			for (var commitId: untilCommits)
+				revWalk.markStart(revWalk.parseCommit(commitId));
+			for (var commitId: sinceCommits)
+				revWalk.markUninteresting(revWalk.parseCommit(commitId));
+			RevCommit commit;
+			while ((commit = revWalk.next()) != null)
+				reachableCommits.add(commit);
+			return reachableCommits;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static BlobIdent getNewBlobIdent(DiffEntryFacade diffEntry, String newRev) {
+		BlobIdent blobIdent;
+		if (diffEntry.getChangeType() != ChangeType.DELETE) {
+			blobIdent = new BlobIdent(newRev, diffEntry.getNewPath(), diffEntry.getNewMode());
+		} else {
+			blobIdent = new BlobIdent(newRev, null, null);
+		}
+		return blobIdent;
+	}
+
+	/**
+	 * @return merge base of specified commits, or <tt>null</tt> if two commits do
+	 *         not have related history. In this case, these two commits cannot be
+	 *         merged
+	 */
+	@Nullable
+	public static ObjectId getMergeBase(Repository repository, ObjectId commitId1, ObjectId commitId2) {
+		try (RevWalk revWalk = new RevWalk(repository)) {
+			revWalk.setRevFilter(RevFilter.MERGE_BASE);
+
+			revWalk.markStart(revWalk.parseCommit(commitId1));
+			revWalk.markStart(revWalk.parseCommit(commitId2));
+			RevCommit mergeBase = revWalk.next();
+			return mergeBase != null ? mergeBase.copy() : null;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static boolean isMergedInto(Repository repository, @Nullable Map<String, String> gitEnvs, ObjectId base,
+									   ObjectId tip) {
+		if (gitEnvs != null && !gitEnvs.isEmpty()) {
+			return new IsAncestorCommand(repository.getDirectory(), base.name(), tip.name(), gitEnvs).run();
+		} else {
+			try (RevWalk revWalk = new RevWalk(repository)) {
+				RevCommit baseCommit;
+				try {
+					baseCommit = revWalk.parseCommit(base);
+				} catch (MissingObjectException e) {
+					return false;
+				}
+				return revWalk.isMergedInto(baseCommit, revWalk.parseCommit(tip));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	/**
+	 * Get commit of specified revision id.
+	 *
+	 * @param revWalk
+	 * @param revId
+	 * @return <tt>null</tt> if specified id does not exist or does not represent a
+	 *         commit
+	 */
+	@Nullable
+	public static RevCommit parseCommit(RevWalk revWalk, ObjectId revId) {
+		RevObject peeled;
+		try {
+			peeled = revWalk.peel(revWalk.parseAny(revId));
+			if (peeled instanceof RevCommit)
+				return (RevCommit) peeled;
+			else
+				return null;
+		} catch (MissingObjectException e) {
+			return null;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static Collection<RefFacade> getCommitRefs(Repository repository, @Nullable String prefix) {
+		try (RevWalk revWalk = new RevWalk(repository)) {
+			List<Ref> refs;
+			if (prefix != null)
+				refs = repository.getRefDatabase().getRefsByPrefix(prefix);
+			else
+				refs = repository.getRefDatabase().getRefs();
+			return refs.stream()
+					.map(ref->new RefFacade(revWalk, ref))
+					.filter(refFacade->refFacade.getPeeledObj() instanceof RevCommit)
+					.collect(Collectors.toList());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nullable
+	public static ObjectId resolve(Repository repository, String revision, boolean errorIfInvalid) {
+		try {
+			return repository.resolve(revision);
+		} catch (RevisionSyntaxException | AmbiguousObjectException | IncorrectObjectTypeException e) {
+			if (errorIfInvalid)
+				throw new RuntimeException(e);
+			else
+				return null;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nullable
+	public static ObjectId revert(Repository repository, ObjectId revertCommitId, ObjectId targetCommitId,
+								  String commitMessage, PersonIdent committer) {
+		try (RevWalk revWalk = new RevWalk(repository); ObjectInserter inserter = repository.newObjectInserter();) {
+			var revertCommit = revWalk.parseCommit(revertCommitId);
+			revWalk.setRevFilter(RevFilter.NO_MERGES);
+            ResolveMerger merger = (ResolveMerger) MergeStrategy.RECURSIVE.newMerger(repository, true);
+			merger.setBase(revertCommit);
+			if (merger.merge(targetCommitId, revertCommit.getParent(0))) {
+				CommitBuilder commitBuilder = new CommitBuilder();
+				commitBuilder.setAuthor(revertCommit.getAuthorIdent());
+				commitBuilder.setCommitter(committer);
+				commitBuilder.setParentId(targetCommitId);
+				commitBuilder.setMessage(commitMessage);
+				commitBuilder.setTreeId(merger.getResultTreeId());
+				ObjectId mergedCommitId = inserter.insert(commitBuilder);
+				inserter.flush();
+				return mergedCommitId;
+			} else {
+				return null;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nullable
+	public static ObjectId cherryPick(Repository repository, ObjectId cherryPickCommitId, ObjectId targetCommitId,
+									  String commitMessage, PersonIdent committer) {
+		try (RevWalk revWalk = new RevWalk(repository); ObjectInserter inserter = repository.newObjectInserter();) {
+			var cherryPickCommit = revWalk.parseCommit(cherryPickCommitId);
+			revWalk.setRevFilter(RevFilter.NO_MERGES);
+            ResolveMerger merger = (ResolveMerger) MergeStrategy.RECURSIVE.newMerger(repository, true);
+			merger.setBase(cherryPickCommit.getParent(0));
+			if (merger.merge(targetCommitId, cherryPickCommit)) {
+				CommitBuilder commitBuilder = new CommitBuilder();
+				commitBuilder.setAuthor(cherryPickCommit.getAuthorIdent());
+				commitBuilder.setCommitter(committer);
+				commitBuilder.setParentId(targetCommitId);
+				commitBuilder.setMessage(commitMessage);
+				commitBuilder.setTreeId(merger.getResultTreeId());
+				ObjectId mergedCommitId = inserter.insert(commitBuilder);
+				inserter.flush();
+				return mergedCommitId;
+			} else {
+				return null;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nullable
+	public static ObjectId rebase(Repository repository, ObjectId source, ObjectId target, PersonIdent committer) {
+		try (RevWalk revWalk = new RevWalk(repository); ObjectInserter inserter = repository.newObjectInserter();) {
+			RevCommit sourceCommit = revWalk.parseCommit(source);
+			RevCommit targetCommit = revWalk.parseCommit(target);
+			revWalk.setRevFilter(RevFilter.NO_MERGES);
+			List<RevCommit> commits = RevWalkUtils.find(revWalk, sourceCommit, targetCommit);
+			Collections.reverse(commits);
+			RevCommit headCommit = targetCommit;
+			for (RevCommit commit : commits) {
+				ResolveMerger merger = (ResolveMerger) MergeStrategy.RECURSIVE.newMerger(repository, true);
+				merger.setBase(commit.getParent(0));
+				if (merger.merge(headCommit, commit)) {
+					if (!headCommit.getTree().getId().equals(merger.getResultTreeId())) {
+						if (!commit.getTree().getId().equals(merger.getResultTreeId())
+								|| !commit.getParent(0).equals(headCommit)) {
+							CommitBuilder commitBuilder = new CommitBuilder();
+							commitBuilder.setAuthor(commit.getAuthorIdent());
+							commitBuilder.setCommitter(committer);
+							commitBuilder.setParentId(headCommit);
+							commitBuilder.setMessage(commit.getFullMessage());
+							commitBuilder.setTreeId(merger.getResultTreeId());
+							headCommit = revWalk.parseCommit(inserter.insert(commitBuilder));
+						} else {
+							headCommit = commit;
+						}
+					}
+				} else {
+					return null;
+				}
+			}
+			inserter.flush();
+			return headCommit.copy();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	@Nullable
+	public static ObjectId merge(Repository repository, ObjectId targetCommitId, ObjectId sourceCommitId,
+								 boolean squash, PersonIdent committer, PersonIdent author, String commitMessage,
+								 boolean useOursOnConflict) {
+		try (RevWalk revWalk = new RevWalk(repository); ObjectInserter inserter = repository.newObjectInserter();) {
+			RevCommit sourceCommit = revWalk.parseCommit(sourceCommitId);
+			RevCommit targetCommit = revWalk.parseCommit(targetCommitId);
+			Merger merger;
+			if (useOursOnConflict)
+				merger = MergeStrategy.OURS.newMerger(repository, true);
+			else
+				merger = MergeStrategy.RECURSIVE.newMerger(repository, true);
+			if (merger.merge(targetCommit, sourceCommit)) {
+				CommitBuilder mergedCommit = new CommitBuilder();
+				mergedCommit.setAuthor(author);
+				mergedCommit.setCommitter(committer);
+				if (squash)
+					mergedCommit.setParentId(targetCommit);
+				else
+					mergedCommit.setParentIds(targetCommit, sourceCommit);
+				mergedCommit.setMessage(commitMessage);
+				mergedCommit.setTreeId(merger.getResultTreeId());
+				ObjectId mergedCommitId = inserter.insert(mergedCommit);
+				inserter.flush();
+				return mergedCommitId;
+			} else {
+				return null;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static Collection<String> getChangedFiles(Repository repository, ObjectId oldCommitId,
+													 ObjectId newCommitId) {
+		Collection<String> changedFiles = new HashSet<>();
+		try (RevWalk revWalk = new RevWalk(repository); TreeWalk treeWalk = new TreeWalk(repository)) {
+			treeWalk.setFilter(TreeFilter.ANY_DIFF);
+			treeWalk.setRecursive(true);
+			RevCommit oldCommit = revWalk.parseCommit(oldCommitId);
+			RevCommit newCommit = revWalk.parseCommit(newCommitId);
+			treeWalk.addTree(oldCommit.getTree());
+			treeWalk.addTree(newCommit.getTree());
+			while (treeWalk.next()) {
+				changedFiles.add(treeWalk.getPathString());
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return changedFiles;
+	}
+
+	public static boolean isValid(File gitDir) {
+		return new File(gitDir, "objects").exists();
+	}
+
+	public static RefUpdate getRefUpdate(Repository repository, String refName) {
+		try {
+			return repository.updateRef(refName);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void updateRef(RefUpdate refUpdate) {
+		try {
+			RefUpdate.Result result = refUpdate.forceUpdate();
+			if (result == RefUpdate.Result.LOCK_FAILURE && refUpdate.getExpectedOldObjectId() != null
+					&& !refUpdate.getExpectedOldObjectId().equals(refUpdate.getOldObjectId())) {
+				throw new ObsoleteCommitException(refUpdate.getOldObjectId());
+			} else if (result != RefUpdate.Result.FAST_FORWARD && result != RefUpdate.Result.FORCED
+					&& result != RefUpdate.Result.NEW && result != RefUpdate.Result.NO_CHANGE) {
+				throw new RefUpdateException(result);
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void deleteRef(RefUpdate refUpdate) {
+		try {
+			refUpdate.setForceUpdate(true);
+			RefUpdate.Result result = refUpdate.delete();
+			if (result == RefUpdate.Result.LOCK_FAILURE && refUpdate.getExpectedOldObjectId() != null
+					&& !refUpdate.getExpectedOldObjectId().equals(refUpdate.getOldObjectId())) {
+				throw new ObsoleteCommitException(refUpdate.getOldObjectId());
+			} else if (result != RefUpdate.Result.FAST_FORWARD && result != RefUpdate.Result.FORCED
+					&& result != RefUpdate.Result.NEW && result != RefUpdate.Result.NO_CHANGE) {
+				throw new RefUpdateException(result);
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void linkRef(RefUpdate refUpdate, String target) {
+		try {
+			RefUpdate.Result result = refUpdate.link(target);
+			if (result != RefUpdate.Result.FORCED && result != RefUpdate.Result.NEW
+					&& result != RefUpdate.Result.NO_CHANGE)
+				throw new RefUpdateException(result);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static String getBlobName(String blobPath) {
+		String blobName = blobPath;
+		if (blobPath.indexOf('/') != -1)
+			blobName = StringUtils.substringAfterLast(blobPath, "/");
+		return blobName;
+	}
+	
+	public static void sign(ObjectBuilder object, PGPSecretKeyRing signingKey) {
+		JcePBESecretKeyDecryptorBuilder decryptorBuilder = new JcePBESecretKeyDecryptorBuilder()
+				.setProvider(BouncyCastleProvider.PROVIDER_NAME);
+		PGPPrivateKey privateKey;
+		try {
+			privateKey = signingKey.getSecretKey().extractPrivateKey(
+					decryptorBuilder.build(new char[0]));
+		} catch (PGPException e) {
+			throw new RuntimeException(e);
+		}
+
+		PGPPublicKey publicKey = signingKey.getPublicKey();
+
+		PGPSignatureGenerator signatureGenerator = new PGPSignatureGenerator(
+				new JcaPGPContentSignerBuilder(publicKey.getAlgorithm(), HashAlgorithmTags.SHA256).setProvider(BouncyCastleProvider.PROVIDER_NAME),
+				signingKey.getPublicKey());
+		try {
+			signatureGenerator.init(PGPSignature.BINARY_DOCUMENT, privateKey);
+			PGPSignatureSubpacketGenerator subpackets = new PGPSignatureSubpacketGenerator();
+			subpackets.setIssuerFingerprint(false, publicKey);
+
+			String emailAddress = GpgUtils.getEmailAddress(publicKey.getUserIDs().next());
+			subpackets.addSignerUserID(false, emailAddress);
+
+			signatureGenerator.setHashedSubpackets(subpackets.generate());
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			try (BCPGOutputStream out = new BCPGOutputStream(new ArmoredOutputStream(buffer))) {
+				signatureGenerator.update(object.build());
+				signatureGenerator.generate().encode(out);
+			}
+			object.setGpgSignature(new GpgSignature(buffer.toByteArray()));
+		} catch (IOException | PGPException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Normalizes a string for use as part of a git branch name (e.g. issue title).
+	 * Keeps only alphanumeric characters, collapses and trims hyphens, lowercases.
+	 */
+	@Nullable
+	public static String normalizeForBranch(String text) {
+		var branch = text
+				.replaceAll("[^a-zA-Z0-9]", "-")
+				.replaceAll("-+", "-")
+				.replaceAll("^-|-$", "")
+				.toLowerCase();
+		return StringUtils.trimToNull(branch);
+	}
+	
+	public static Commandline newGit() {
+		return new Commandline(OneDev.getInstance(GitLocation.class).getExecutable());
+	}
+	
+	public static <T> T callWithClusterCredential(GitTask<T> task) {
+		File homeDir = FileUtils.createTempDir("githome"); 
+
+		ClusterService clusterService = OneDev.getInstance(ClusterService.class);
+		SecretMasker.push(text -> Strings.CS.replace(text, clusterService.getCredential(), "******"));
+		try {
+			Commandline git = newGit();
+			git.envs().put("HOME", homeDir.getAbsolutePath());
+			String extraHeader = KubernetesHelper.AUTHORIZATION + ": " 
+					+ KubernetesHelper.BEARER + " " + clusterService.getCredential();
+			git.addArgs("config", "--global", "http.extraHeader", extraHeader);
+			git.execute(new LineConsumer() {
+
+				@Override
+				public void consume(String line) {
+					logger.info(line);
+				}
+				
+			}, new LineConsumer() {
+
+				@Override
+				public void consume(String line) {
+					logger.warn(line);
+				}
+				
+			}).checkReturnCode();
+			
+			return task.call(git);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			SecretMasker.pop();
+			FileUtils.deleteDir(homeDir);
+		}
+	}
+	
+	/**
+	 * Check if there are any errors with git command line. 
+	 *
+	 * @return
+	 * 			error message if failed to check git command line, 
+	 * 			or <tt>null</tt> otherwise
+	 * 			
+	 */
+	public static String checkError(String gitExe) {
+		return Agent.checkGitError(gitExe, MIN_VERSION);
+	}
+	
+	public static FileChange parseNumStats(String line) {
+		FileChange change;
+		StringTokenizer tokenizer = new StringTokenizer(line, "\t");
+		String additionsToken = tokenizer.nextToken();
+		int additions = additionsToken.equals("-")?-1:Integer.parseInt(additionsToken);
+		String deletionsToken = tokenizer.nextToken();
+		int deletions = deletionsToken.equals("-")?-1:Integer.parseInt(deletionsToken);
+		
+		String path = tokenizer.nextToken();
+		int renameSignIndex = path.indexOf(" => ");
+		if (renameSignIndex != -1) {
+			int leftBraceIndex = path.indexOf("{");
+			int rightBraceIndex = path.indexOf("}");
+			if (leftBraceIndex != -1 && rightBraceIndex != -1 && leftBraceIndex<renameSignIndex
+					&& rightBraceIndex>renameSignIndex) {
+				String leftCommon = path.substring(0, leftBraceIndex);
+				String rightCommon = path.substring(rightBraceIndex+1);
+				String oldPath = leftCommon + path.substring(leftBraceIndex+1, renameSignIndex) 
+						+ rightCommon;
+				String newPath = leftCommon + path.substring(renameSignIndex+4, rightBraceIndex) 
+						+ rightCommon;
+    			change = new FileChange(oldPath, newPath, additions, deletions);
+			} else {
+				String oldPath = QuotedString.GIT_PATH.dequote(path.substring(0, renameSignIndex));
+				String newPath = QuotedString.GIT_PATH.dequote(path.substring(renameSignIndex+4));
+    			change = new FileChange(oldPath, newPath, additions, deletions);
+			}
+		} else {
+			path = QuotedString.GIT_PATH.dequote(path);
+			change = new FileChange(null, path, additions, deletions);
+		}            			
+		return change;
+	}
+	
+	public static void advertiseUploadRefs(File gitDir, String protocol, OutputStream stdout) {
+		advertiseUploadRefs(gitDir, protocol, stdout, true);
+	}
+
+	public static void advertiseUploadRefs(File gitDir, String protocol, OutputStream stdout, boolean logError) {
+		AtomicBoolean outputWritten = new AtomicBoolean(false);
+		var errorMessage = new AtomicReference<String>();
+		var advertise = new AdvertiseUploadRefsCommand(gitDir, trackOutput(stdout, outputWritten),
+				errorLogger(errorMessage, logError));
+		var result = advertise.protocol(protocol).run();
+		handleGitResult(result, stdout, outputWritten, errorMessage.get(),
+				"git upload-pack --advertise-refs failed", logError);
+	}
+
+	public static void advertiseReceiveRefs(File gitDir, String protocol, OutputStream stdout) {
+		advertiseReceiveRefs(gitDir, protocol, stdout, true);
+	}
+
+	public static void advertiseReceiveRefs(File gitDir, String protocol, OutputStream stdout, boolean logError) {
+		AtomicBoolean outputWritten = new AtomicBoolean(false);
+		var errorMessage = new AtomicReference<String>();
+		var advertise = new AdvertiseReceiveRefsCommand(gitDir, trackOutput(stdout, outputWritten),
+				errorLogger(errorMessage, logError));
+		var result = advertise.protocol(protocol).run();
+		handleGitResult(result, stdout, outputWritten, errorMessage.get(),
+				"git receive-pack --advertise-refs failed", logError);
+	}
+
+	public static void uploadPack(File gitDir, Map<String, String> environments, String protocol,
+			InputStream stdin, OutputStream stdout) {
+		uploadPack(gitDir, environments, protocol, stdin, stdout, true);
+	}
+
+	public static void uploadPack(File gitDir, Map<String, String> environments, String protocol,
+			InputStream stdin, OutputStream stdout, boolean logError) {
+		AtomicBoolean toleratedErrors = new AtomicBoolean(false);
+		AtomicBoolean outputWritten = new AtomicBoolean(false);
+		var errorMessage = new AtomicReference<String>();
+		var stderr = new LineConsumer(UTF_8.name()) {
+
+			@Override
+			public void consume(String line) {
+				// This error may happen during a normal shallow fetch/clone 
+				if (line.contains("remote end hung up unexpectedly")) {
+					toleratedErrors.set(true);
+					logger.debug(line);
+				} else {
+					errorMessage.compareAndSet(null, line);
+					if (logError)
+						logger.error(line);
+				}
+			}
+			
+		};
+
+		var upload = new UploadPackCommand(gitDir, stdin, trackOutput(stdout, outputWritten), stderr, environments);
+		upload.statelessRpc(true).protocol(protocol);
+		var result = upload.run();
+		if (!toleratedErrors.get())
+			handleGitResult(result, stdout, outputWritten, errorMessage.get(), "git upload-pack failed", logError);
+	}
+
+	public static void receivePack(File gitDir, Map<String, String> environments, String protocol, 
+			InputStream stdin, OutputStream stdout) {
+		receivePack(gitDir, environments, protocol, stdin, stdout, true);
+	}
+
+	public static void receivePack(File gitDir, Map<String, String> environments, String protocol,
+			InputStream stdin, OutputStream stdout, boolean logError) {
+		AtomicBoolean outputWritten = new AtomicBoolean(false);
+		var errorMessage = new AtomicReference<String>();
+		var receive = new ReceivePackCommand(gitDir, stdin, trackOutput(stdout, outputWritten),
+				errorLogger(errorMessage, logError), environments);
+		receive.statelessRpc(true).protocol(protocol);
+		ExecutionResult result = receive.run();
+		handleGitResult(result, stdout, outputWritten, errorMessage.get(), "git receive-pack failed", logError);
+	}
+
+	private static LineConsumer errorLogger(AtomicReference<String> errorMessage, boolean logError) {
+		return new LineConsumer(UTF_8.name()) {
+
+			@Override
+			public void consume(String line) {
+				errorMessage.compareAndSet(null, line);
+				if (logError)
+					logger.error(line);
+			}
+
+		};
+	}
+
+	private static OutputStream trackOutput(OutputStream output, AtomicBoolean outputWritten) {
+		return new OutputStream() {
+
+			@Override
+			public void write(int b) throws IOException {
+				output.write(b);
+				outputWritten.set(true);
+			}
+
+			@Override
+			public void write(byte[] b, int off, int len) throws IOException {
+				output.write(b, off, len);
+				if (len != 0)
+					outputWritten.set(true);
+			}
+
+			@Override
+			public void flush() throws IOException {
+				output.flush();
+			}
+
+		};
+	}
+
+	private static void handleGitResult(ExecutionResult result, OutputStream output, AtomicBoolean outputWritten,
+			String errorMessage, String fallbackMessage, boolean logError) {
+		if (result.getReturnCode() != 0) {
+			if (!outputWritten.get()) {
+				var message = errorMessage;
+				if (message == null)
+					message = fallbackMessage;
+				try {
+					var packet = new PacketLineOut(output);
+					packet.writeString("ERR " + message + "\n");
+					packet.end();
+					output.flush();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			} else if (errorMessage == null && logError) {
+				logger.error("{} (exit code: {})", fallbackMessage, result.getReturnCode());
+			}
+		}
+	}
+		
+}

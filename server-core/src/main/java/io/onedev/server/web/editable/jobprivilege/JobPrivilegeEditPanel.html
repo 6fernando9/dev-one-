@@ -1,0 +1,16 @@
+<wicket:panel>
+	<form wicket:id="form" class="job-privilege-edit leave-confirm">
+		<div class="modal-header">
+			<h5 id="modal-title" class="modal-title"><wicket:t>Job Privilege</wicket:t></h5>
+			<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+		</div>
+		<div class="modal-body">
+            <div wicket:id="feedback"></div>
+			<div wicket:id="editor"></div>
+		</div>
+		<div class="modal-footer">
+			<input wicket:id="save" type="submit" t:value="Save" class="dirty-aware btn btn-primary">
+			<a wicket:id="cancel" class="btn btn-secondary"><wicket:t>Cancel</wicket:t></a>
+		</div>
+	</form>
+</wicket:panel>

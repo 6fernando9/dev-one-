@@ -1,0 +1,103 @@
+package io.onedev.server.web.page.project.workspaces.detail.terminal;
+
+import javax.inject.Inject;
+
+import org.apache.wicket.Component;
+import org.apache.wicket.RestartResponseException;
+import org.apache.wicket.core.request.handler.IPartialPageRequestHandler;
+import org.apache.wicket.markup.html.panel.Fragment;
+import org.apache.wicket.protocol.ws.api.IWebSocketConnection;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
+
+import io.onedev.server.model.Workspace;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.web.component.terminal.TerminalPanel;
+import io.onedev.server.web.page.project.workspaces.detail.WorkspaceDetailPage;
+import io.onedev.server.web.page.project.workspaces.detail.WorkspaceDefaultPage;
+import io.onedev.server.workspace.WorkspaceService;
+
+public class WorkspaceTerminalPage extends WorkspaceDetailPage {
+
+	private static final long serialVersionUID = 1L;
+
+	private static final String PARAM_SHELL = "shell";
+
+	private final String shellId;
+
+	@Inject
+	private WorkspaceService workspaceService;
+
+	public WorkspaceTerminalPage(PageParameters params) {
+		super(params);
+		shellId = params.get(PARAM_SHELL).toString();
+
+		if (!workspaceService.getShellLabels(getWorkspace()).containsKey(shellId))
+			throw new RestartResponseException(WorkspaceDefaultPage.class, WorkspaceDefaultPage.paramsOf(getWorkspace()));
+	}
+
+	public String getShellId() {
+		return shellId;
+	}
+
+	@Override
+	protected void onInitialize() {
+		super.onInitialize();
+
+		add(new TerminalPanel("terminal") {
+
+			@Override
+			protected void onConnectionOpen(IWebSocketConnection connection) {
+				workspaceService.onOpen(connection, getWorkspace(), shellId);
+			}
+
+			@Override
+			protected void onConnectionClose(IWebSocketConnection connection) {
+				workspaceService.onClose(connection);
+			}
+
+			@Override
+			protected void writeToStdin(IWebSocketConnection connection, String data) {
+				workspaceService.onMessage(getWorkspace(), shellId, "SHELL_INPUT:" + data);
+			}
+
+			@Override
+			protected void onResized(IWebSocketConnection connection, int rows, int cols) {
+				workspaceService.onMessage(getWorkspace(), shellId, "TERMINAL_RESIZE:" + rows + "," + cols);
+			}
+
+			@Override
+			protected boolean canWriteToStdin() {
+				return SecurityUtils.canModifyOrDelete(getWorkspace());
+			}
+
+			@Override
+			protected boolean disableScrollback() {
+				// Tmux owns scrollback for workspace terminals. Keeping another history in
+				// xterm records tmux screen redraws and makes old content appear duplicated.
+				return true;
+			}
+
+			@Override
+			protected boolean isTmuxTerminal() {
+				return true;
+			}
+
+			@Override
+			protected void onShellExit(IPartialPageRequestHandler handler) {
+				setResponsePage(WorkspaceDefaultPage.class, WorkspaceDefaultPage.paramsOf(getWorkspace()));	
+			}
+
+		});
+	}
+
+	public Component renderOptions(String componentId) {
+		return new Fragment(componentId, "optionsFrag", this);
+	}
+	
+	public static PageParameters paramsOf(Workspace workspace, String shellId) {
+		var params = WorkspaceDetailPage.paramsOf(workspace);
+		params.add(PARAM_SHELL, shellId);
+		return params;
+	}
+
+}

@@ -1,0 +1,46 @@
+<wicket:extend>
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Root Projects</wicket:t></label>
+        <span class="switch switch-sm switch-primary">
+            <label>
+                <input wicket:id="roots" type="checkbox">
+            </label>
+        </span>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Leaf Projects</wicket:t></label>
+        <span class="switch switch-sm switch-primary">
+            <label>
+                <input wicket:id="leafs" type="checkbox">
+            </label>
+        </span>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Child Projects Of</wicket:t></label>
+        <select wicket:id="children" class="form-control"></select>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Forks Of</wicket:t></label>
+        <select wicket:id="forks" class="form-control"></select>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Ownered By</wicket:t></label>
+        <select wicket:id="ownedBy" class="form-control"></select>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Active Since</wicket:t></label>
+        <div class="clearable-wrapper">
+            <input wicket:id="activeSince" type="text" class="form-control">
+        </div>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Not Active Since</wicket:t></label>
+        <div class="clearable-wrapper">
+            <input wicket:id="notActiveSince" type="text" class="form-control">
+        </div>
+    </div>    
+    <div class="form-group">
+        <label class="control-label"><wicket:t>Label</wicket:t></label>
+        <select wicket:id="label" class="form-control"></select>
+    </div>    
+</wicket:extend>

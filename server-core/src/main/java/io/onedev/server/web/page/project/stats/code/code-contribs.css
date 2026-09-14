@@ -1,0 +1,35 @@
+.code-contribs .alert .period {
+	width: 10rem;
+}
+.code-contribs .overall {
+	height: 360px;
+}
+.code-contribs .overall .no-data {
+	text-align: center;
+	font-size: 2rem;
+	margin-top: 2rem;
+	font-weight: bold;
+}
+
+.code-contribs .top-contributors .loading {
+	background: url(/~img/ajax-indicator-big.png) no-repeat scroll center center;
+	background-size: 64px 64px;
+	height: 64px;
+}
+.dark-mode .code-contribs .top-contributors .loading {
+	background: url(/~img/dark-ajax-indicator-big.png) no-repeat scroll center center;
+}
+
+.code-contribs .top-contributors .avatar {
+	width: 36px;
+	height: 36px;
+}
+.code-contribs .top-contributors .body {
+	height: 300px;
+}
+.code-contribs .top-contributors .col-xl-6.left {
+	padding-right: 1rem;
+}
+.code-contribs .top-contributors .col-xl-6.right {
+	padding-left: 1rem;
+}

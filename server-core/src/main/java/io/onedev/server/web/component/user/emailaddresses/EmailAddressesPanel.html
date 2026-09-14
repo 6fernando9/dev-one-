@@ -1,0 +1,70 @@
+<wicket:panel>
+	<div wicket:id="ordinary" class="email-addresses">
+		<section class="mb-4 border-bottom pb-4">
+			<div class="font-weight-boldest mb-2"><wicket:t>Primary Email Address</wicket:t></div>
+			<p class="text-muted font-size-sm"><wicket:t>The primary email address is used to receive notifications and show your gravatar (if enabled). It is also used for web-based Git operations unless email addresses are kept private.</wicket:t></p>
+			<form wicket:id="primaryForm">
+				<div class="form-inline">
+					<select wicket:id="select" class="form-control mr-3"></select>
+					<input wicket:id="input" class="form-control mr-3" t:placeholder="Email address">
+					<button wicket:id="submit" type="submit" class="btn btn-icon btn-sm btn-primary"><wicket:svg href="plus" class="icon"/></button>
+				</div>
+				<div wicket:id="feedback" class="mt-2"></div>
+				<div wicket:id="unverifiedNote" class="mt-3 text-warning font-size-sm">
+					<wicket:t>This email address is not verified</wicket:t>
+					<a wicket:id="resendVerificationEmail" t:data-tippy-content="Resend verification email" class="ml-2"><wicket:svg href="mail" class="icon icon-sm"/></a>
+				</div>
+			</form>
+		</section>
+
+		<section wicket:id="backupEmailAddresses" class="mb-4 border-bottom pb-4">
+			<div class="font-weight-boldest mb-3"><wicket:t>Backup Email Addresses</wicket:t></div>
+			<p class="text-muted font-size-sm"><wicket:t>Verified backup email addresses can be used for password recovery and to identify your commits.</wicket:t></p>
+			<wicket:enclosure child="list">
+				<table class="table table-borderless w-auto mb-3">
+					<tr wicket:id="list">
+						<td class="pl-0 pt-0">
+							<span wicket:id="value" class="font-size-lg"></span>
+							<span wicket:id="verificationStatus" class="ml-1"></span>
+						</td>
+						<td class="text-right text-nowrap pt-0">
+							<a wicket:id="resendVerificationEmail" t:data-tippy-content="Resend verification email" class="mr-1"><wicket:svg href="mail" class="icon icon-sm"/></a>
+							<a wicket:id="delete" t:data-tippy-content="Delete"><wicket:svg href="trash" class="icon icon-sm"/></a>
+						</td>
+					</tr>
+				</table>	
+			</wicket:enclosure>
+			<form wicket:id="form">
+				<div class="form-inline">
+					<input wicket:id="input" class="form-control form-control-sm mr-3" t:placeholder="Email address">
+					<button wicket:id="submit" type="submit" class="btn btn-icon btn-sm btn-primary"><wicket:svg href="plus" class="icon"/></button>
+				</div>
+				<div wicket:id="feedback" class="font-size-sm mt-2"></div>
+			</form>
+		</section>
+
+		<section>
+			<div class="font-weight-boldest mb-3"><wicket:t>Email Address Privacy</wicket:t></div>
+			<form wicket:id="privacyForm">
+				<div class="checkbox-inline mb-3">
+					<label wicket:id="label" class="checkbox">
+						<input wicket:id="check" type="checkbox" class="form-check-input">
+						<wicket:t>Keep my email addresses private</wicket:t>
+					</label>
+				</div>
+				<div wicket:id="privateNote" class="alert alert-notice alert-light">
+					<wicket:svg href="bulb" class="icon"/>
+					<wicket:t>Use the auto-generated email address</wicket:t>
+					<strong wicket:id="generatedEmailAddress"></strong>
+					<wicket:t>for Git operations. All Git operations performed from the web UI will also use this address.</wicket:t>
+				</div>
+			</form>
+		</section>
+	</div>
+	<div wicket:id="serviceOrAi" class="alert alert-notice alert-light">
+		<wicket:svg href="bulb" class="icon"/>
+		<wicket:t>Service or AI user can not specify email addresses. However the auto-generated address</wicket:t>
+		<strong wicket:id="generatedEmailAddress"></strong>
+		<wicket:t>can be used to associate Git commits with the user.</wicket:t>
+	</div>
+</wicket:panel>

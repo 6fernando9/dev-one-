@@ -1,0 +1,30 @@
+User-agent: *
+
+Disallow: /~*
+Disallow: /*/~*
+Disallow: /*IFormSubmitListener*
+Disallow: /*IBehaviorListener*
+Disallow: /*ILinkListener*
+
+Allow: /~dashboards
+
+Allow: /~projects
+Disallow: /~projects/new
+Disallow: /~projects/import
+
+Allow: /~pulls
+Allow: /~issues
+Allow: /~login
+
+Allow: /*/~pulls
+Disallow: /*/~pulls/new
+Disallow: /*/~pulls/*/changes
+Disallow: /*/~pulls/*/code-comments
+
+Allow: /*/~issues
+Disallow: /*/~issues/new
+Disallow: /*/~issues/import
+Disallow: /*/~issues/*/commits
+Disallow: /*/~issues/*/pulls
+Disallow: /*/~issues/*/builds
+Disallow: /*/~issues/*/authorizations

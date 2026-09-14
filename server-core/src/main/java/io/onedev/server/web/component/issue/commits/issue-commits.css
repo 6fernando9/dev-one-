@@ -1,0 +1,6 @@
+.issue-commits>.commit {
+	border-top: 1px solid var(--light-gray);
+}
+.issue-commits>.commit:first-child {
+	border-top: none;
+}

@@ -1,0 +1,51 @@
+<wicket:extend>
+	<div class="source-view flex-grow-1 d-flex">
+		<div wicket:id="comment" class="comment need-width d-flex overflow-hidden flex-shrink-0">
+			<div class="content flex-grow-1 overflow-hidden d-flex flex-column">
+				<div wicket:id="head" class="head d-flex align-items-center px-3 py-2 flex-shrink-0 border-bottom">
+					<h6 class="mr-2 mb-0"><wicket:t>Code Comment</wicket:t></h6>
+					<span wicket:id="outdated" class="badge badge-sm badge-warning mr-2"><wicket:t>outdated</wicket:t></span>
+					<span wicket:id="status" class="mr-2"></span>
+					<a wicket:id="locate" t:data-tippy-content="Show commented code snippet" class="locate btn btn-light btn-icon btn-xs btn-hover-primary ml-2 mr-3"><wicket:svg href="hand" class="icon"></wicket:svg></a>
+					<a wicket:id="close" t:data-tippy-content="Hide comment" class="ml-auto text-muted text-hover-primary"><wicket:svg href="times" class="icon"></wicket:svg></a>
+				</div>
+				<div wicket:id="body" class="body overflow-auto flex-grow-1 p-3"></div>
+			</div>
+			<div class="ui-resizable-handle ui-resizable-e flex-shrink-0"></div>
+		</div>
+		<div class="code flex-grow-1 autofit overflow-hidden d-flex flex-column resize-aware"></div>
+		<div wicket:id="outline" class="outline need-width d-flex overflow-hidden flex-shrink-0">
+			<div class="ui-resizable-handle ui-resizable-w flex-shrink-0"></div>
+			<div wicket:id="content" class="content flex-grow-1 overflow-auto d-flex"></div>
+		</div>
+	</div>
+	<div wicket:id="symbolTooltip"></div>
+	<wicket:fragment wicket:id="outlineSearchFrag">
+	<div class="outline-search">
+		<div class="modal-header">
+			<h5 class="modal-title"><wicket:t>Outline Search</wicket:t></h5>
+			<button wicket:id="close" type="button" class="close"><wicket:svg href="times" class="icon"/></button>
+		</div>
+		<div class="modal-body">
+			<input wicket:id="input" class="form-control" t:placeholder="Type to filter">
+			<div wicket:id="content" class="content overflow-auto mt-3"></div>
+		</div>
+	</div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="outlineNodeFrag">
+		<a wicket:id="link"><img wicket:id="icon"> <span wicket:id="label"></span></a>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="newCommentFrag">
+		<form wicket:id="form" class="new-comment leave-confirm">
+			<div wicket:id="feedback" class="feedback"></div>
+			<div class="form-group mb-3">
+				<div wicket:id="content"></div>
+			</div>
+			<button wicket:id="save" class="btn btn-sm btn-primary dirty-aware mr-1"><wicket:t>Save</wicket:t></button>
+			<button wicket:id="cancel" class="btn btn-sm btn-secondary"><wicket:t>Cancel</wicket:t></button>
+		</form>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actionsFrag">
+		<wicket:enclosure child="outline"><label class="checkbox source-outline-option"><input type="checkbox" wicket:id="outline" class="outline-toggle"><wicket:t>Outline</wicket:t></label></wicket:enclosure>
+	</wicket:fragment>
+</wicket:extend>

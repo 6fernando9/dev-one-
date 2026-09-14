@@ -1,0 +1,123 @@
+div.side-info {
+	border-radius: 0 0 0.42rem 0;
+	border-left: 1px solid var(--light-gray);
+	margin: -2rem -2.25rem -2rem 2rem; 
+	flex-shrink: 0;
+	/* Avoid transitioning height: animating width+height together measures
+	   content at width 0 and can lock in a huge height */
+	transition: width var(--transition-duration) ease,
+		margin var(--transition-duration) ease,
+		right var(--transition-duration) ease,
+		box-shadow var(--transition-duration) ease;
+	width: 360px;
+	background: white;
+}
+.dark-mode div.side-info {
+	border-left: 1px solid var(--dark-mode-light-dark);
+	background: var(--dark-mode-dark);
+}
+div.side-info>.content>.header, div.side-info>.content>.footer {
+	padding: 1.5rem 2rem;
+}
+div.side-info>.content>.body {
+	padding: 2rem 2.25rem;
+}
+div.side-info>.content>.header .close {
+	border-left: 1px solid var(--secondary);
+	margin-left: 0.6rem;
+	padding-left: 0.6rem;
+	display: flex;
+}
+.dark-mode div.side-info>.content>.header .close {
+	border-left-color: var(--dark-mode-dark-gray);
+}
+
+a.side-info {
+	display: inline-flex;
+	align-items: center;
+}
+.side-info-visible a.side-info {
+	display: none;
+}
+
+/* Stretch the pane so its border spans the full content height, while keeping
+   its content pinned under the top chrome in the shared page scroller. */
+@media(min-width: 1199px) {
+	/* Hide the ellipsis until JS applies side-info-visible. Otherwise a refresh
+	   paints the trigger, then onDomReady opens the pinned pane and hides it. */
+	html:not(.hide-side-info):not(.side-info-ready) a.side-info {
+		display: none;
+	}
+	div.side-info>.content {
+		position: sticky;
+		top: 0;
+	}
+	div.side-info.closed {
+		width: 0;
+		max-height: 0;
+		min-height: 0;
+		margin: 0;
+		border-left: none;
+		overflow: hidden;
+		pointer-events: none;
+	}
+}
+
+@media(max-width: 1198px) {
+	div.side-info {
+	    box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.1);
+		border-left: none;
+		position: fixed;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		z-index: 1050;
+		margin: 0;
+	}
+	div.side-info>.content {
+		height: 100%;
+	}
+	.dark-mode div.side-info {
+		box-shadow: 0 0 30px rgb(0 0 0 / 50%);	
+	}
+	div.side-info.closed {
+		right: -360px;
+		box-shadow: none;
+	}
+	div.side-info>.content>.body {
+		overflow: auto;
+	}
+}
+
+.hide-side-info div.side-info {
+    box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.1);
+	border-left: none;
+	position: fixed;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	z-index: 1050;
+	margin: 0;
+	width: 360px;
+}
+.hide-side-info div.side-info>.content {
+	height: 100%;
+}
+.dark-mode .hide-side-info div.side-info {
+	box-shadow: 0 0 30px rgb(0 0 0 / 50%);	
+}
+
+.hide-side-info div.side-info.closed {
+	right: -360px;
+	box-shadow: none;
+	width: 360px;
+	margin: 0;
+	overflow: visible;
+	pointer-events: auto;
+}
+.hide-side-info div.side-info>.content>.header .close {
+	display: flex;
+}
+.hide-side-info div.side-info>.content>.body {
+	overflow: auto;
+}

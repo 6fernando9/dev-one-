@@ -1,0 +1,72 @@
+.ssh-server-key textarea {
+	font-family: monospace;
+}
+
+.user-authorizations .bean-list td.property-projectName, 
+.group-authorizations .bean-list td.property-projectName {
+	width: 50%;
+}
+
+.job-executor>.card-header .toggle,
+.workspace-provisioner>.card-header .toggle {
+	vertical-align: bottom;
+}
+.job-executor>.card-header .toggle>.icon,
+.workspace-provisioner>.card-header .toggle>.icon {
+	width: 30px;
+	height: 30px;
+	margin-top: 2px;
+	margin-left: -8px;
+}
+
+.job-executor>.card-header .badge,
+.workspace-provisioner>.card-header .badge {
+	font-size: 0.9rem;
+}
+.job-executor>.card-body,
+.workspace-provisioner>.card-body {
+	display: none;
+}
+.job-executor.expanded>.card-header .toggle>.icon,
+.workspace-provisioner.expanded>.card-header .toggle>.icon {
+	transform: rotate(0deg);
+}
+.job-executor.expanded>.card-body,
+.workspace-provisioner.expanded>.card-body {
+	display: block;
+}
+.job-executor>.card-body .bean-viewer .type-description,
+.workspace-provisioner>.card-body .bean-viewer .type-description {
+	display: none;
+}
+
+.logo-preview img, .logo-preview svg {
+	width: 128px;
+	height: 128px;
+	color: var(--dark);
+}
+.dark-mode .logo-preview svg {
+	color: var(--light);
+}
+
+.label-management .drag-indicator, 
+.label-management th.property-id, 
+.label-management td.property-id {
+	display: none;
+}
+
+.branding-setting .logo-preview>div {
+	background-color: white !important;
+}
+.branding-setting .dark-mode>.logo-preview>div {
+	background-color: var(--dark-mode-dark) !important;
+}
+
+.property-aiModelSetting>.value {
+	margin-top: 1rem;
+	padding: 0 0 0 1rem;
+	border-left: 3px solid var(--light-gray);
+}
+.dark-mode .property-aiModelSetting>.value {
+	border-color: var(--dark-mode-light-dark);
+}

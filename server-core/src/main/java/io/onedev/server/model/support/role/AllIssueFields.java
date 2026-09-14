@@ -1,0 +1,19 @@
+package io.onedev.server.model.support.role;
+
+import java.util.Collection;
+
+import io.onedev.server.OneDev;
+import io.onedev.server.service.SettingService;
+import io.onedev.server.annotation.Editable;
+
+@Editable(order=100, name="All")
+public class AllIssueFields implements IssueFieldSet {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public Collection<String> getIncludeFields() {
+		return OneDev.getInstance(SettingService.class).getIssueSetting().getFieldNames();
+	}
+
+}

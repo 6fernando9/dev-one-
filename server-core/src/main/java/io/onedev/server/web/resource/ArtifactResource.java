@@ -1,0 +1,129 @@
+package io.onedev.server.web.resource;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.EntityNotFoundException;
+
+import org.apache.shiro.authz.UnauthorizedException;
+import org.apache.tika.mime.MimeTypes;
+import org.apache.wicket.request.mapper.parameter.PageParameters;
+import org.apache.wicket.request.resource.AbstractResource;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+
+import io.onedev.commons.utils.ExplicitException;
+import io.onedev.commons.utils.StringUtils;
+import io.onedev.server.OneDev;
+import io.onedev.server.model.Build;
+import io.onedev.server.model.Project;
+import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.BuildService;
+import io.onedev.server.service.ProjectService;
+import io.onedev.server.util.artifact.FileInfo;
+import io.onedev.server.web.util.MimeUtils;
+
+public class ArtifactResource extends AbstractResource {
+
+	private static final long serialVersionUID = 1L;
+
+	private static final String PARAM_PROJECT = "project";
+
+	private static final String PARAM_BUILD = "build";
+
+	@Override
+	protected ResourceResponse newResourceResponse(Attributes attributes) {
+		PageParameters params = attributes.getParameters();
+
+		Long projectId = params.get(PARAM_PROJECT).toLong();
+		Long buildNumber = params.get(PARAM_BUILD).toLong();
+		
+		List<String> pathSegments = new ArrayList<>();
+
+		for (int i = 0; i < params.getIndexedCount(); i++) {
+			String pathSegment = params.get(i).toString();
+			if (pathSegment.contains(".."))
+				throw new ExplicitException("Invalid request path");
+			if (pathSegment.length() != 0)
+				pathSegments.add(pathSegment);
+		}
+		
+		if (pathSegments.isEmpty())
+			throw new ExplicitException("Artifact path has to be specified");
+		
+		String artifactPath = Joiner.on("/").join(pathSegments);
+		
+		FileInfo fileInfo = null;
+		if (!SecurityUtils.isSystem()) {
+			Project project = OneDev.getInstance(ProjectService.class).load(projectId);
+			
+			Build build = OneDev.getInstance(BuildService.class).find(project, buildNumber);
+
+			if (build == null) {
+				String message = String.format("Unable to find build (project: %s, build number: %d)", 
+						project.getPath(), buildNumber);
+				throw new EntityNotFoundException(message);
+			}
+			
+			if (!SecurityUtils.canAccessProject(build.getProject()))
+				throw new UnauthorizedException();
+			
+			fileInfo = (FileInfo) getBuildService().getArtifactInfo(build, artifactPath);
+		}
+		
+		ResourceResponse response = new ResourceResponse();
+		response.getHeaders().addHeader("X-Content-Type-Options", "nosniff");
+		response.disableCaching();
+
+		String fileName = artifactPath;
+		if (fileName.contains("/"))
+			fileName = StringUtils.substringAfterLast(fileName, "/");
+		try {
+			response.setFileName(URLEncoder.encode(fileName, StandardCharsets.UTF_8.name()));
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
+		
+		if (fileInfo != null) {
+			response.setContentLength(fileInfo.getLength());
+			response.setContentType(MimeUtils.sanitize(fileInfo.getMediaType()));
+		} else {
+			response.setContentType(MimeTypes.OCTET_STREAM);
+		}
+		
+		response.setWriteCallback(new WriteCallback() {
+
+			@Override
+			public void writeData(Attributes attributes) throws IOException {
+				getBuildService().downloadArtifact(projectId, buildNumber, artifactPath, 
+						attributes.getResponse().getOutputStream());
+			}			
+			
+		});
+
+		return response;
+	}
+	
+	private BuildService getBuildService() {
+		return OneDev.getInstance(BuildService.class);
+	}
+	
+	public static PageParameters paramsOf(Long projectId, Long buildNumber, String path) {
+		PageParameters params = new PageParameters();
+		params.set(PARAM_PROJECT, projectId);
+		params.set(PARAM_BUILD, buildNumber);
+		
+		int index = 0;
+		for (String segment: Splitter.on("/").split(path)) {
+			params.set(index, segment);
+			index++;
+		}
+		return params;
+	}
+
+}

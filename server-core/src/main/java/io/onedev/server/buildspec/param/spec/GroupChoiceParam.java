@@ -1,0 +1,71 @@
+package io.onedev.server.buildspec.param.spec;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+
+import io.onedev.server.buildspecmodel.inputspec.groupchoiceinput.GroupChoiceInput;
+import io.onedev.server.buildspecmodel.inputspec.groupchoiceinput.choiceprovider.AllGroups;
+import io.onedev.server.buildspecmodel.inputspec.groupchoiceinput.choiceprovider.ChoiceProvider;
+import io.onedev.server.buildspecmodel.inputspec.groupchoiceinput.defaultvalueprovider.DefaultValueProvider;
+import io.onedev.server.annotation.Editable;
+
+@Editable(order=160, name=ParamSpec.GROUP)
+public class GroupChoiceParam extends ParamSpec {
+	
+	private static final long serialVersionUID = 1L;
+
+	private ChoiceProvider choiceProvider = new AllGroups();
+
+	private DefaultValueProvider defaultValueProvider;
+	
+	@Editable(order=1000, name="Available Choices")
+	@NotNull(message="may not be empty")
+	@Valid
+	public ChoiceProvider getChoiceProvider() {
+		return choiceProvider;
+	}
+
+	public void setChoiceProvider(ChoiceProvider choiceProvider) {
+		this.choiceProvider = choiceProvider;
+	}
+
+	@Editable(order=1100, name="Default Value", placeholder="No default value")
+	@Valid
+	public DefaultValueProvider getDefaultValueProvider() {
+		return defaultValueProvider;
+	}
+
+	public void setDefaultValueProvider(DefaultValueProvider defaultValueProvider) {
+		this.defaultValueProvider = defaultValueProvider;
+	}
+
+	@Override
+	public List<String> getPossibleValues() {
+		return GroupChoiceInput.getPossibleValues(choiceProvider);
+	}
+
+	@Override
+	public String getPropertyDef(Map<String, Integer> indexes, boolean withDefaultValue) {
+		return GroupChoiceInput.getPropertyDef(this, indexes, choiceProvider, withDefaultValue?defaultValueProvider:null);
+	}
+
+	@Editable
+	@Override
+	public boolean isAllowMultiple() {
+		return false;
+	}
+
+	@Override
+	public Object convertToObject(List<String> strings) {
+		return GroupChoiceInput.convertToObject(strings);
+	}
+
+	@Override
+	public List<String> convertToStrings(Object value) {
+		return GroupChoiceInput.convertToStrings(value);
+	}
+
+}

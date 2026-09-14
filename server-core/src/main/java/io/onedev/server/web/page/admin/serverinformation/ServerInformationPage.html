@@ -1,0 +1,23 @@
+<wicket:extend>
+	<div class="server-information card">
+		<div class="card-body">
+			<table class="table table-borderless">
+				<tbody>
+					<tr wicket:id="properties">
+						<td wicket:id="name" class="name font-weight-bold"></td>
+						<td wicket:id="value" class="value"></td>
+					</tr>
+					<tr>
+						<td class="name font-weight-bold"><wicket:t>Heap Memory Usage</wicket:t></td>
+						<td class="value">
+							<div class="progress mb-3">
+							  <div wicket:id="memoryUsage" class="progress-bar"></div>
+							</div>					
+							<button wicket:id="gc" class="btn btn-outline-primary btn-sm gc"><wicket:t>Force Garbage Collection</wicket:t></button>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</wicket:extend>

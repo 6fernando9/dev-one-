@@ -1,0 +1,446 @@
+version: 53
+imports:
+- projectPath: onedev/template
+  revision: main
+jobs:
+- name: Release
+  steps:
+  - type: CheckoutStep
+    name: checkout
+    cloneCredential:
+      type: HttpCredential
+      accessTokenSecret: onedev-token
+    withLfs: false
+    withSubmodules: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set up cache
+    templateName: set up cache
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set build version
+    templateName: set build version
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: build
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: bash
+      commands: "set -e\nset -o pipefail\n\nbuildVersion=@build_version@\n\nprojectDir=`pwd`\n\ncurl -H \"Authorization: Bearer @secret:onedev-token@\" -f -G -X DELETE https://code.onedev.io/~api/packages --data-urlencode 'query=\"Type\" is \"Maven\" and \"Name\" is \"io.onedev:server*\" and \"Version\" is \"@build_version@\"'\n\nmvn -Dmaven.deploy.username=@job_token@ -Dmaven.deploy.password=@secrets:maven-deploy-password@ -Dmaven.test.skip=true deploy \n\n# Prepare for artifact and site publish\ncp server-product/target/onedev-${buildVersion}.zip .\n\nunzip onedev-${buildVersion}.zip\ntar zcvf onedev-${buildVersion}.tar.gz onedev-${buildVersion}\nsha256sum onedev-${buildVersion}.zip > onedev-${buildVersion}.zip.sha256\nsha256sum onedev-${buildVersion}.tar.gz > onedev-${buildVersion}.tar.gz.sha256\n\ncp server-product/docker/*.yaml .\n\n# Prepare for docker image build\ncd $projectDir/server-product/target\ncp -r ../docker docker\nunzip onedev-$buildVersion.zip -d docker\nmv docker/onedev-$buildVersion docker/app\ncp -r agent docker/\n\ncd $projectDir\necho \"$buildVersion\" | cut -d. -f1 > buildVersion.major\necho \"$buildVersion\" | cut -d. -f1,2 > buildVersion.major.minor\n"
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishArtifactStep
+    name: publish artifacts
+    artifacts: '*.zip *.tar.gz *.sha256 *.yaml'
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishMarkdownReportStep
+    name: publish incompatibility report
+    reportName: Incompatibilities
+    filePatterns: server-product/system/incompatibilities/**
+    startPage: server-product/system/incompatibilities/incompatibilities.md
+    condition: SUCCESSFUL
+    optional: false
+  - type: BuildImageStep
+    name: build server docker image
+    buildPath: server-product/target/docker
+    dockerfile: server-product/target/docker/Dockerfile.server
+    output:
+      type: RegistryOutput
+      tags: 1dev/server 1dev/server:@build_version@ 1dev/server:@file:buildVersion.major@ 1dev/server:@file:buildVersion.major.minor@
+    platforms: linux/amd64,linux/arm64
+    condition: SUCCESSFUL
+    optional: false
+  - type: BuildImageStep
+    name: build agent docker image
+    buildPath: server-product/target/docker
+    dockerfile: server-product/target/docker/Dockerfile.agent
+    output:
+      type: RegistryOutput
+      tags: 1dev/agent
+    platforms: linux/amd64,linux/arm64
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: publish helm chart
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: bash
+      commands: |
+        set -e
+
+        buildVersion=@build_version@
+        projectDir=`pwd`
+
+        cd $projectDir/server-product/helm
+        ./prepare.sh
+
+        curl -H "Authorization: Bearer @secret:onedev-token@" -f -G -X DELETE https://code.onedev.io/~api/packages --data-urlencode 'query="Type" is "Helm" and "Name" is "onedev" and "Version" is "@build_version@"'
+
+        cd $projectDir/server-product/target/helm-chart
+        curl -u @job_token@:@secret:onedev-token@ -X POST --upload-file ./onedev-${buildVersion}.tgz https://code.onedev.io/onedev/~helm
+    runAs: 0:0
+    useTTY: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: publish GH release
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: bash
+      commands: |
+        set -e
+        set -o pipefail
+
+        buildVersion=@build_version@
+
+        projectDir=`pwd`
+
+        echo "Creating release tag..."
+
+        git config --global user.name "Robin Shen"
+        git config --global user.email "robin@@onedev.io"
+        git config --global --add safe.directory /onedev-build/work
+
+        git tag v$buildVersion -m "Release tag"
+        git push -f origin v$buildVersion:v$buildVersion
+        git push -f https://robinshine:@secrets:github-token@@@github.com/theonedev/onedev v$buildVersion:v$buildVersion
+
+        echo "Creating release in GitHub..."
+
+        releaseId=$(curl -u robinshine:@secrets:github-token@ https://api.github.com/repos/theonedev/onedev/releases/tags/v$buildVersion | jq '.id')
+
+        releaseJson="{\"name\":\"$buildVersion\",\"tag_name\":\"v$buildVersion\",\"body\":\"## Installation Guide\n\nhttps://docs.onedev.io/category/installation-guide\n\n## Change Log\n\nhttps://code.onedev.io/onedev/server/~builds/@build_number@/fixed-issues?query=%22State%22+is+%22Released%22+order+by+%22Type%22+asc+%2C+%22Priority%22+desc\n\n## Incompatibilities\n\nhttps://code.onedev.io/onedev/server/~builds/@build_number@/markdown/Incompatibilities/server-product/system/incompatibilities/incompatibilities.md\"}"
+
+        acceptHeader="Accept: application/vnd.github.v3+json"
+        if [ "$releaseId" == "null" ]; then
+          curl -u robinshine:@secrets:github-token@ -X POST -H "$acceptHeader" -d "$releaseJson" https://api.github.com/repos/theonedev/onedev/releases
+        else
+          curl -u robinshine:@secrets:github-token@ -X PATCH -H "$acceptHeader" -d "$releaseJson" https://api.github.com/repos/theonedev/onedev/releases/$releaseId
+        fi
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: CloseIterationStep
+    name: close milestone
+    iterationName: '@build_version@'
+    accessTokenSecret: onedev-token
+    condition: SUCCESSFUL
+    optional: false
+  jobDependencies:
+  - jobName: CI
+    requireSuccessful: true
+    artifacts: '**'
+  - jobName: Scan Vulnerabilities
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+- name: Publish Site
+  steps:
+  - type: CommandStep
+    name: build
+    runInContainer: true
+    image: ubuntu
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: "apt update \napt install -y zip\nbuildVersion=`ls onedev-*.tar.gz | grep -Po 'onedev-\\K.*(?=.tar.gz)'`\ntar zxvf onedev-$buildVersion.tar.gz\nmv onedev-$buildVersion onedev-latest\ntar zcvf onedev-latest.tar.gz onedev-latest\nzip -r onedev-latest.zip onedev-latest\nsha256sum onedev-latest.zip > onedev-latest.zip.sha256\nsha256sum onedev-latest.tar.gz > onedev-latest.tar.gz.sha256\necho $buildVersion > build_version\n"
+    runAs: 0:0
+    useTTY: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetBuildVersionStep
+    name: set version
+    buildVersion: '@file:build_version@'
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishSiteStep
+    name: publish
+    artifacts: onedev-latest*
+    condition: SUCCESSFUL
+    optional: false
+  jobDependencies:
+  - jobName: Release
+    requireSuccessful: true
+    artifacts: onedev-*.zip onedev-*.tar.gz
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+- name: Publish Test Images
+  steps:
+  - type: CheckoutStep
+    name: checkout
+    cloneCredential:
+      type: HttpCredential
+      accessTokenSecret: onedev-token
+    withLfs: false
+    withSubmodules: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set up cache
+    templateName: set up cache
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set build version
+    templateName: set build version
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: build
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: "set -e\n\nmvn -Dmaven.test.skip=true -Dmaven.source.skip=true package \n\ncd server-product/target\ncp -r ../docker docker\nbuildVersion=`ls onedev-*.zip|sed -e 's/onedev-\\(.*\\).zip/\\1/'`\n\nunzip onedev-$buildVersion.zip -d docker\nmv docker/onedev-$buildVersion docker/app\ncp -r agent docker/\n"
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: BuildImageStep
+    name: build server docker image
+    buildPath: server-product/target/docker
+    dockerfile: server-product/target/docker/Dockerfile.server
+    output:
+      type: RegistryOutput
+      tags: 1dev/server:test
+    platforms: '@param:Platforms@'
+    condition: SUCCESSFUL
+    optional: false
+  - type: BuildImageStep
+    name: build agent docker image
+    buildPath: server-product/target/docker
+    dockerfile: server-product/target/docker/Dockerfile.agent
+    output:
+      type: RegistryOutput
+      tags: 1dev/agent:test
+    platforms: '@param:Platforms@'
+    condition: SUCCESSFUL
+    optional: false
+  paramSpecs:
+  - type: ChoiceParam
+    name: Platforms
+    allowMultiple: true
+    allowEmpty: false
+    choiceProvider:
+      type: SpecifiedChoices
+      choices:
+      - value: linux/amd64
+        color: '#0d87e9'
+      - value: linux/arm64
+        color: '#0d87e9'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+- name: Scan Vulnerabilities
+  steps:
+  - type: CheckoutStep
+    name: checkout
+    cloneCredential:
+      type: HttpCredential
+      accessTokenSecret: onedev-token
+    withLfs: false
+    withSubmodules: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set up maven cache
+    templateName: set up cache
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: build
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        mvn -Dmaven.test.skip=true -Dmaven.source.skip=true package
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: scan
+    templateName: scan vulnerabilities
+    paramMatrix:
+    - valuesProvider:
+        type: SpecifiedValues
+        values:
+        - - server-product/target/sandbox
+      secret: false
+      name: Scan Path
+    condition: SUCCESSFUL
+    optional: false
+  triggers:
+  - type: ScheduleTrigger
+    cronExpression: 0 0 1 * * ?
+    projects: onedev/server
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+  postBuildActions:
+  - type: SendNotificationAction
+    condition: failed
+    receivers: user(robin)
+- name: CI
+  steps:
+  - type: CheckoutStep
+    name: checkout
+    cloneCredential:
+      type: HttpCredential
+      accessTokenSecret: onedev-token
+    withLfs: false
+    withSubmodules: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set up cache
+    templateName: set up cache
+    condition: SUCCESSFUL
+    optional: false
+  - type: SetupCacheStep
+    name: set up npm cache
+    key: node-modules
+    checksumFiles: e2e-test/package-lock.json
+    entries:
+    - path: e2e-test/node_modules
+    uploadStrategy: UPLOAD_IF_NOT_EXACT_MATCH
+    uploadProjectPath: onedev
+    uploadAccessTokenSecret: onedev-token
+    condition: SUCCESSFUL
+    optional: false
+  - type: UseTemplateStep
+    name: set build version
+    templateName: set build version
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: test
+    runInContainer: true
+    image: '@property:buildenv@'
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        mvn -Dmaven.source.skip=true test
+
+        cd e2e-test
+        npm install
+        CI=true PLAYWRIGHT_JSON_OUTPUT_NAME=test-results/report.json npx playwright test --reporter=json --output=test-results
+    runAs: 0:0
+    useTTY: true
+    condition: SUCCESSFUL
+    optional: false
+  - type: PublishJUnitReportStep
+    name: publish unit test report
+    reportName: Unit Test Report
+    filePatterns: '**/TEST-*.xml'
+    condition: ALWAYS
+    optional: false
+  - type: PublishPlaywrightReportStep
+    name: publish E2E test report
+    reportName: E2E Test Report
+    filePatterns: e2e-test/test-results/**
+    condition: ALWAYS
+    optional: false
+  triggers:
+  - type: BranchUpdateTrigger
+    branches: main
+    userMatch: anyone
+    projects: onedev/server
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+- name: Sync Main (GitHub)
+  steps:
+  - type: CheckoutStep
+    name: checkout
+    cloneCredential:
+      type: DefaultCredential
+    withLfs: false
+    withSubmodules: false
+    condition: SUCCESSFUL
+    optional: false
+  - type: CommandStep
+    name: sync
+    runInContainer: true
+    image: alpine/git:1.0.7
+    interpreter:
+      type: PosixInterpreter
+      shell: sh
+      commands: |
+        git config --global --unset http.extraHeader
+        git push -f https://robinshine:@secrets:github-token@@@github.com/theonedev/onedev.git
+    runAs: 0:0
+    useTTY: false
+    condition: SUCCESSFUL
+    optional: false
+  triggers:
+  - type: BranchUpdateTrigger
+    branches: main
+    userMatch: anyone
+    projects: onedev/server
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  includeUpstreamWhenRebuild: false
+  includeDownstreamWhenRebuild: false
+  timeout: 3600
+stepTemplates:
+- name: scan vulnerabilities
+  steps:
+  - type: TrivyCacheStep
+    name: cache
+    key: trivy
+    uploadProjectPath: onedev
+    uploadAccessTokenSecret: onedev-token
+    condition: SUCCESSFUL
+    optional: false
+  - type: RootFSScannerStep
+    name: scan
+    checkVulnerabilities: true
+    scanPath: '@param:Scan Path@'
+    failThreshold: HIGH
+    reportName: Vulnerabilities
+    publishJSONReportAsArtifact: false
+    ignorePath: .trivyignore
+    condition: SUCCESSFUL
+    optional: false
+  paramSpecs:
+  - type: TextParam
+    name: Scan Path
+    allowEmpty: false
+    multiline: false

@@ -1,0 +1,150 @@
+.SimplePage {
+	background: url(/~img/mesh.jpg) no-repeat left top fixed;
+	background-size: cover;
+}
+.SimplePage.dark-mode {
+	background: url(/~img/dark-mesh.jpg) no-repeat left top fixed;
+	background-size: cover;
+}
+.SimplePage>body {
+	background: transparent;
+	display: flex;
+}
+.SimplePage .main {
+	padding: 1.75rem;
+	margin: auto;
+}
+.SimplePage:not(.force-ordinary-style) .main {
+	width: 480px;
+}
+.SimplePage.GeneralErrorPage .main {
+	width: 900px;
+}
+
+.SimplePage.InUseErrorPage .main {
+	width: auto;
+}
+
+.force-ordinary-style .bean-editor {
+	text-align: left !important;
+}
+.SimplePage .main .brand-logo {
+	margin-bottom: 3rem;
+	width: 100px;
+	height: 100px;
+}
+.dark-mode.SimplePage .main .brand-logo {
+	color: white;
+}
+.SimplePage .main .title {
+	margin-bottom: 5rem;
+}
+.SimplePage:not(.force-ordinary-style) .main .btn:not(.btn-block) {
+	padding: 1rem 2.25rem;
+	margin: 0.75rem 1rem;
+}
+.SimplePage .main .signup {
+	margin-top: 2.5rem;
+}
+.SimplePage .main .sso {
+	margin-top: 4rem;
+}
+.SimplePage.LoginPage.internal-login-disabled .main .title,
+.SimplePage.LoginPage.internal-login-disabled .main form,
+.SimplePage.LoginPage.internal-login-disabled .main .signup {
+	display: none;
+}
+.SimplePage.LoginPage.internal-login-disabled .main .sso {
+	margin-top: 2rem;
+}
+.SimplePage .main .sso img {
+	width: 24px;
+	height: 24px;
+}
+.SimplePage .main .feedbackPanel {
+	text-align: left;
+	margin-bottom: 1.5rem;
+}
+.SimplePage:not(.force-ordinary-style) .main .form-group {
+	margin-bottom: 1.5rem;
+	text-align: left;
+}
+.SimplePage:not(.force-ordinary-style) .main .form-control {
+	padding: 1rem 2rem;
+	background-color: var(--light);
+    border-color: var(--light);
+    color: var(--gray-dark);
+	height: auto;
+}
+.SimplePage:not(.force-ordinary-style) .main .select2-selection--single {
+	padding: 0.4rem 1rem;
+	background-color: var(--light);
+    border-color: var(--light);
+    color: var(--gray-dark);
+	height: auto;
+}
+.SimplePage:not(.force-ordinary-style) .select2-dropdown {
+	background-color: var(--light);
+}
+.SimplePage:not(.force-ordinary-style) .select2-dropdown input {
+	border-color: var(--light-gray);
+	background-color: var(--light-gray);
+}
+.SimplePage.dark-mode:not(.force-ordinary-style) .main .select2-selection--single {
+    background-color: var(--dark-mode-dark);
+    border: 1px solid #323248;	
+	color: white;
+}
+.SimplePage.dark-mode:not(.force-ordinary-style) .select2-dropdown {
+	background-color: var(--dark-mode-dark);
+	border: 1px solid #323248;
+}
+.SimplePage.dark-mode:not(.force-ordinary-style) .select2-dropdown input {
+    background-color: var(--dark-mode-dark);
+    border-color: #474761;	
+}
+
+.SimplePage.dark-mode:not(.force-ordinary-style) .main .form-control {
+    color: white;
+}
+.SimplePage.dark-mode:not(.force-ordinary-style) .main .form-control {
+    background-color: var(--dark-mode-dark);
+    border: 1px solid #323248;	
+}
+.SimplePage:not(.force-ordinary-style) .main .form-control:focus {
+    background-color: var(--light-gray);
+    border-color: var(--light-gray);
+}
+.SimplePage.dark-mode:not(.force-ordinary-style) .main .form-control:focus {
+    background-color: var(--dark-mode-dark);
+    border-color: #474761;	
+}
+.SimplePage .main .wizard .title {
+	margin-top: -6rem;
+	color: var(--muted);
+}
+
+.SimplePage .main .error-detail {
+	margin-top: 2rem;
+	text-align: left;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+.SimplePage .main .error-detail+.copy {
+	right: 1.2rem;
+	top: 1rem;
+	background: var(--light);
+}
+.SimplePage.dark-mode .main .error-detail+.copy {
+	background: #323248;
+}
+.SimplePage a.input-clear {
+	top: 11px;
+}
+.PageNotFoundErrorPage h3 {
+	font-size: 3rem;
+}
+.PageNotFoundErrorPage .sub-title {
+	font-size: 1.5rem !important;
+}

@@ -1,0 +1,44 @@
+<wicket:panel>
+    <div class="commit-filter-edit no-autofocus">
+        <div class="mb-3 font-size-sm text-muted">
+            <wicket:svg href="bulb" class="icon"/> 
+            <wicket:t>Below are some common criterias. Type in search box above to view the complete list and available combinations.</wicket:t>
+        </div>
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Branch</wicket:t></label>
+            <select wicket:id="branch" class="form-control"></select>
+        </div>  
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Tag</wicket:t></label>
+            <select wicket:id="tag" class="form-control"></select>
+        </div>  
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Build</wicket:t></label>
+            <select wicket:id="build" class="form-control"></select>
+        </div>  
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Touched File</wicket:t></label>
+            <select wicket:id="file" class="form-control"></select>
+        </div>  
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Authored By</wicket:t></label>
+            <select wicket:id="authoredBy" class="form-control"></select>
+        </div>    
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Committed By</wicket:t></label>
+            <select wicket:id="committedBy" class="form-control"></select>
+        </div>
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Committed After</wicket:t></label>
+            <div class="clearable-wrapper">
+                <input wicket:id="committedAfter" type="text" class="form-control">
+            </div>
+        </div>    
+        <div class="form-group">
+            <label class="control-label"><wicket:t>Committed Before</wicket:t></label>
+            <div class="clearable-wrapper">
+                <input wicket:id="committedBefore" type="text" class="form-control">
+            </div>
+        </div>        
+    </div>
+</wicket:panel>
