@@ -63,6 +63,7 @@ import io.onedev.server.web.page.admin.rolemanagement.RoleDetailPage;
 import io.onedev.server.web.page.admin.rolemanagement.RoleListPage;
 import io.onedev.server.web.page.admin.securitysetting.SecuritySettingPage;
 import io.onedev.server.web.page.admin.serverinformation.ServerInformationPage;
+import io.onedev.server.web.page.admin.auditlog.GlobalAuditLogPage;
 import io.onedev.server.web.page.admin.serverlog.ServerLogPage;
 import io.onedev.server.web.page.admin.sshserverkey.SshServerKeyPage;
 import io.onedev.server.web.page.admin.ssosetting.NewSsoProviderPage;
@@ -99,6 +100,7 @@ import io.onedev.server.web.page.my.workspacedata.MyWorkspaceDataPage;
 import io.onedev.server.web.page.packs.PackListPage;
 import io.onedev.server.web.page.project.NewProjectPage;
 import io.onedev.server.web.page.project.NoProjectStoragePage;
+import io.onedev.server.web.page.project.auditlog.ProjectAuditLogPage;
 import io.onedev.server.web.page.project.ProjectListPage;
 import io.onedev.server.web.page.project.blob.ProjectBlobPage;
 import io.onedev.server.web.page.project.branches.ProjectBranchesPage;
@@ -418,6 +420,7 @@ public class BaseUrlMapper extends CompoundRequestMapper {
 				ContributedAdministrationSettingPage.class));
 		
 		add(new BasePageMapper("~administration/server-log/#{" + ServerLogPage.PARAM_SERVER + "}", ServerLogPage.class));
+		add(new BasePageMapper("~administration/audit-log", GlobalAuditLogPage.class));
 		add(new BasePageMapper("~administration/server-information/#{" + ServerInformationPage.PARAM_SERVER + "}", ServerInformationPage.class));
 	}
 	
@@ -506,6 +509,7 @@ public class BaseUrlMapper extends CompoundRequestMapper {
 		add(new ProjectPageMapper("${project}/~settings/${" + ContributedProjectSettingPage.PARAM_SETTING + "}", 
 				ContributedProjectSettingPage.class));
 		add(new ProjectPageMapper("${project}/~no-storage", NoProjectStoragePage.class));
+		add(new ProjectPageMapper("${project}/~audit-log", ProjectAuditLogPage.class));
 		
 	}
 

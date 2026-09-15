@@ -1,0 +1,35 @@
+<wicket:panel>
+	<div class="audit-event-list">
+		<div class="d-flex align-items-center mb-4">
+			<div class="clearable-wrapper flex-grow-1 mr-3">
+				<input wicket:id="filterText" class="form-control search" t:placeholder="Filter by action, actor, summary or target">
+			</div>
+		</div>
+		<div class="mb-4">
+			<a wicket:id="filterSeverity" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
+				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
+				<span wicket:id="label"></span>
+			</a>
+			<a wicket:id="filterScope" class="text-gray mb-2 d-inline-block text-nowrap">
+				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
+				<span wicket:id="label"></span>
+			</a>
+		</div>
+		<table wicket:id="events" class="events table table-hover"></table>
+	</div>
+	<wicket:fragment wicket:id="severityFrag">
+		<span wicket:id="badge"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actorFrag">
+		<span wicket:id="avatar" class="mr-1"></span>
+		<span wicket:id="actor"></span>
+		<span wicket:id="ip" class="text-gray ml-1"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="summaryFrag">
+		<span wicket:id="summary"></span>
+		<span class="ml-1">[<span wicket:id="target"></span>]</span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="detailFrag">
+		<a wicket:id="show" class="btn btn-xs btn-icon btn-light btn-hover-primary" t:data-tippy-content="View detail"><wicket:svg href="eye" class="icon"></wicket:svg></a>
+	</wicket:fragment>
+</wicket:panel>
