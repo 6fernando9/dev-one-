@@ -259,13 +259,7 @@ public class AuditEventListPanel extends Panel {
 				}
 			}
 		};
-		add(customRange = new WebMarkupContainer("customRange") {
-			@Override
-			protected void onConfigure() {
-				super.onConfigure();
-				setVisible("Custom".equals(activePreset));
-			}
-		});
+		add(customRange = new WebMarkupContainer("customRange"));
 		customRange.setOutputMarkupPlaceholderTag(true);
 
 		var dateFromPicker = new DatePicker("dateFrom", dateFromModel, false);
