@@ -44,6 +44,7 @@ import io.onedev.server.event.system.SystemStopping;
 import io.onedev.server.git.GitUtils;
 import io.onedev.server.model.AuditEvent;
 import io.onedev.server.model.Group;
+import io.onedev.server.model.Iteration;
 import io.onedev.server.model.Membership;
 import io.onedev.server.model.Project;
 import io.onedev.server.model.Role;
@@ -51,7 +52,12 @@ import io.onedev.server.model.Setting;
 import io.onedev.server.model.User;
 import io.onedev.server.model.support.AuditEventSeverity;
 import io.onedev.server.model.support.AuditEventType;
+import io.onedev.server.model.support.issue.changedata.IssueFieldChangeData;
+import io.onedev.server.model.support.issue.changedata.IssueIterationAddData;
+import io.onedev.server.model.support.issue.changedata.IssueIterationChangeData;
+import io.onedev.server.model.support.issue.changedata.IssueIterationRemoveData;
 import io.onedev.server.model.support.issue.changedata.IssueStateChangeData;
+import io.onedev.server.model.support.issue.changedata.IssueTitleChangeData;
 import io.onedev.server.model.support.pullrequest.changedata.PullRequestMergeData;
 import io.onedev.server.persistence.annotation.Sessional;
 import io.onedev.server.persistence.annotation.Transactional;
@@ -138,14 +144,23 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	@Transactional
 	@Listen
 	public void on(IssueChanged event) {
-		if (event.getChange().getData() instanceof IssueStateChangeData) {
-			var data = (IssueStateChangeData) event.getChange().getData();
-			var issue = event.getIssue();
-			var user = event.getUser();
+		var data = event.getChange().getData();
+		var issue = event.getIssue();
+		var user = event.getUser();
+		if (data instanceof IssueStateChangeData) {
+			var stateData = (IssueStateChangeData) data;
 			record(AuditEventType.ISSUE_STATE_CHANGED, user, null, getCurrentIpAddress(),
 					event.getProject(),
 					getActorDisplay(user) + " changed state of issue #" + issue.getNumber()
-							+ " from '" + data.getOldState() + "' to '" + data.getNewState() + "'",
+							+ " from '" + stateData.getOldState() + "' to '" + stateData.getNewState() + "'",
+					null, "Issue", issue.getId());
+		} else if (data instanceof IssueTitleChangeData || data instanceof IssueIterationAddData
+				|| data instanceof IssueIterationChangeData || data instanceof IssueIterationRemoveData
+				|| data instanceof IssueFieldChangeData) {
+			record(AuditEventType.ISSUE_UPDATED, user, null, getCurrentIpAddress(),
+					event.getProject(),
+					getActorDisplay(user) + " " + data.getActivity() + " of issue #"
+							+ issue.getNumber() + " (" + issue.getTitle() + ")",
 					null, "Issue", issue.getId());
 		}
 	}
@@ -248,6 +263,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			recordMembership((Membership) entity, event.isNewEntity());
 		else if (entity instanceof Project)
 			recordProject((Project) entity, event.isNewEntity());
+		else if (entity instanceof Iteration)
+			recordIteration((Iteration) entity, event.isNewEntity());
 		else if (entity instanceof Setting)
 			recordSetting((Setting) entity);
 	}
@@ -292,6 +309,12 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			deleted.setRefType("Project");
 			deleted.setRefId(project.getId());
 			dao.persist(deleted);
+		} else if (entity instanceof Iteration) {
+			var iteration = (Iteration) entity;
+			record(AuditEventType.ITERATION_DELETED, actor, null, ipAddress,
+					iteration.getProject(),
+					actorDisplay + " deleted iteration '" + iteration.getName() + "'",
+					null, "Project", iteration.getProject().getId());
 		}
 	}
 
@@ -376,6 +399,21 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			updated.setRefType("Project");
 			updated.setRefId(project.getId());
 			dao.persist(updated);
+		}
+	}
+
+	private void recordIteration(Iteration iteration, boolean isNew) {
+		var actor = getCurrentActor();
+		var actorDisplay = getActorDisplay(actor);
+		var project = iteration.getProject();
+		if (isNew) {
+			record(AuditEventType.ITERATION_CREATED, actor, null, getCurrentIpAddress(), project,
+					actorDisplay + " created iteration '" + iteration.getName() + "'",
+					null, "Project", project.getId());
+		} else {
+			record(AuditEventType.ITERATION_UPDATED, actor, null, getCurrentIpAddress(), project,
+					actorDisplay + " updated iteration '" + iteration.getName() + "'",
+					null, "Project", project.getId());
 		}
 	}
 

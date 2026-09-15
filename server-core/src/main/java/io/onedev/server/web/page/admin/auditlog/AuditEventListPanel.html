@@ -8,8 +8,13 @@
 						<wicket:svg href="calendar" class="icon"></wicket:svg>
 						<span wicket:id="label" class="ml-1"></span>
 					</a>
+					<div class="clearable-wrapper mr-2">
+						<span class="text-gray small mr-1">From</span>
+						<input wicket:id="dateFrom" type="text" class="form-control form-control-sm">
+					</div>
 					<div class="clearable-wrapper">
-						<input wicket:id="dateRangePicker" class="form-control form-control-sm" t:placeholder="Custom range">
+						<span class="text-gray small mr-1">To</span>
+						<input wicket:id="dateTo" type="text" class="form-control form-control-sm">
 					</div>
 				</div>
 				<div wicket:id="chartContainer">
@@ -22,15 +27,9 @@
 				<input wicket:id="filterText" class="form-control search" t:placeholder="Filter by action, actor, project, IP or summary">
 			</div>
 		</div>
-		<div class="mb-4">
-			<a wicket:id="filterSeverity" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
-				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
-				<span wicket:id="label"></span>
-			</a>
-			<a wicket:id="filterAction" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
-				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
-				<span wicket:id="label"></span>
-			</a>
+		<div class="mb-4 d-flex align-items-center flex-wrap">
+			<select wicket:id="filterSeverity" class="form-control form-control-sm mr-3 mb-2" style="min-width: 180px"></select>
+			<select wicket:id="filterAction" class="form-control form-control-sm mr-3 mb-2" style="min-width: 220px"></select>
 			<a wicket:id="filterScope" class="text-gray mb-2 d-inline-block text-nowrap">
 				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
 				<span wicket:id="label"></span>
@@ -44,6 +43,9 @@
 	</wicket:fragment>
 	<wicket:fragment wicket:id="severityFrag">
 		<span wicket:id="badge"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actionFrag">
+		<span wicket:id="badge" class="badge badge-secondary badge-pill"></span>
 	</wicket:fragment>
 	<wicket:fragment wicket:id="actorFrag">
 		<span wicket:id="avatar" class="mr-1"></span>

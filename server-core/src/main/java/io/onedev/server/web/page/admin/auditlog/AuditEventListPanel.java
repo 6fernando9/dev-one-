@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,18 +41,18 @@ import io.onedev.server.model.Project;
 import io.onedev.server.model.support.AuditEventSeverity;
 import io.onedev.server.model.support.AuditEventType;
 import io.onedev.server.service.AuditEventService;
-import io.onedev.server.util.DateRange;
 import io.onedev.server.util.DateUtils;
 import io.onedev.server.web.WebConstants;
 import io.onedev.server.web.behavior.OnTypingDoneBehavior;
 import io.onedev.server.web.component.chart.bar.BarChartPanel;
 import io.onedev.server.web.component.chart.bar.BarData;
 import io.onedev.server.web.component.datatable.DefaultDataTable;
-import io.onedev.server.web.component.datepicker.DateRangePicker;
+import io.onedev.server.web.component.datepicker.DatePicker;
 import io.onedev.server.web.component.floating.FloatingPanel;
 import io.onedev.server.web.component.menu.MenuItem;
 import io.onedev.server.web.component.menu.MenuLink;
 import io.onedev.server.web.component.modal.ModalPanel;
+import io.onedev.server.web.component.stringchoice.StringSingleChoice;
 import io.onedev.server.web.component.user.UserAvatar;
 import io.onedev.server.web.util.LoadableDetachableDataProvider;
 
@@ -86,13 +87,13 @@ public class AuditEventListPanel extends Panel {
 
 	private Label rangeLabel;
 
-	private MenuLink severityFilterLink;
-
-	private MenuLink actionFilterLink;
-
 	private MenuLink scopeFilterLink;
 
 	private MenuLink dateRangeLink;
+
+	private DatePicker dateFromPicker;
+
+	private DatePicker dateToPicker;
 
 	public AuditEventListPanel(String id, @Nullable Project project, boolean showProjectColumn) {
 		super(id);
@@ -147,11 +148,17 @@ public class AuditEventListPanel extends Panel {
 		}
 	}
 
-	private void applyCustomRange(DateRange range) {
+	private void applyCustomRange(Date from, Date to) {
 		var zone = getZone();
 		activePreset = "Custom";
-		filterFrom = Date.from(range.getFrom().atStartOfDay(zone).toInstant());
-		filterTo = Date.from(range.getTo().atTime(LocalTime.MAX).atZone(zone).toInstant());
+		filterFrom = Date.from(from.toInstant().atZone(zone).toLocalDate().atStartOfDay(zone).toInstant());
+		filterTo = Date.from(to.toInstant().atZone(zone).toLocalDate().atTime(LocalTime.MAX).atZone(zone).toInstant());
+		if (filterFrom.after(filterTo)) {
+			if (from.after(to))
+				filterTo = Date.from(filterFrom.toInstant().atZone(zone).toLocalDate().atTime(LocalTime.MAX).atZone(zone).toInstant());
+			else
+				filterFrom = Date.from(filterTo.toInstant().atZone(zone).toLocalDate().atStartOfDay(zone).toInstant());
+		}
 	}
 
 	private void refresh(AjaxRequestTarget target) {
@@ -160,6 +167,10 @@ public class AuditEventListPanel extends Panel {
 		target.add(chartContainer);
 		target.add(rangeLabel);
 		target.add(dateRangeLink);
+		target.add(dateFromPicker);
+		target.add(dateToPicker);
+		if (scopeFilterLink.isVisible())
+			target.add(scopeFilterLink);
 	}
 
 	@Override
@@ -223,33 +234,63 @@ public class AuditEventListPanel extends Panel {
 		});
 		dateRangeLink.setOutputMarkupId(true);
 
-		var dateRangeModel = new IModel<DateRange>() {
+		var dateFromModel = new IModel<Date>() {
 			@Override
 			public void detach() {
 			}
 
 			@Override
-			public DateRange getObject() {
-				var zone = getZone();
-				return new DateRange(
-						filterFrom.toInstant().atZone(zone).toLocalDate(),
-						filterTo.toInstant().atZone(zone).toLocalDate());
+			public Date getObject() {
+				return filterFrom;
 			}
 
 			@Override
-			public void setObject(DateRange object) {
-				if (object != null)
-					applyCustomRange(object);
+			public void setObject(Date object) {
+				if (object != null) {
+					applyCustomRange(object, filterTo);
+					var target = getRequestCycle().find(AjaxRequestTarget.class);
+					if (target != null)
+						refresh(target);
+				}
 			}
 		};
-		var dateRangePicker = new DateRangePicker("dateRangePicker", dateRangeModel);
-		dateRangePicker.add(new AjaxFormComponentUpdatingBehavior("change") {
+		dateFromPicker = new DatePicker("dateFrom", dateFromModel, false);
+		dateFromPicker.setOutputMarkupId(true);
+		dateFromPicker.add(new AjaxFormComponentUpdatingBehavior("change") {
 			@Override
 			protected void onUpdate(AjaxRequestTarget target) {
-				refresh(target);
 			}
 		});
-		add(dateRangePicker);
+		add(dateFromPicker);
+
+		var dateToModel = new IModel<Date>() {
+			@Override
+			public void detach() {
+			}
+
+			@Override
+			public Date getObject() {
+				return filterTo;
+			}
+
+			@Override
+			public void setObject(Date object) {
+				if (object != null) {
+					applyCustomRange(filterFrom, object);
+					var target = getRequestCycle().find(AjaxRequestTarget.class);
+					if (target != null)
+						refresh(target);
+				}
+			}
+		};
+		dateToPicker = new DatePicker("dateTo", dateToModel, false);
+		dateToPicker.setOutputMarkupId(true);
+		dateToPicker.add(new AjaxFormComponentUpdatingBehavior("change") {
+			@Override
+			protected void onUpdate(AjaxRequestTarget target) {
+			}
+		});
+		add(dateToPicker);
 
 		add(chartContainer = new WebMarkupContainer("chartContainer"));
 		chartContainer.setOutputMarkupId(true);
@@ -291,49 +332,9 @@ public class AuditEventListPanel extends Panel {
 		});
 		add(searchField);
 
-		add(severityFilterLink = new MenuLink("filterSeverity") {
-			@Override
-			protected void onInitialize() {
-				super.onInitialize();
-				add(new Label("label", new AbstractReadOnlyModel<String>() {
-					@Override
-					public String getObject() {
-						return filterSeverity != null ? filterSeverity.name() : _T("All Severities");
-					}
-				}));
-			}
+		add(newSeverityChoice("filterSeverity"));
 
-			@Override
-			protected List<MenuItem> getMenuItems(FloatingPanel dropdown) {
-				List<MenuItem> items = new ArrayList<>();
-				items.add(newSeverityItem(dropdown, null));
-				for (AuditEventSeverity severity : AuditEventSeverity.values())
-					items.add(newSeverityItem(dropdown, severity));
-				return items;
-			}
-		});
-
-		add(actionFilterLink = new MenuLink("filterAction") {
-			@Override
-			protected void onInitialize() {
-				super.onInitialize();
-				add(new Label("label", new AbstractReadOnlyModel<String>() {
-					@Override
-					public String getObject() {
-						return filterType != null ? filterType.name() : _T("All Actions");
-					}
-				}));
-			}
-
-			@Override
-			protected List<MenuItem> getMenuItems(FloatingPanel dropdown) {
-				List<MenuItem> items = new ArrayList<>();
-				items.add(newActionItem(dropdown, null));
-				for (AuditEventType type : AuditEventType.values())
-					items.add(newActionItem(dropdown, type));
-				return items;
-			}
-		});
+		add(newActionChoice("filterAction"));
 
 		add(scopeFilterLink = new MenuLink("filterScope") {
 			@Override
@@ -403,8 +404,9 @@ public class AuditEventListPanel extends Panel {
 			@Override
 			public void populateItem(Item<ICellPopulator<AuditEvent>> cellItem, String componentId,
 					IModel<AuditEvent> rowModel) {
-				cellItem.add(new Label(componentId, rowModel.getObject().getEventType().name())
-						.add(AttributeAppender.append("class", "text-monospace")));
+				Fragment fragment = new Fragment(componentId, "actionFrag", AuditEventListPanel.this);
+				fragment.add(new Label("badge", humanize(rowModel.getObject().getEventType().name())));
+				cellItem.add(fragment);
 			}
 		});
 
@@ -527,61 +529,82 @@ public class AuditEventListPanel extends Panel {
 		return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
 	}
 
-	private MenuItem newSeverityItem(FloatingPanel dropdown, AuditEventSeverity severity) {
-		return new MenuItem() {
+	private StringSingleChoice newSeverityChoice(String id) {
+		var names = new ArrayList<String>();
+		var displayNames = new LinkedHashMap<String, String>();
+		for (var severity : AuditEventSeverity.values()) {
+			names.add(severity.name());
+			displayNames.put(severity.name(), humanize(severity.name()));
+		}
+		var choice = new StringSingleChoice(id, new IModel<String>() {
 			@Override
-			public String getLabel() {
-				return severity != null ? severity.name() : _T("All Severities");
+			public void detach() {
 			}
 
 			@Override
-			public boolean isSelected() {
-				return severity == null ? filterSeverity == null : severity == filterSeverity;
+			public String getObject() {
+				return filterSeverity != null ? filterSeverity.name() : null;
 			}
 
 			@Override
-			public WebMarkupContainer newLink(String id) {
-				return new AjaxLink<Void>(id) {
-					@Override
-					public void onClick(AjaxRequestTarget target) {
-						dropdown.close();
-						filterSeverity = severity;
-						refresh(target);
-						target.add(severityFilterLink);
-					}
-				};
+			public void setObject(String object) {
+				filterSeverity = object != null ? AuditEventSeverity.valueOf(object) : null;
 			}
-		};
+		}, Model.ofList(names), Model.ofMap(displayNames), false);
+		choice.getSettings().setPlaceholder(_T("All Severities"));
+		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
+			@Override
+			protected void onUpdate(AjaxRequestTarget target) {
+				refresh(target);
+			}
+		});
+		return choice;
 	}
 
-	private MenuItem newActionItem(FloatingPanel dropdown, AuditEventType type) {
-		return new MenuItem() {
+	private StringSingleChoice newActionChoice(String id) {
+		var names = new ArrayList<String>();
+		var displayNames = new LinkedHashMap<String, String>();
+		for (var type : AuditEventType.values()) {
+			names.add(type.name());
+			displayNames.put(type.name(), humanize(type.name()));
+		}
+		var choice = new StringSingleChoice(id, new IModel<String>() {
 			@Override
-			public String getLabel() {
-				return type != null ? type.name() : _T("All Actions");
+			public void detach() {
 			}
 
 			@Override
-			public boolean isSelected() {
-				return type == null ? filterType == null : type == filterType;
+			public String getObject() {
+				return filterType != null ? filterType.name() : null;
 			}
 
 			@Override
-			public WebMarkupContainer newLink(String id) {
-				return new AjaxLink<Void>(id) {
-					@Override
-					public void onClick(AjaxRequestTarget target) {
-						dropdown.close();
-						filterType = type;
-						refresh(target);
-						target.add(actionFilterLink);
-					}
-				};
+			public void setObject(String object) {
+				filterType = object != null ? AuditEventType.valueOf(object) : null;
 			}
-		};
+		}, Model.ofList(names), Model.ofMap(displayNames), false);
+		choice.getSettings().setPlaceholder(_T("All Actions"));
+		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
+			@Override
+			protected void onUpdate(AjaxRequestTarget target) {
+				refresh(target);
+			}
+		});
+		return choice;
 	}
 
-	private MenuItem newScopeItem(FloatingPanel dropdown, Boolean scope) {		return new MenuItem() {
+	public static String humanize(String enumName) {
+		var builder = new StringBuilder();
+		for (var word : enumName.toLowerCase().split("_")) {
+			if (builder.length() != 0)
+				builder.append(' ');
+			builder.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+		}
+		return builder.toString();
+	}
+
+	private MenuItem newScopeItem(FloatingPanel dropdown, Boolean scope) {
+		return new MenuItem() {
 			@Override
 			public String getLabel() {
 				if (scope == null)
