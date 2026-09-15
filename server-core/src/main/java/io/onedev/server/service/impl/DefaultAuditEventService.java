@@ -7,18 +7,24 @@ import static io.onedev.server.model.AuditEvent.PROP_SEVERITY;
 import static io.onedev.server.model.AuditEvent.PROP_SUMMARY;
 import static io.onedev.server.model.AuditEvent.PROP_TYPE;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.wicket.request.cycle.RequestCycle;
+import org.eclipse.jgit.lib.ObjectId;
 import org.hibernate.Hibernate;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.sql.JoinType;
 import org.jspecify.annotations.Nullable;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.ScheduleBuilder;
@@ -26,11 +32,16 @@ import org.quartz.ScheduleBuilder;
 import io.onedev.server.event.Listen;
 import io.onedev.server.event.entity.EntityPersisted;
 import io.onedev.server.event.entity.EntityRemoved;
+import io.onedev.server.event.project.RefUpdated;
 import io.onedev.server.event.project.build.BuildFinished;
+import io.onedev.server.event.project.build.BuildSubmitted;
 import io.onedev.server.event.project.issue.IssueChanged;
+import io.onedev.server.event.project.issue.IssueOpened;
 import io.onedev.server.event.project.pullrequest.PullRequestChanged;
+import io.onedev.server.event.project.pullrequest.PullRequestOpened;
 import io.onedev.server.event.system.SystemStarted;
 import io.onedev.server.event.system.SystemStopping;
+import io.onedev.server.git.GitUtils;
 import io.onedev.server.model.AuditEvent;
 import io.onedev.server.model.Group;
 import io.onedev.server.model.Membership;
@@ -138,10 +149,10 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 					null, "Issue", issue.getId());
 		}
 	}
-
 	@Transactional
 	@Listen
 	public void on(BuildFinished event) {
+
 		var build = event.getBuild();
 		var actor = build.getCanceller() != null ? build.getCanceller() : build.getSubmitter();
 		record(AuditEventType.BUILD_FINISHED, actor, null, getCurrentIpAddress(),
@@ -149,6 +160,76 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				getActorDisplay(actor) + " finished build #" + build.getNumber()
 						+ " (" + build.getJobName() + ") with status " + build.getStatus(),
 				null, "Build", build.getId());
+	}
+
+	@Transactional
+	@Listen
+	public void on(BuildSubmitted event) {
+		var submitter = event.getUser();
+		if (submitter == null || submitter.isSystem())
+			return;
+		var build = event.getBuild();
+		record(AuditEventType.BUILD_SUBMITTED, submitter, null, getCurrentIpAddress(),
+				build.getProject(),
+				getActorDisplay(submitter) + " submitted build #" + build.getNumber()
+						+ " (" + build.getJobName() + ")",
+				null, "Build", build.getId());
+	}
+
+	@Transactional
+	@Listen
+	public void on(PullRequestOpened event) {
+		var request = event.getRequest();
+		var user = event.getUser();
+		record(AuditEventType.PULL_REQUEST_OPENED, user, null, getCurrentIpAddress(),
+				event.getProject(),
+				getActorDisplay(user) + " opened pull request #" + request.getNumber()
+						+ " (" + request.getTitle() + ")",
+				null, "PullRequest", request.getId());
+	}
+
+	@Transactional
+	@Listen
+	public void on(IssueOpened event) {
+		var issue = event.getIssue();
+		var user = event.getUser();
+		record(AuditEventType.ISSUE_OPENED, user, null, getCurrentIpAddress(),
+				event.getProject(),
+				getActorDisplay(user) + " opened issue #" + issue.getNumber()
+						+ " (" + issue.getTitle() + ")",
+				null, "Issue", issue.getId());
+	}
+
+	@Transactional
+	@Listen
+	public void on(RefUpdated event) {
+		var user = event.getUser();
+		if (user == null)
+			return;
+		record(AuditEventType.CODE_PUSHED, user, null, getCurrentIpAddress(),
+				event.getProject(),
+				getActorDisplay(user) + " " + describeRefUpdate(event),
+				null, "Project", event.getProject().getId());
+	}
+
+	private String describeRefUpdate(RefUpdated event) {
+		var branch = GitUtils.ref2branch(event.getRefName());
+		String kind;
+		if (branch != null)
+			kind = "branch '" + branch + "'";
+		else {
+			var tag = GitUtils.ref2tag(event.getRefName());
+			if (tag != null)
+				kind = "tag '" + tag + "'";
+			else
+				kind = "ref '" + event.getRefName() + "'";
+		}
+		if (event.getOldCommitId().equals(ObjectId.zeroId()))
+			return "created " + kind;
+		else if (event.getNewCommitId().equals(ObjectId.zeroId()))
+			return "deleted " + kind;
+		else
+			return "pushed to " + kind;
 	}
 
 	@Transactional
@@ -380,8 +461,9 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	@Override
 	public List<AuditEvent> query(@Nullable Project project, @Nullable AuditEventType type,
 			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
-			@Nullable String searchTerm, int firstResult, int maxResults) {
-		var criteria = newCriteria(project, type, severity, projectScoped, searchTerm);
+			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm,
+			int firstResult, int maxResults) {
+		var criteria = newCriteria(project, type, severity, projectScoped, from, to, searchTerm);
 		criteria.addOrder(Order.desc(PROP_DATE));
 		var events = dao.query(criteria, firstResult, maxResults);
 		for (var event : events) {
@@ -394,8 +476,55 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	@Override
 	public int count(@Nullable Project project, @Nullable AuditEventType type,
 			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
-			@Nullable String searchTerm) {
-		return dao.count(newCriteria(project, type, severity, projectScoped, searchTerm));
+			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm) {
+		return dao.count(newCriteria(project, type, severity, projectScoped, from, to, searchTerm));
+	}
+
+	@Sessional
+	@Override
+	public Map<LocalDate, Long> countByDay(@Nullable Project project, @Nullable AuditEventType type,
+			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable Date from, @Nullable Date to) {
+		var zone = ZoneId.systemDefault();
+		var toDay = to != null
+				? to.toInstant().atZone(zone).toLocalDate()
+				: LocalDate.now();
+		var fromDay = from != null
+				? from.toInstant().atZone(zone).toLocalDate()
+				: toDay.minusDays(6);
+
+		var counts = new LinkedHashMap<LocalDate, Long>();
+		for (var day = fromDay; !day.isAfter(toDay); day = day.plusDays(1))
+			counts.put(day, 0L);
+
+		var hql = new StringBuilder("select date from AuditEvent where date >= :from and date <= :to");
+		if (project != null)
+			hql.append(" and project = :project");
+		else if (projectScoped != null) {
+			if (projectScoped)
+				hql.append(" and project is not null");
+			else
+				hql.append(" and project is null");
+		}
+		if (type != null)
+			hql.append(" and type = :type");
+		if (severity != null)
+			hql.append(" and severity = :severity");
+		var query = getSession().createQuery(hql.toString());
+		query.setParameter("from", Date.from(fromDay.atStartOfDay(zone).toInstant()));
+		query.setParameter("to", Date.from(toDay.plusDays(1).atStartOfDay(zone).toInstant()));
+		if (project != null)
+			query.setParameter("project", project);
+		if (type != null)
+			query.setParameter("type", type.name());
+		if (severity != null)
+			query.setParameter("severity", severity.name());
+
+		for (var date : (List<Date>) query.list()) {
+			var day = date.toInstant().atZone(zone).toLocalDate();
+			counts.computeIfPresent(day, (key, value) -> value + 1);
+		}
+		return counts;
 	}
 
 	@Transactional
@@ -409,7 +538,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	private io.onedev.server.persistence.dao.EntityCriteria<AuditEvent> newCriteria(
 			@Nullable Project project, @Nullable AuditEventType type,
 			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
-			@Nullable String searchTerm) {
+			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm) {
 		var criteria = newCriteria();
 		if (project != null)
 			criteria.add(Restrictions.eq(PROP_PROJECT, project));
@@ -423,10 +552,19 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			criteria.add(Restrictions.eq(PROP_TYPE, type.name()));
 		if (severity != null)
 			criteria.add(Restrictions.eq(PROP_SEVERITY, severity.name()));
+		if (from != null)
+			criteria.add(Restrictions.ge(PROP_DATE, from));
+		if (to != null)
+			criteria.add(Restrictions.le(PROP_DATE, to));
 		if (searchTerm != null && !searchTerm.isBlank()) {
+			criteria.createAlias(PROP_ACTOR, "actor", JoinType.LEFT_OUTER_JOIN);
 			var disjunction = Restrictions.disjunction();
 			disjunction.add(Restrictions.ilike(PROP_SUMMARY, "%" + searchTerm + "%"));
-			disjunction.add(Restrictions.ilike(PROP_ACTOR + ".name", "%" + searchTerm + "%"));
+			disjunction.add(Restrictions.ilike("actor.name", "%" + searchTerm + "%"));
+			disjunction.add(Restrictions.ilike("actorName", "%" + searchTerm + "%"));
+			disjunction.add(Restrictions.ilike(PROP_TYPE, "%" + searchTerm + "%"));
+			disjunction.add(Restrictions.ilike("projectPath", "%" + searchTerm + "%"));
+			disjunction.add(Restrictions.ilike("ipAddress", "%" + searchTerm + "%"));
 			criteria.add(disjunction);
 		}
 		return criteria;

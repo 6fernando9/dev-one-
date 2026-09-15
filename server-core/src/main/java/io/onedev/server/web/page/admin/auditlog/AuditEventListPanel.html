@@ -1,12 +1,33 @@
 <wicket:panel>
 	<div class="audit-event-list">
+		<div class="card mb-4">
+			<div class="card-body">
+				<div wicket:id="rangeLabel" class="text-gray mb-2"></div>
+				<div class="d-flex align-items-center mb-4">
+					<a wicket:id="dateRange" class="btn btn-light btn-sm mr-3 text-nowrap">
+						<wicket:svg href="calendar" class="icon"></wicket:svg>
+						<span wicket:id="label" class="ml-1"></span>
+					</a>
+					<div class="clearable-wrapper">
+						<input wicket:id="dateRangePicker" class="form-control form-control-sm" t:placeholder="Custom range">
+					</div>
+				</div>
+				<div wicket:id="chartContainer">
+					<div wicket:id="chart"></div>
+				</div>
+			</div>
+		</div>
 		<div class="d-flex align-items-center mb-4">
 			<div class="clearable-wrapper flex-grow-1 mr-3">
-				<input wicket:id="filterText" class="form-control search" t:placeholder="Filter by action, actor, summary or target">
+				<input wicket:id="filterText" class="form-control search" t:placeholder="Filter by action, actor, project, IP or summary">
 			</div>
 		</div>
 		<div class="mb-4">
 			<a wicket:id="filterSeverity" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
+				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
+				<span wicket:id="label"></span>
+			</a>
+			<a wicket:id="filterAction" class="text-gray mr-4 mb-2 d-inline-block text-nowrap">
 				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
 				<span wicket:id="label"></span>
 			</a>
@@ -17,13 +38,16 @@
 		</div>
 		<table wicket:id="events" class="events table table-hover"></table>
 	</div>
+	<wicket:fragment wicket:id="dateFrag">
+		<div wicket:id="time"></div>
+		<div wicket:id="day" class="text-gray small"></div>
+	</wicket:fragment>
 	<wicket:fragment wicket:id="severityFrag">
 		<span wicket:id="badge"></span>
 	</wicket:fragment>
 	<wicket:fragment wicket:id="actorFrag">
 		<span wicket:id="avatar" class="mr-1"></span>
 		<span wicket:id="actor"></span>
-		<span wicket:id="ip" class="text-gray ml-1"></span>
 	</wicket:fragment>
 	<wicket:fragment wicket:id="summaryFrag">
 		<span wicket:id="summary"></span>

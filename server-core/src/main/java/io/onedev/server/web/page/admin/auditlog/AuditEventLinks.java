@@ -148,16 +148,45 @@ public class AuditEventLinks {
 	}
 
 	private static String labelOf(AuditEvent event) {
-		switch (event.getRefType()) {
-			case "PullRequest":
-				return "PR #" + event.getRefId();
-			case "Issue":
-				return "Issue #" + event.getRefId();
-			case "Build":
-				return "Build #" + event.getRefId();
-			default:
-				return event.getRefType() + " #" + event.getRefId();
+		try {
+			switch (event.getRefType()) {
+				case "PullRequest": {
+					var request = OneDev.getInstance(PullRequestService.class).get(event.getRefId());
+					if (request != null)
+						return "#" + request.getNumber() + " " + request.getTitle();
+					break;
+				}
+				case "Issue": {
+					var issue = OneDev.getInstance(IssueService.class).get(event.getRefId());
+					if (issue != null)
+						return "#" + issue.getNumber() + " " + issue.getTitle();
+					break;
+				}
+				case "Build": {
+					var build = OneDev.getInstance(BuildService.class).get(event.getRefId());
+					if (build != null)
+						return "#" + build.getNumber() + " " + build.getJobName();
+					break;
+				}
+				case "User": {
+					var user = OneDev.getInstance(UserService.class).get(event.getRefId());
+					if (user != null)
+						return user.getDisplayName();
+					break;
+				}
+				case "Project": {
+					var project = OneDev.getInstance(ProjectService.class).get(event.getRefId());
+					if (project != null)
+						return project.getPath();
+					break;
+				}
+				default:
+					break;
+			}
+		} catch (Exception e) {
+			// entidad eliminada o sesión cerrada: etiqueta genérica
 		}
+		return event.getRefType() + " #" + event.getRefId();
 	}
 
 }

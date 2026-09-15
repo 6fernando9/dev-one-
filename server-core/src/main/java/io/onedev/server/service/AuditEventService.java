@@ -1,7 +1,9 @@
 package io.onedev.server.service;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
@@ -25,11 +27,16 @@ public interface AuditEventService extends EntityService<AuditEvent> {
 
 	List<AuditEvent> query(@Nullable Project project, @Nullable AuditEventType type,
 			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
-			@Nullable String searchTerm, int firstResult, int maxResults);
+			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm,
+			int firstResult, int maxResults);
 
 	int count(@Nullable Project project, @Nullable AuditEventType type,
 			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
-			@Nullable String searchTerm);
+			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm);
+
+	Map<LocalDate, Long> countByDay(@Nullable Project project, @Nullable AuditEventType type,
+			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable Date from, @Nullable Date to);
 
 	void purgeBefore(Date date);
 
