@@ -29,6 +29,8 @@ import org.jspecify.annotations.Nullable;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.ScheduleBuilder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.onedev.server.event.Listen;
 import io.onedev.server.event.entity.EntityPersisted;
 import io.onedev.server.event.entity.EntityRemoved;
@@ -79,6 +81,42 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 
 	private String taskId;
 
+	private static final ObjectMapper MAPPER = new ObjectMapper();
+
+	private String detailsJson(Map<String, Object> values) {
+		try {
+			return MAPPER.writeValueAsString(values);
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private Map<String, Object> detailMap(Object... keyValues) {
+		var map = new LinkedHashMap<String, Object>();
+		for (var i = 0; i + 1 < keyValues.length; i += 2)
+			map.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+		return map;
+	}
+
+	@Nullable
+	private String primaryEmailOf(@Nullable User user) {
+		try {
+			if (user != null && user.getPrimaryEmailAddress() != null)
+				return user.getPrimaryEmailAddress().getValue();
+		} catch (Exception e) {
+			// entidad en borrado o sin sesión: sin email disponible
+		}
+		return null;
+	}
+
+	@Nullable
+	private String shortCommit(@Nullable ObjectId commitId) {
+		if (commitId == null || commitId.equals(ObjectId.zeroId()))
+			return null;
+		var name = commitId.name();
+		return name.substring(0, Math.min(7, name.length()));
+	}
+
 	@Transactional
 	@Override
 	public void record(AuditEventType type, @Nullable User actor, @Nullable String actorName,
@@ -107,7 +145,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	@Override
 	public void recordLoginSucceeded(User actor, String via) {
 		record(AuditEventType.LOGIN_SUCCEEDED, actor, null, getCurrentIpAddress(), null,
-				actor.getDisplayName() + " logged in via " + via, null, "User", actor.getId());
+				actor.getDisplayName() + " logged in via " + via,
+				detailsJson(detailMap("via", via)), "User", actor.getId());
 	}
 
 	@Transactional
@@ -117,14 +156,15 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				? "failed login attempt for '" + userName + "' via " + via
 				: "failed login attempt via " + via;
 		record(AuditEventType.LOGIN_FAILED, null, userName, getCurrentIpAddress(), null,
-				summary, null, null, null);
+				summary, detailsJson(detailMap("via", via, "userName", userName)), null, null);
 	}
 
 	@Transactional
 	@Override
 	public void recordLogout(User actor) {
 		record(AuditEventType.LOGOUT, actor, null, getCurrentIpAddress(), null,
-				actor.getDisplayName() + " logged out", null, "User", actor.getId());
+				actor.getDisplayName() + " logged out",
+				detailsJson(detailMap("via", "web")), "User", actor.getId());
 	}
 
 	@Transactional
@@ -137,7 +177,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 					event.getProject(),
 					getActorDisplay(user) + " merged pull request #" + request.getNumber()
 							+ " (" + request.getTitle() + ")",
-					null, "PullRequest", request.getId());
+					detailsJson(detailMap("number", request.getNumber(), "title", request.getTitle())),
+					"PullRequest", request.getId());
 		}
 	}
 
@@ -153,7 +194,9 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 					event.getProject(),
 					getActorDisplay(user) + " changed state of issue #" + issue.getNumber()
 							+ " from '" + stateData.getOldState() + "' to '" + stateData.getNewState() + "'",
-					null, "Issue", issue.getId());
+					detailsJson(detailMap("number", issue.getNumber(), "title", issue.getTitle(),
+							"oldState", stateData.getOldState(), "newState", stateData.getNewState())),
+					"Issue", issue.getId());
 		} else if (data instanceof IssueTitleChangeData || data instanceof IssueIterationAddData
 				|| data instanceof IssueIterationChangeData || data instanceof IssueIterationRemoveData
 				|| data instanceof IssueFieldChangeData) {
@@ -161,7 +204,9 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 					event.getProject(),
 					getActorDisplay(user) + " " + data.getActivity() + " of issue #"
 							+ issue.getNumber() + " (" + issue.getTitle() + ")",
-					null, "Issue", issue.getId());
+					detailsJson(detailMap("number", issue.getNumber(), "title", issue.getTitle(),
+							"activity", data.getActivity())),
+					"Issue", issue.getId());
 		}
 	}
 	@Transactional
@@ -174,7 +219,9 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				build.getProject(),
 				getActorDisplay(actor) + " finished build #" + build.getNumber()
 						+ " (" + build.getJobName() + ") with status " + build.getStatus(),
-				null, "Build", build.getId());
+				detailsJson(detailMap("number", build.getNumber(), "jobName", build.getJobName(),
+						"status", build.getStatus().name())),
+				"Build", build.getId());
 	}
 
 	@Transactional
@@ -188,7 +235,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				build.getProject(),
 				getActorDisplay(submitter) + " submitted build #" + build.getNumber()
 						+ " (" + build.getJobName() + ")",
-				null, "Build", build.getId());
+				detailsJson(detailMap("number", build.getNumber(), "jobName", build.getJobName())),
+				"Build", build.getId());
 	}
 
 	@Transactional
@@ -200,7 +248,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				event.getProject(),
 				getActorDisplay(user) + " opened pull request #" + request.getNumber()
 						+ " (" + request.getTitle() + ")",
-				null, "PullRequest", request.getId());
+				detailsJson(detailMap("number", request.getNumber(), "title", request.getTitle())),
+				"PullRequest", request.getId());
 	}
 
 	@Transactional
@@ -212,7 +261,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 				event.getProject(),
 				getActorDisplay(user) + " opened issue #" + issue.getNumber()
 						+ " (" + issue.getTitle() + ")",
-				null, "Issue", issue.getId());
+				detailsJson(detailMap("number", issue.getNumber(), "title", issue.getTitle())),
+				"Issue", issue.getId());
 	}
 
 	@Transactional
@@ -224,7 +274,10 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		record(AuditEventType.CODE_PUSHED, user, null, getCurrentIpAddress(),
 				event.getProject(),
 				getActorDisplay(user) + " " + describeRefUpdate(event),
-				null, "Project", event.getProject().getId());
+				detailsJson(detailMap("ref", event.getRefName(),
+						"oldCommit", shortCommit(event.getOldCommitId()),
+						"newCommit", shortCommit(event.getNewCommitId()))),
+				"Project", event.getProject().getId());
 	}
 
 	private String describeRefUpdate(RefUpdated event) {
@@ -281,21 +334,28 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		if (entity instanceof Role) {
 			var role = (Role) entity;
 			record(AuditEventType.ROLE_DELETED, actor, null, ipAddress, null,
-					actorDisplay + " deleted role '" + role.getName() + "'", null, "Role", role.getId());
+					actorDisplay + " deleted role '" + role.getName() + "'",
+					detailsJson(detailMap("name", role.getName())), "Role", role.getId());
 		} else if (entity instanceof User) {
 			var user = (User) entity;
 			record(AuditEventType.USER_DELETED, actor, null, ipAddress, null,
-					actorDisplay + " deleted user '" + user.getName() + "'", null, "User", user.getId());
+					actorDisplay + " deleted user '" + user.getName() + "'",
+					detailsJson(detailMap("name", user.getName(),
+							"displayName", user.getDisplayName(), "email", primaryEmailOf(user))),
+					"User", user.getId());
 		} else if (entity instanceof Group) {
 			var group = (Group) entity;
 			record(AuditEventType.GROUP_DELETED, actor, null, ipAddress, null,
-					actorDisplay + " deleted group '" + group.getName() + "'", null, "Group", group.getId());
+					actorDisplay + " deleted group '" + group.getName() + "'",
+					detailsJson(detailMap("name", group.getName())), "Group", group.getId());
 		} else if (entity instanceof Membership) {
 			var membership = (Membership) entity;
 			record(AuditEventType.MEMBERSHIP_DELETED, actor, null, ipAddress, null,
 					actorDisplay + " removed '" + membership.getUser().getDisplayName()
 							+ "' from group '" + membership.getGroup().getName() + "'",
-					null, null, null);
+					detailsJson(detailMap("user", membership.getUser().getDisplayName(),
+							"group", membership.getGroup().getName())),
+					null, null);
 		} else if (entity instanceof Project) {
 			var project = (Project) entity;
 			var deleted = new AuditEvent();
@@ -306,6 +366,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			deleted.setDate(new Date());
 			deleted.setProjectPath(project.getPath());
 			deleted.setSummary(actorDisplay + " deleted project '" + project.getPath() + "'");
+			deleted.setDetails(detailsJson(detailMap("path", project.getPath())));
 			deleted.setRefType("Project");
 			deleted.setRefId(project.getId());
 			dao.persist(deleted);
@@ -314,14 +375,16 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			record(AuditEventType.ITERATION_DELETED, actor, null, ipAddress,
 					iteration.getProject(),
 					actorDisplay + " deleted iteration '" + iteration.getName() + "'",
-					null, "Project", iteration.getProject().getId());
+					detailsJson(detailMap("name", iteration.getName(),
+							"project", iteration.getProject().getPath())),
+					"Project", iteration.getProject().getId());
 		}
 	}
 
 	private void recordRole(Role role, boolean isNew) {
 		var actor = getCurrentActor();
 		var actorDisplay = getActorDisplay(actor);
-		var details = "permissions: " + String.join(", ", getEnabledPermissions(role));
+		var details = detailsJson(detailMap("name", role.getName(), "permissions", getEnabledPermissions(role)));
 		if (isNew) {
 			record(AuditEventType.ROLE_CREATED, actor, null, getCurrentIpAddress(), null,
 					actorDisplay + " created role '" + role.getName() + "'", details, "Role", role.getId());
@@ -334,27 +397,31 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	private void recordUser(User user, boolean isNew) {
 		var actor = getCurrentActor();
 		var actorDisplay = getActorDisplay(actor);
+		var details = detailsJson(detailMap("name", user.getName(),
+				"displayName", user.getDisplayName(), "email", primaryEmailOf(user),
+				"disabled", user.isDisabled()));
 		if (isNew) {
 			record(AuditEventType.USER_CREATED, actor, null, getCurrentIpAddress(), null,
-					actorDisplay + " created user '" + user.getName() + "'", null, "User", user.getId());
+					actorDisplay + " created user '" + user.getName() + "'", details, "User", user.getId());
 		} else if (user.isDisabled()) {
 			record(AuditEventType.USER_DISABLED, actor, null, getCurrentIpAddress(), null,
-					actorDisplay + " disabled user '" + user.getName() + "'", null, "User", user.getId());
+					actorDisplay + " disabled user '" + user.getName() + "'", details, "User", user.getId());
 		} else {
 			record(AuditEventType.USER_UPDATED, actor, null, getCurrentIpAddress(), null,
-					actorDisplay + " updated user '" + user.getName() + "'", null, "User", user.getId());
+					actorDisplay + " updated user '" + user.getName() + "'", details, "User", user.getId());
 		}
 	}
 
 	private void recordGroup(Group group, boolean isNew) {
 		var actor = getCurrentActor();
 		var actorDisplay = getActorDisplay(actor);
+		var details = detailsJson(detailMap("name", group.getName()));
 		if (isNew) {
 			record(AuditEventType.GROUP_CREATED, actor, null, getCurrentIpAddress(), null,
-					actorDisplay + " created group '" + group.getName() + "'", null, "Group", group.getId());
+					actorDisplay + " created group '" + group.getName() + "'", details, "Group", group.getId());
 		} else {
 			record(AuditEventType.GROUP_UPDATED, actor, null, getCurrentIpAddress(), null,
-					actorDisplay + " updated group '" + group.getName() + "'", null, "Group", group.getId());
+					actorDisplay + " updated group '" + group.getName() + "'", details, "Group", group.getId());
 		}
 	}
 
@@ -367,7 +434,10 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			summary = actorDisplay + " updated membership of '" + membership.getUser().getDisplayName()
 					+ "' in group '" + membership.getGroup().getName() + "'";
 		record(AuditEventType.MEMBERSHIP_CREATED, actor, null, getCurrentIpAddress(), null,
-				summary, null, null, null);
+				summary,
+				detailsJson(detailMap("user", membership.getUser().getDisplayName(),
+						"group", membership.getGroup().getName())),
+				null, null);
 	}
 
 	private void recordProject(Project project, boolean isNew) {
@@ -383,6 +453,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			created.setProject(project);
 			created.setProjectPath(project.getPath());
 			created.setSummary(actorDisplay + " created project '" + project.getPath() + "'");
+			created.setDetails(detailsJson(detailMap("path", project.getPath())));
 			created.setRefType("Project");
 			created.setRefId(project.getId());
 			dao.persist(created);
@@ -396,6 +467,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			updated.setProject(project);
 			updated.setProjectPath(project.getPath());
 			updated.setSummary(actorDisplay + " updated settings of project '" + project.getPath() + "'");
+			updated.setDetails(detailsJson(detailMap("path", project.getPath())));
 			updated.setRefType("Project");
 			updated.setRefId(project.getId());
 			dao.persist(updated);
@@ -409,11 +481,13 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		if (isNew) {
 			record(AuditEventType.ITERATION_CREATED, actor, null, getCurrentIpAddress(), project,
 					actorDisplay + " created iteration '" + iteration.getName() + "'",
-					null, "Project", project.getId());
+					detailsJson(detailMap("name", iteration.getName(), "project", project.getPath())),
+					"Project", project.getId());
 		} else {
 			record(AuditEventType.ITERATION_UPDATED, actor, null, getCurrentIpAddress(), project,
 					actorDisplay + " updated iteration '" + iteration.getName() + "'",
-					null, "Project", project.getId());
+					detailsJson(detailMap("name", iteration.getName(), "project", project.getPath())),
+					"Project", project.getId());
 		}
 	}
 
@@ -422,7 +496,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		var actorDisplay = getActorDisplay(actor);
 		record(AuditEventType.SYSTEM_SETTING_UPDATED, actor, null, getCurrentIpAddress(), null,
 				actorDisplay + " changed system setting '" + setting.getKey().name() + "'",
-				null, null, null);
+				detailsJson(detailMap("key", setting.getKey().name())), null, null);
 	}
 
 	@Nullable
@@ -498,10 +572,10 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	@Sessional
 	@Override
 	public List<AuditEvent> query(@Nullable Project project, @Nullable AuditEventType type,
-			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable AuditEventSeverity severity, @Nullable User actor, @Nullable Boolean projectScoped,
 			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm,
 			int firstResult, int maxResults) {
-		var criteria = newCriteria(project, type, severity, projectScoped, from, to, searchTerm);
+		var criteria = newCriteria(project, type, severity, actor, projectScoped, from, to, searchTerm);
 		criteria.addOrder(Order.desc(PROP_DATE));
 		var events = dao.query(criteria, firstResult, maxResults);
 		for (var event : events) {
@@ -513,15 +587,15 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 
 	@Override
 	public int count(@Nullable Project project, @Nullable AuditEventType type,
-			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable AuditEventSeverity severity, @Nullable User actor, @Nullable Boolean projectScoped,
 			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm) {
-		return dao.count(newCriteria(project, type, severity, projectScoped, from, to, searchTerm));
+		return dao.count(newCriteria(project, type, severity, actor, projectScoped, from, to, searchTerm));
 	}
 
 	@Sessional
 	@Override
 	public Map<LocalDate, Long> countByDay(@Nullable Project project, @Nullable AuditEventType type,
-			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable AuditEventSeverity severity, @Nullable User actor, @Nullable Boolean projectScoped,
 			@Nullable Date from, @Nullable Date to) {
 		var zone = ZoneId.systemDefault();
 		var toDay = to != null
@@ -548,6 +622,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			hql.append(" and type = :type");
 		if (severity != null)
 			hql.append(" and severity = :severity");
+		if (actor != null)
+			hql.append(" and actor = :actor");
 		var query = getSession().createQuery(hql.toString());
 		query.setParameter("from", Date.from(fromDay.atStartOfDay(zone).toInstant()));
 		query.setParameter("to", Date.from(toDay.plusDays(1).atStartOfDay(zone).toInstant()));
@@ -557,6 +633,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			query.setParameter("type", type.name());
 		if (severity != null)
 			query.setParameter("severity", severity.name());
+		if (actor != null)
+			query.setParameter("actor", actor);
 
 		for (var date : (List<Date>) query.list()) {
 			var day = date.toInstant().atZone(zone).toLocalDate();
@@ -564,10 +642,54 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		}
 		return counts;
 	}
+	@Sessional
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<User> queryActors(@Nullable Project project, @Nullable String term,
+			int firstResult, int maxResults) {
+		var query = getSession().createQuery(newActorHql(project, term, false));
+		setActorParameters(query, project, term);
+		query.setFirstResult(firstResult);
+		query.setMaxResults(maxResults);
+		return query.list();
+	}
+
+	@Sessional
+	@Override
+	public int countActors(@Nullable Project project, @Nullable String term) {
+		var query = getSession().createQuery(newActorHql(project, term, true));
+		setActorParameters(query, project, term);
+		return ((Long) query.uniqueResult()).intValue();
+	}
+
+	private String newActorHql(@Nullable Project project, @Nullable String term, boolean count) {
+		var hql = new StringBuilder();
+		if (count)
+			hql.append("select count(distinct actor)");
+		else
+			hql.append("select distinct actor");
+		hql.append(" from AuditEvent where actor is not null");
+		if (project != null)
+			hql.append(" and project = :project");
+		if (term != null && !term.isBlank())
+			hql.append(" and (actor.name like :term or actor.fullName like :term)");
+		if (!count)
+			hql.append(" order by actor.name");
+		return hql.toString();
+	}
+
+	private void setActorParameters(org.hibernate.query.Query<?> query,
+			@Nullable Project project, @Nullable String term) {
+		if (project != null)
+			query.setParameter("project", project);
+		if (term != null && !term.isBlank())
+			query.setParameter("term", "%" + term + "%");
+	}
 
 	@Transactional
 	@Override
 	public void purgeBefore(Date date) {
+
 		var query = getSession().createQuery("delete from AuditEvent where date < :date");
 		query.setParameter("date", date);
 		query.executeUpdate();
@@ -575,7 +697,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 
 	private io.onedev.server.persistence.dao.EntityCriteria<AuditEvent> newCriteria(
 			@Nullable Project project, @Nullable AuditEventType type,
-			@Nullable AuditEventSeverity severity, @Nullable Boolean projectScoped,
+			@Nullable AuditEventSeverity severity, @Nullable User actor, @Nullable Boolean projectScoped,
 			@Nullable Date from, @Nullable Date to, @Nullable String searchTerm) {
 		var criteria = newCriteria();
 		if (project != null)
@@ -590,6 +712,8 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 			criteria.add(Restrictions.eq(PROP_TYPE, type.name()));
 		if (severity != null)
 			criteria.add(Restrictions.eq(PROP_SEVERITY, severity.name()));
+		if (actor != null)
+			criteria.add(Restrictions.eq(PROP_ACTOR, actor));
 		if (from != null)
 			criteria.add(Restrictions.ge(PROP_DATE, from));
 		if (to != null)

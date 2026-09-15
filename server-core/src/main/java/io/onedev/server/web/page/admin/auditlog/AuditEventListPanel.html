@@ -2,19 +2,24 @@
 	<div class="audit-event-list">
 		<div class="card mb-4">
 			<div class="card-body">
-				<div wicket:id="rangeLabel" class="text-gray mb-2"></div>
+				<div class="d-flex align-items-center justify-content-between mb-2">
+					<div wicket:id="rangeLabel" class="text-gray"></div>
+					<select wicket:id="chartMetric" class="form-control form-control-sm" style="width: 170px"></select>
+				</div>
 				<div class="d-flex align-items-center mb-4">
 					<a wicket:id="dateRange" class="btn btn-light btn-sm mr-3 text-nowrap">
 						<wicket:svg href="calendar" class="icon"></wicket:svg>
 						<span wicket:id="label" class="ml-1"></span>
 					</a>
-					<div class="clearable-wrapper mr-2">
-						<span class="text-gray small mr-1">From</span>
-						<input wicket:id="dateFrom" type="text" class="form-control form-control-sm">
-					</div>
-					<div class="clearable-wrapper">
-						<span class="text-gray small mr-1">To</span>
-						<input wicket:id="dateTo" type="text" class="form-control form-control-sm">
+					<div wicket:id="customRange" class="d-flex align-items-center">
+						<div class="clearable-wrapper mr-2">
+							<span class="text-gray small mr-1">From</span>
+							<input wicket:id="dateFrom" type="text" class="form-control form-control-sm">
+						</div>
+						<div class="clearable-wrapper">
+							<span class="text-gray small mr-1">To</span>
+							<input wicket:id="dateTo" type="text" class="form-control form-control-sm">
+						</div>
 					</div>
 				</div>
 				<div wicket:id="chartContainer">
@@ -28,8 +33,12 @@
 			</div>
 		</div>
 		<div class="mb-4 d-flex align-items-center flex-wrap">
+			<span class="text-gray small mr-1 mb-2">Severity</span>
 			<select wicket:id="filterSeverity" class="form-control form-control-sm mr-3 mb-2" style="min-width: 180px"></select>
+			<span class="text-gray small mr-1 mb-2">Action</span>
 			<select wicket:id="filterAction" class="form-control form-control-sm mr-3 mb-2" style="min-width: 220px"></select>
+			<span class="text-gray small mr-1 mb-2">Actor</span>
+			<select wicket:id="filterActor" class="form-control form-control-sm mr-3 mb-2" style="min-width: 220px"></select>
 			<a wicket:id="filterScope" class="text-gray mb-2 d-inline-block text-nowrap">
 				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
 				<span wicket:id="label"></span>
@@ -45,7 +54,7 @@
 		<span wicket:id="badge"></span>
 	</wicket:fragment>
 	<wicket:fragment wicket:id="actionFrag">
-		<span wicket:id="badge" class="badge badge-secondary badge-pill"></span>
+		<span wicket:id="badge"></span>
 	</wicket:fragment>
 	<wicket:fragment wicket:id="actorFrag">
 		<span wicket:id="avatar" class="mr-1"></span>

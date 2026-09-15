@@ -38,6 +38,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.onedev.server.model.AuditEvent;
 import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
 import io.onedev.server.model.support.AuditEventSeverity;
 import io.onedev.server.model.support.AuditEventType;
 import io.onedev.server.service.AuditEventService;
@@ -52,6 +53,7 @@ import io.onedev.server.web.component.floating.FloatingPanel;
 import io.onedev.server.web.component.menu.MenuItem;
 import io.onedev.server.web.component.menu.MenuLink;
 import io.onedev.server.web.component.modal.ModalPanel;
+import io.onedev.server.web.component.select2.Select2Choice;
 import io.onedev.server.web.component.stringchoice.StringSingleChoice;
 import io.onedev.server.web.component.user.UserAvatar;
 import io.onedev.server.web.util.LoadableDetachableDataProvider;
@@ -73,6 +75,12 @@ public class AuditEventListPanel extends Panel {
 
 	private AuditEventType filterType;
 
+	private User filterActor;
+
+	private AuditEventSeverity chartSeverity;
+
+	private String chartMetric = "Total";
+
 	private Boolean filterScope;
 
 	private Date filterFrom;
@@ -91,9 +99,7 @@ public class AuditEventListPanel extends Panel {
 
 	private MenuLink dateRangeLink;
 
-	private DatePicker dateFromPicker;
-
-	private DatePicker dateToPicker;
+	private WebMarkupContainer customRange;
 
 	public AuditEventListPanel(String id, @Nullable Project project, boolean showProjectColumn) {
 		super(id);
@@ -167,8 +173,7 @@ public class AuditEventListPanel extends Panel {
 		target.add(chartContainer);
 		target.add(rangeLabel);
 		target.add(dateRangeLink);
-		target.add(dateFromPicker);
-		target.add(dateToPicker);
+		target.add(customRange);
 		if (scopeFilterLink.isVisible())
 			target.add(scopeFilterLink);
 	}
@@ -254,14 +259,22 @@ public class AuditEventListPanel extends Panel {
 				}
 			}
 		};
-		dateFromPicker = new DatePicker("dateFrom", dateFromModel, false);
-		dateFromPicker.setOutputMarkupId(true);
+		add(customRange = new WebMarkupContainer("customRange") {
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible("Custom".equals(activePreset));
+			}
+		});
+		customRange.setOutputMarkupPlaceholderTag(true);
+
+		var dateFromPicker = new DatePicker("dateFrom", dateFromModel, false);
 		dateFromPicker.add(new AjaxFormComponentUpdatingBehavior("change") {
 			@Override
 			protected void onUpdate(AjaxRequestTarget target) {
 			}
 		});
-		add(dateFromPicker);
+		customRange.add(dateFromPicker);
 
 		var dateToModel = new IModel<Date>() {
 			@Override
@@ -283,14 +296,15 @@ public class AuditEventListPanel extends Panel {
 				}
 			}
 		};
-		dateToPicker = new DatePicker("dateTo", dateToModel, false);
-		dateToPicker.setOutputMarkupId(true);
+		var dateToPicker = new DatePicker("dateTo", dateToModel, false);
 		dateToPicker.add(new AjaxFormComponentUpdatingBehavior("change") {
 			@Override
 			protected void onUpdate(AjaxRequestTarget target) {
 			}
 		});
-		add(dateToPicker);
+		customRange.add(dateToPicker);
+
+		add(newMetricChoice("chartMetric"));
 
 		add(chartContainer = new WebMarkupContainer("chartContainer"));
 		chartContainer.setOutputMarkupId(true);
@@ -298,14 +312,18 @@ public class AuditEventListPanel extends Panel {
 			@Override
 			protected BarData load() {
 				Map<LocalDate, Long> counts = auditEventService.countByDay(project, filterType,
-						filterSeverity, project != null ? null : filterScope, filterFrom, filterTo);
+						chartSeverity, filterActor, project != null ? null : filterScope,
+						filterFrom, filterTo);
 				List<String> labels = new ArrayList<>();
 				List<Long> values = new ArrayList<>();
 				for (var entry : counts.entrySet()) {
 					labels.add(entry.getKey().format(DAY_FORMATTER));
 					values.add(entry.getValue());
 				}
-				return new BarData(_T("Number of changes"), labels, values);
+				var title = chartSeverity != null
+						? humanize(chartSeverity.name()) + _T(" changes")
+						: _T("Number of changes");
+				return new BarData(title, labels, values);
 			}
 		}));
 
@@ -335,6 +353,30 @@ public class AuditEventListPanel extends Panel {
 		add(newSeverityChoice("filterSeverity"));
 
 		add(newActionChoice("filterAction"));
+
+		var actorChoice = new Select2Choice<User>("filterActor", new IModel<User>() {
+			@Override
+			public void detach() {
+			}
+
+			@Override
+			public User getObject() {
+				return filterActor;
+			}
+
+			@Override
+			public void setObject(User object) {
+				filterActor = object;
+			}
+		}, new AuditActorChoiceProvider(project));
+		actorChoice.getSettings().setPlaceholder(_T("All Actors"));
+		actorChoice.add(new AjaxFormComponentUpdatingBehavior("change") {
+			@Override
+			protected void onUpdate(AjaxRequestTarget target) {
+				refresh(target);
+			}
+		});
+		add(actorChoice);
 
 		add(scopeFilterLink = new MenuLink("filterScope") {
 			@Override
@@ -388,14 +430,9 @@ public class AuditEventListPanel extends Panel {
 			public void populateItem(Item<ICellPopulator<AuditEvent>> cellItem, String componentId,
 					IModel<AuditEvent> rowModel) {
 				Fragment fragment = new Fragment(componentId, "severityFrag", AuditEventListPanel.this);
-				String css;
-				switch (rowModel.getObject().getEventSeverity()) {
-					case CRITICAL: css = "badge badge-danger badge-sm"; break;
-					case WARNING: css = "badge badge-warning badge-sm"; break;
-					default: css = "badge badge-info badge-sm"; break;
-				}
 				fragment.add(new Label("badge", rowModel.getObject().getEventSeverity().name())
-						.add(AttributeAppender.append("class", css)));
+						.add(AttributeAppender.append("class",
+								AuditEventLinks.severityBadgeClass(rowModel.getObject()) + " badge-sm")));
 				cellItem.add(fragment);
 			}
 		});
@@ -405,7 +442,9 @@ public class AuditEventListPanel extends Panel {
 			public void populateItem(Item<ICellPopulator<AuditEvent>> cellItem, String componentId,
 					IModel<AuditEvent> rowModel) {
 				Fragment fragment = new Fragment(componentId, "actionFrag", AuditEventListPanel.this);
-				fragment.add(new Label("badge", humanize(rowModel.getObject().getEventType().name())));
+				fragment.add(new Label("badge", humanize(rowModel.getObject().getEventType().name()))
+						.add(AttributeAppender.append("class",
+								AuditEventLinks.actionBadgeClass(rowModel.getObject()))));
 				cellItem.add(fragment);
 			}
 		});
@@ -486,14 +525,14 @@ public class AuditEventListPanel extends Panel {
 		var dataProvider = new LoadableDetachableDataProvider<AuditEvent, Void>() {
 			@Override
 			public Iterator<? extends AuditEvent> iterator(long first, long count) {
-				return auditEventService.query(project, filterType, filterSeverity,
+				return auditEventService.query(project, filterType, filterSeverity, filterActor,
 						project != null ? null : filterScope, filterFrom, filterTo,
 						filterText, (int) first, (int) count).iterator();
 			}
 
 			@Override
 			public long calcSize() {
-				return auditEventService.count(project, filterType, filterSeverity,
+				return auditEventService.count(project, filterType, filterSeverity, filterActor,
 						project != null ? null : filterScope, filterFrom, filterTo, filterText);
 			}
 
@@ -584,6 +623,37 @@ public class AuditEventListPanel extends Panel {
 			}
 		}, Model.ofList(names), Model.ofMap(displayNames), false);
 		choice.getSettings().setPlaceholder(_T("All Actions"));
+		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
+			@Override
+			protected void onUpdate(AjaxRequestTarget target) {
+				refresh(target);
+			}
+		});
+		return choice;
+	}
+
+	private StringSingleChoice newMetricChoice(String id) {
+		var names = List.of("Total", "Critical", "Warning", "Info");
+		var displayNames = new LinkedHashMap<String, String>();
+		for (var name : names)
+			displayNames.put(name, name);
+		var choice = new StringSingleChoice(id, new IModel<String>() {
+			@Override
+			public void detach() {
+			}
+
+			@Override
+			public String getObject() {
+				return chartMetric;
+			}
+
+			@Override
+			public void setObject(String object) {
+				chartMetric = object != null ? object : "Total";
+				chartSeverity = "Total".equals(chartMetric)
+						? null : AuditEventSeverity.valueOf(chartMetric.toUpperCase());
+			}
+		}, Model.ofList(names), Model.ofMap(displayNames), false);
 		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
 			@Override
 			protected void onUpdate(AjaxRequestTarget target) {

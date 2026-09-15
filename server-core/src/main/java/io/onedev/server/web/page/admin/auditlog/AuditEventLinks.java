@@ -48,6 +48,32 @@ public class AuditEventLinks {
 			return "system";
 	}
 
+	public static String severityBadgeClass(AuditEvent event) {
+		switch (event.getEventSeverity()) {
+			case CRITICAL:
+				return "badge badge-danger";
+			case WARNING:
+				return "badge badge-warning";
+			default:
+				return "badge badge-info";
+		}
+	}
+
+	public static String actionBadgeClass(AuditEvent event) {
+		var name = event.getEventType().name();
+		if (name.equals("LOGIN_FAILED") || name.endsWith("_DELETED"))
+			return "badge badge-danger badge-pill";
+		if (name.endsWith("_CREATED") || name.endsWith("_OPENED") || name.endsWith("_SUBMITTED")
+				|| name.equals("CODE_PUSHED"))
+			return "badge badge-success badge-pill";
+		if (name.endsWith("_UPDATED") || name.endsWith("_MERGED") || name.endsWith("_CHANGED")
+				|| name.endsWith("_DISABLED"))
+			return "badge badge-warning badge-pill";
+		if (name.equals("LOGIN_SUCCEEDED") || name.equals("LOGOUT"))
+			return "badge badge-info badge-pill";
+		return "badge badge-secondary badge-pill";
+	}
+
 	public static Component newActorRef(String id, AuditEvent event) {
 		var actor = event.getActor();
 		if (actor != null) {
