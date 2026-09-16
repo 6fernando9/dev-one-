@@ -21,6 +21,34 @@
 			</div>
 		</div>
 
+		<!-- Banner de Estado de Puerta de Bloqueo de Despliegue (RF5: Deployment Gate) -->
+		<div wicket:id="gateCard" class="card shadow-sm border-0 mb-4 bg-light">
+			<div class="card-body p-3">
+				<div class="d-flex align-items-center justify-content-between flex-wrap">
+					<div class="d-flex align-items-center">
+						<span wicket:id="gateStatusBadge" class="mr-3 font-weight-bold"></span>
+						<span wicket:id="gateMessage" class="text-secondary small font-weight-bold"></span>
+					</div>
+				</div>
+				<div wicket:id="gateReasonsSection" class="mt-3 pt-3 border-top">
+					<div class="font-weight-bold text-danger small mb-1">
+						<wicket:svg href="warning" class="icon mr-1 text-danger"></wicket:svg> <wicket:t>Motivos que impiden el despliegue a producción:</wicket:t>
+					</div>
+					<ul class="mb-0 pl-3 small text-danger">
+						<li wicket:id="blockingReasons"><span wicket:id="reason"></span></li>
+					</ul>
+				</div>
+				<div wicket:id="gateRisksSection" class="mt-3 p-2 bg-white rounded border border-warning">
+					<div class="font-weight-bold text-warning small mb-1">
+						<wicket:svg href="alert" class="icon mr-1 text-warning"></wicket:svg> <wicket:t>Consecuencias y riesgos si se despliega con deriva:</wicket:t>
+					</div>
+					<ul class="mb-0 pl-3 small text-muted">
+						<li wicket:id="riskConsequences"><span wicket:id="risk"></span></li>
+					</ul>
+				</div>
+			</div>
+		</div>
+
 		<!-- Tarjetas de Métricas -->
 		<div class="row mb-4">
 			<div class="col-6 col-lg-3 mb-3 mb-lg-0">

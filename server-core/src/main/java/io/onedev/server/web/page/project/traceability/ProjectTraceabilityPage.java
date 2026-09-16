@@ -22,6 +22,8 @@ import io.onedev.server.model.Project;
 import io.onedev.server.security.SecurityUtils;
 import io.onedev.server.traceability.ConfigItem;
 import io.onedev.server.traceability.ConfigItemType;
+import io.onedev.server.traceability.gate.TraceabilityGateResult;
+import io.onedev.server.traceability.gate.TraceabilityGateService;
 import io.onedev.server.traceability.matrix.TraceabilityMatrix;
 import io.onedev.server.traceability.matrix.TraceabilityMatrixService;
 import io.onedev.server.traceability.matrix.TraceabilityRow;
@@ -31,7 +33,7 @@ import io.onedev.server.web.page.project.ProjectPage;
 import io.onedev.server.web.page.project.overview.ProjectOverviewPage;
 
 /**
- * Vista web de la Matriz de Trazabilidad Dinámica y Bidireccional para el proyecto en OneDev (RF4).
+ * Vista web de la Matriz de Trazabilidad Integral (RF4) y Puerta de Bloqueo de Despliegues (RF5).
  */
 public class ProjectTraceabilityPage extends ProjectPage {
 
@@ -70,6 +72,59 @@ public class ProjectTraceabilityPage extends ProjectPage {
         };
 
         TraceabilityMatrix matrix = matrixModel.getObject();
+
+        // RF5: Evaluación del Gate de Despliegue
+        TraceabilityGateService gateService = OneDev.getInstance(TraceabilityGateService.class);
+        TraceabilityGateResult gateResult = gateService.checkGate(getProject(), null, 80, 0, true, true);
+
+        // Tarjeta Banner de Estado del Gate de Despliegue (RF5)
+        WebMarkupContainer gateCard = new WebMarkupContainer("gateCard");
+        String borderClass = gateResult.isPassed() ? "border-left-success" : "border-left-danger";
+        gateCard.add(AttributeModifier.append("class", borderClass));
+
+        Label gateBadge = new Label("gateStatusBadge", gateResult.isPassed() ? "APROBADO PARA DESPLIEGUE" : "BLOQUEADO PARA DESPLIEGUE");
+        gateBadge.add(AttributeModifier.replace("class", gateResult.isPassed() ? "badge badge-success p-2" : "badge badge-danger p-2"));
+        gateCard.add(gateBadge);
+
+        String gateMessageText = gateResult.isPassed()
+            ? "El proyecto cumple con todas las políticas de calidad y trazabilidad requeridas para el despliegue seguro (Cobertura: "
+                + String.format(Locale.US, "%.1f%%", gateResult.getActualCoverage()) + ", Desfases: " + gateResult.getActualDriftCount() + ")."
+            : "El despliegue a producción o staging se encuentra bloqueado para proteger la estabilidad del sistema. Se detectaron incoherencias arquitectónicas o cobertura insuficiente.";
+        gateCard.add(new Label("gateMessage", gateMessageText));
+
+        // Lista de causas de bloqueo
+        WebMarkupContainer gateReasonsSection = new WebMarkupContainer("gateReasonsSection") {
+            @Override
+            protected void onConfigure() {
+                super.onConfigure();
+                setVisible(!gateResult.isPassed() && !gateResult.getBlockingReasons().isEmpty());
+            }
+        };
+        gateReasonsSection.add(new ListView<String>("blockingReasons", gateResult.getBlockingReasons()) {
+            @Override
+            protected void populateItem(ListItem<String> item) {
+                item.add(new Label("reason", item.getModelObject()));
+            }
+        });
+        gateCard.add(gateReasonsSection);
+
+        // Advertencia de riesgos y consecuencias si se desplegara con deriva
+        WebMarkupContainer gateRisksSection = new WebMarkupContainer("gateRisksSection") {
+            @Override
+            protected void onConfigure() {
+                super.onConfigure();
+                setVisible(!gateResult.isPassed() && !gateResult.getRiskConsequences().isEmpty());
+            }
+        };
+        gateRisksSection.add(new ListView<String>("riskConsequences", gateResult.getRiskConsequences()) {
+            @Override
+            protected void populateItem(ListItem<String> item) {
+                item.add(new Label("risk", item.getModelObject()));
+            }
+        });
+        gateCard.add(gateRisksSection);
+
+        add(gateCard);
 
         // Tarjetas de métricas
         add(new Label("totalReqs", String.valueOf(matrix.getTotalRequirements())));
