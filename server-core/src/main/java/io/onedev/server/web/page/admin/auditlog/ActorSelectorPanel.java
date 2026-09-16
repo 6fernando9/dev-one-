@@ -1,5 +1,7 @@
 package io.onedev.server.web.page.admin.auditlog;
 
+import static io.onedev.server.web.translation.Translation._T;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -8,6 +10,7 @@ import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.AjaxLink;
 import org.apache.wicket.behavior.AttributeAppender;
+import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.TextField;
@@ -21,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 import io.onedev.server.OneDev;
 import io.onedev.server.model.Project;
 import io.onedev.server.model.User;
+import io.onedev.server.persistence.SessionService;
 import io.onedev.server.service.AuditEventService;
 import io.onedev.server.service.UserService;
 import io.onedev.server.util.Similarities;
@@ -36,6 +40,9 @@ import io.onedev.server.web.component.user.UserAvatar;
  * <p>En modo proyecto solo muestra actores con eventos en el proyecto más los
  * miembros con acceso y el usuario OneDev. En modo admin muestra todos los
  * usuarios del sistema.</p>
+ *
+ * <p>Siempre incluye una opción "All Actors" al inicio que selecciona
+ * {@code null} para indicar que no hay filtro de actor.</p>
  */
 public abstract class ActorSelectorPanel extends Panel {
 
@@ -86,6 +93,10 @@ public abstract class ActorSelectorPanel extends Panel {
 			@Override
 			protected void onBeforeRender() {
 				actorsView = new RepeatingView("actors");
+
+				// Siempre agregar "All Actors" al inicio
+				actorsView.add(newAllActorsItem(actorsView.newChildId()));
+
 				int index = 0;
 				for (User user : similarActorsModel.getObject()) {
 					Component item = newItem(actorsView.newChildId(), user);
@@ -103,7 +114,7 @@ public abstract class ActorSelectorPanel extends Panel {
 			@Override
 			protected void onConfigure() {
 				super.onConfigure();
-				setVisible(!similarActorsModel.getObject().isEmpty());
+				setVisible(true);
 			}
 
 		};
@@ -112,10 +123,12 @@ public abstract class ActorSelectorPanel extends Panel {
 
 			@Override
 			protected void appendMore(AjaxRequestTarget target, int offset, int count) {
+				// El offset empieza después del item "All Actors" (+1)
+				var actors = similarActorsModel.getObject();
 				for (int i = offset; i < offset + count; i++) {
-					if (i >= similarActorsModel.getObject().size())
+					if (i >= actors.size())
 						break;
-					User user = similarActorsModel.getObject().get(i);
+					User user = actors.get(i);
 
 					Component item = newItem(actorsView.newChildId(), user);
 					actorsView.add(item);
@@ -160,6 +173,28 @@ public abstract class ActorSelectorPanel extends Panel {
 		setOutputMarkupId(true);
 	}
 
+	private Component newAllActorsItem(String componentId) {
+		WebMarkupContainer item = new WebMarkupContainer(componentId);
+
+		AjaxLink<Void> link = new PreventDefaultAjaxLink<Void>("link") {
+
+			@Override
+			public void onClick(AjaxRequestTarget target) {
+				onSelect(target, null);
+			}
+
+		};
+		link.add(AttributeAppender.append("class", "all-actors"));
+		// Avatar placeholder oculto para satisfacer el template
+		var avatarPlaceholder = new WebMarkupContainer("avatar");
+		avatarPlaceholder.setVisible(false);
+		link.add(avatarPlaceholder);
+		link.add(new Label("name", _T("All Actors")));
+		item.add(link);
+
+		return item;
+	}
+
 	private Component newItem(String componentId, User user) {
 		WebMarkupContainer item = new WebMarkupContainer(componentId);
 
@@ -179,31 +214,36 @@ public abstract class ActorSelectorPanel extends Panel {
 		return item;
 	}
 
+	/**
+	 * Carga todos los actores candidatos dentro de una sesión Hibernate.
+	 */
 	private List<User> loadActors() {
-		var candidates = new LinkedHashSet<User>();
+		return OneDev.getInstance(SessionService.class).call(() -> {
+			var candidates = new LinkedHashSet<User>();
 
-		if (project != null) {
-			var auditActors = OneDev.getInstance(AuditEventService.class)
-					.queryActors(project, null, 0, FETCH_LIMIT);
-			candidates.addAll(auditActors);
+			if (project != null) {
+				var auditActors = OneDev.getInstance(AuditEventService.class)
+						.queryActors(project, null, 0, FETCH_LIMIT);
+				candidates.addAll(auditActors);
 
-			for (var auth : project.getUserAuthorizations())
-				candidates.add(auth.getUser());
+				for (var auth : project.getUserAuthorizations())
+					candidates.add(auth.getUser());
 
-			var systemUser = OneDev.getInstance(UserService.class).getSystem();
-			if (systemUser != null)
-				candidates.add(systemUser);
-		} else {
-			List<User> allUsers = OneDev.getInstance(UserService.class)
-					.query((String) null, 0, FETCH_LIMIT);
-			candidates.addAll(allUsers);
+				var systemUser = OneDev.getInstance(UserService.class).getSystem();
+				if (systemUser != null)
+					candidates.add(systemUser);
+			} else {
+				List<User> allUsers = OneDev.getInstance(UserService.class)
+						.query((String) null, 0, FETCH_LIMIT);
+				candidates.addAll(allUsers);
 
-			var systemUser = OneDev.getInstance(UserService.class).getSystem();
-			if (systemUser != null)
-				candidates.add(systemUser);
-		}
+				var systemUser = OneDev.getInstance(UserService.class).getSystem();
+				if (systemUser != null)
+					candidates.add(systemUser);
+			}
 
-		return new ArrayList<>(candidates);
+			return new ArrayList<>(candidates);
+		});
 	}
 
 	@Override
@@ -214,6 +254,10 @@ public abstract class ActorSelectorPanel extends Panel {
 		super.onDetach();
 	}
 
-	protected abstract void onSelect(AjaxRequestTarget target, User user);
+	/**
+	 * Se invoca cuando el usuario selecciona un actor.
+	 * @param user el usuario seleccionado, o {@code null} para "All Actors"
+	 */
+	protected abstract void onSelect(AjaxRequestTarget target, @Nullable User user);
 
 }

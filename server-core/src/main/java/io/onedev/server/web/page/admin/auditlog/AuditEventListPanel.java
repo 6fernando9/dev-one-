@@ -365,7 +365,7 @@ public class AuditEventListPanel extends Panel {
 					}
 
 					@Override
-					protected void onSelect(AjaxRequestTarget target, User user) {
+					protected void onSelect(AjaxRequestTarget target, @Nullable User user) {
 						filterActor = user;
 						refresh(target);
 					}
