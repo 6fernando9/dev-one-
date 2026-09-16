@@ -192,6 +192,8 @@ import io.onedev.server.traceability.CommitImpactListener;
 import io.onedev.server.traceability.ConfigItemClassifier;
 import io.onedev.server.traceability.ChangeProposalService;
 import io.onedev.server.traceability.DefaultChangeProposalService;
+import io.onedev.server.traceability.matrix.DefaultTraceabilityMatrixService;
+import io.onedev.server.traceability.matrix.TraceabilityMatrixService;
 import io.onedev.server.traceability.DefaultImpactAnalysisService;
 import io.onedev.server.traceability.ImpactAnalysisService;
 import io.onedev.server.service.AlertService;
@@ -533,6 +535,7 @@ public class CoreModule extends AbstractPluginModule {
 		bind(ImpactAnalysisService.class).to(DefaultImpactAnalysisService.class);
 		bind(CommitImpactListener.class);
 		bind(ChangeProposalService.class).to(DefaultChangeProposalService.class);
+		bind(TraceabilityMatrixService.class).to(DefaultTraceabilityMatrixService.class);
 		bind(IssueInfoService.class).to(DefaultIssueInfoService.class);
 		bind(VisitInfoService.class).to(DefaultVisitInfoService.class);
 		bind(BatchWorkExecutionService.class).to(DefaultBatchWorkExecutionService.class);
