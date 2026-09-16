@@ -47,8 +47,17 @@
 				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
 				<span wicket:id="label"></span>
 			</a>
+			<div class="ml-auto mb-2">
+				<a wicket:id="exportMenu" class="btn btn-light btn-sm text-nowrap">
+					<wicket:svg href="download" class="icon"></wicket:svg>
+					<span class="ml-1">Export</span>
+				</a>
+			</div>
 		</div>
 		<table wicket:id="events" class="events table table-hover"></table>
+		<a wicket:id="exportXlsx" class="d-none export-xlsx">Export XLSX</a>
+		<a wicket:id="exportCsv" class="d-none export-csv">Export CSV</a>
+		<a wicket:id="exportPdf" class="d-none export-pdf">Export PDF</a>
 	</div>
 	<wicket:fragment wicket:id="dateFrag">
 		<div wicket:id="time"></div>

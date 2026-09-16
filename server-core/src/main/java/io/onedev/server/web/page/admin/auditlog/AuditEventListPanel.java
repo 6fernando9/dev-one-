@@ -2,6 +2,8 @@ package io.onedev.server.web.page.admin.auditlog;
 
 import static io.onedev.server.web.translation.Translation._T;
 
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -15,6 +17,9 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -27,6 +32,7 @@ import org.apache.wicket.extensions.markup.html.repeater.data.table.IColumn;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.TextField;
+import org.apache.wicket.markup.html.link.ResourceLink;
 import org.apache.wicket.markup.html.panel.Fragment;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.markup.repeater.Item;
@@ -34,7 +40,9 @@ import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
+import org.apache.wicket.request.resource.AbstractResource;
 import org.jspecify.annotations.Nullable;
+import org.dhatim.fastexcel.Workbook;
 
 import io.onedev.server.OneDev;
 import io.onedev.server.model.AuditEvent;
@@ -55,7 +63,6 @@ import io.onedev.server.web.component.floating.FloatingPanel;
 import io.onedev.server.web.component.menu.MenuItem;
 import io.onedev.server.web.component.menu.MenuLink;
 import io.onedev.server.web.component.modal.ModalPanel;
-import io.onedev.server.web.component.select2.Select2Choice;
 import io.onedev.server.web.component.stringchoice.StringSingleChoice;
 import io.onedev.server.web.component.user.UserAvatar;
 import io.onedev.server.web.util.LoadableDetachableDataProvider;
@@ -182,6 +189,7 @@ public class AuditEventListPanel extends Panel {
 	@Override
 	protected void onInitialize() {
 		super.onInitialize();
+		setOutputMarkupId(true);
 
 		add(rangeLabel = new Label("rangeLabel", new AbstractReadOnlyModel<String>() {
 			@Override
@@ -583,6 +591,176 @@ public class AuditEventListPanel extends Panel {
 		add(table = new DefaultDataTable<>("events", columns, dataProvider,
 				WebConstants.PAGE_SIZE, null));
 		table.setOutputMarkupId(true);
+
+		add(new ResourceLink<Void>("exportXlsx", new AbstractResource() {
+			@Override
+			protected ResourceResponse newResourceResponse(Attributes attributes) {
+				ResourceResponse response = new ResourceResponse();
+				response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+				response.disableCaching();
+				response.setFileName("audit-events.xlsx");
+				response.setWriteCallback(new WriteCallback() {
+					@Override
+					public void writeData(Attributes attributes) {
+						exportXlsx(attributes.getResponse().getOutputStream());
+					}
+				});
+				return response;
+			}
+		}));
+
+		add(new ResourceLink<Void>("exportCsv", new AbstractResource() {
+			@Override
+			protected ResourceResponse newResourceResponse(Attributes attributes) {
+				ResourceResponse response = new ResourceResponse();
+				response.setContentType("text/csv");
+				response.disableCaching();
+				response.setFileName("audit-events.csv");
+				response.setWriteCallback(new WriteCallback() {
+					@Override
+					public void writeData(Attributes attributes) {
+						exportCsv(attributes.getResponse().getOutputStream());
+					}
+				});
+				return response;
+			}
+		}));
+
+		add(new ResourceLink<Void>("exportPdf", new AbstractResource() {
+			@Override
+			protected ResourceResponse newResourceResponse(Attributes attributes) {
+				ResourceResponse response = new ResourceResponse();
+				response.setContentType("application/pdf");
+				response.disableCaching();
+				response.setFileName("audit-report.pdf");
+				response.setWriteCallback(new WriteCallback() {
+					@Override
+					public void writeData(Attributes attributes) throws IOException {
+						var events = queryAllFilteredEvents();
+						var pdfBytes = AuditReportPdfResource.generatePdf(
+								events, project, showProjectColumn,
+								filterFrom, filterTo, filterActor,
+								filterType, filterSeverity, filterText);
+						var is = new java.io.ByteArrayInputStream(pdfBytes);
+						is.transferTo(attributes.getResponse().getOutputStream());
+					}
+				});
+				return response;
+			}
+		}));
+
+		add(new MenuLink("exportMenu") {
+			@Override
+			protected List<MenuItem> getMenuItems(FloatingPanel dropdown) {
+				List<MenuItem> items = new ArrayList<>();
+				items.add(newExportItem(dropdown, "XLSX", "export-xlsx"));
+				items.add(newExportItem(dropdown, "CSV", "export-csv"));
+				items.add(newExportItem(dropdown, "PDF Report", "export-pdf"));
+				return items;
+			}
+		});
+	}
+
+	private List<AuditEvent> queryAllFilteredEvents() {
+		var allEvents = new ArrayList<AuditEvent>();
+		int batchSize = 1000;
+		int offset = 0;
+		while (true) {
+			var batch = auditEventService.query(project, filterType, filterSeverity, filterActor,
+					project != null ? null : filterScope, filterFrom, filterTo,
+					filterText, offset, batchSize);
+			allEvents.addAll(batch);
+			if (batch.size() < batchSize)
+				break;
+			offset += batchSize;
+		}
+		return allEvents;
+	}
+
+	private void exportXlsx(java.io.OutputStream os) {
+		var events = queryAllFilteredEvents();
+		var version = StringUtils.substringBeforeLast(OneDev.getInstance().getVersion(), ".");
+		if (version.startsWith("v"))
+			version = version.substring(1);
+		try (var workBook = new Workbook(os, "OneDev", version)) {
+			var worksheet = workBook.newWorksheet("Audit Events");
+			var colIndex = 0;
+			worksheet.value(0, colIndex++, "Date & Time");
+			worksheet.value(0, colIndex++, "Severity");
+			worksheet.value(0, colIndex++, "Action");
+			worksheet.value(0, colIndex++, "Changed By");
+			worksheet.value(0, colIndex++, "IP Address");
+			if (showProjectColumn)
+				worksheet.value(0, colIndex++, "Project");
+			worksheet.value(0, colIndex, "Summary");
+			var rowIndex = 1;
+			for (var event : events) {
+				colIndex = 0;
+				worksheet.value(rowIndex, colIndex++, DateUtils.formatDateTime(event.getDate()));
+				worksheet.value(rowIndex, colIndex++, event.getEventSeverity().name());
+				worksheet.value(rowIndex, colIndex++, humanize(event.getEventType().name()));
+				worksheet.value(rowIndex, colIndex++, AuditEventLinks.getActorDisplay(event));
+				worksheet.value(rowIndex, colIndex++, event.getIpAddress() != null ? event.getIpAddress() : "-");
+				if (showProjectColumn)
+					worksheet.value(rowIndex, colIndex++, event.getProjectPath() != null ? event.getProjectPath() : "-");
+				worksheet.value(rowIndex, colIndex, event.getSummary());
+				rowIndex++;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void exportCsv(java.io.OutputStream os) {
+		var events = queryAllFilteredEvents();
+		try (var printer = new CSVPrinter(new OutputStreamWriter(os), CSVFormat.DEFAULT)) {
+			var headers = new ArrayList<String>();
+			headers.add("Date & Time");
+			headers.add("Severity");
+			headers.add("Action");
+			headers.add("Changed By");
+			headers.add("IP Address");
+			if (showProjectColumn)
+				headers.add("Project");
+			headers.add("Summary");
+			printer.printRecord(headers);
+			for (var event : events) {
+				var row = new ArrayList<String>();
+				row.add(DateUtils.formatDateTime(event.getDate()));
+				row.add(event.getEventSeverity().name());
+				row.add(humanize(event.getEventType().name()));
+				row.add(AuditEventLinks.getActorDisplay(event));
+				row.add(event.getIpAddress() != null ? event.getIpAddress() : "-");
+				if (showProjectColumn)
+					row.add(event.getProjectPath() != null ? event.getProjectPath() : "-");
+				row.add(event.getSummary());
+				printer.printRecord(row);
+			}
+			printer.flush();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private MenuItem newExportItem(FloatingPanel dropdown, String label, String cssClass) {
+		return new MenuItem() {
+			@Override
+			public String getLabel() {
+				return label;
+			}
+
+			@Override
+			public WebMarkupContainer newLink(String id) {
+				return new AjaxLink<Void>(id) {
+					@Override
+					public void onClick(AjaxRequestTarget target) {
+						dropdown.close();
+						var selector = "#" + AuditEventListPanel.this.getMarkupId() + " ." + cssClass;
+						target.appendJavaScript("window.location.href = $('" + selector + "').attr('href');");
+					}
+				};
+			}
+		};
 	}
 
 	private String relativeDay(Date date) {
