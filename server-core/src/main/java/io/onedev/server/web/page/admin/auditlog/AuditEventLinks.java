@@ -2,7 +2,6 @@ package io.onedev.server.web.page.admin.auditlog;
 
 import org.apache.wicket.Component;
 import org.apache.wicket.Page;
-import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.jspecify.annotations.Nullable;
 
@@ -151,29 +150,28 @@ public class AuditEventLinks {
 		return new AuditEventRefPanel(id, "-", null, null);
 	}
 
-	public static Component newCommitRef(String id, AuditEvent event) {
-		if (!event.getEventType().name().equals("CODE_PUSHED"))
-			return new WebMarkupContainer(id).setVisible(false);
-		var newCommit = extractNewCommit(event);
-		if (newCommit == null)
-			return new WebMarkupContainer(id).setVisible(false);
-		var project = event.getProject();
-		if (project != null)
-			return new AuditEventRefPanel(id, newCommit, CommitDetailPage.class, CommitDetailPage.paramsOf(project, newCommit));
-		if (event.getProjectPath() != null) {
-			var found = findProject(event.getProjectPath());
-			if (found != null)
-				return new AuditEventRefPanel(id, newCommit, CommitDetailPage.class, CommitDetailPage.paramsOf(found, newCommit));
-		}
-		return new AuditEventRefPanel(id, newCommit, null, null);
-	}
-
 	public static Component newTargetRef(String id, AuditEvent event) {
 		if (event.getRefType() == null)
 			return new AuditEventRefPanel(id, "-", null, null);
 		if (event.getRefId() == null) {
 			if (event.getRefType().equals("Branch") || event.getRefType().equals("Tag")) {
 				var refName = extractRefName(event);
+				var newCommit = extractNewCommit(event);
+				// For CODE_PUSHED: show "branch · commit" linking to commit detail
+				if ("CODE_PUSHED".equals(event.getEventType().name()) && newCommit != null) {
+					var project = event.getProject();
+					if (project != null)
+						return new AuditEventRefPanel(id, refName + " · " + newCommit,
+								CommitDetailPage.class, CommitDetailPage.paramsOf(project, newCommit));
+					if (event.getProjectPath() != null) {
+						var found = findProject(event.getProjectPath());
+						if (found != null)
+							return new AuditEventRefPanel(id, refName + " · " + newCommit,
+									CommitDetailPage.class, CommitDetailPage.paramsOf(found, newCommit));
+					}
+					return new AuditEventRefPanel(id, refName + " · " + newCommit, null, null);
+				}
+				// For other branch/tag events: link to blob view
 				var project = event.getProject();
 				if (refName != null && project != null) {
 					var params = ProjectBlobPage.paramsOf(project, new BlobIdent(refName, "/"));
