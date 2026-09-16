@@ -26,6 +26,7 @@ import io.onedev.server.model.Project;
 import io.onedev.server.model.User;
 import io.onedev.server.persistence.SessionService;
 import io.onedev.server.service.AuditEventService;
+import io.onedev.server.service.ProjectService;
 import io.onedev.server.service.UserService;
 import io.onedev.server.util.Similarities;
 import io.onedev.server.web.WebConstants;
@@ -216,17 +217,23 @@ public abstract class ActorSelectorPanel extends Panel {
 
 	/**
 	 * Carga todos los actores candidatos dentro de una sesión Hibernate.
+	 * Se recarga el proyecto desde la BD para que las colecciones lazy
+	 * (userAuthorizations) estén asociadas a la sesión activa.
 	 */
 	private List<User> loadActors() {
 		return OneDev.getInstance(SessionService.class).call(() -> {
 			var candidates = new LinkedHashSet<User>();
 
 			if (project != null) {
+				// Recargar proyecto desde la BD dentro de la sesión activa
+				var freshProject = OneDev.getInstance(ProjectService.class)
+						.load(project.getId());
+
 				var auditActors = OneDev.getInstance(AuditEventService.class)
-						.queryActors(project, null, 0, FETCH_LIMIT);
+						.queryActors(freshProject, null, 0, FETCH_LIMIT);
 				candidates.addAll(auditActors);
 
-				for (var auth : project.getUserAuthorizations())
+				for (var auth : freshProject.getUserAuthorizations())
 					candidates.add(auth.getUser());
 
 				var systemUser = OneDev.getInstance(UserService.class).getSystem();
