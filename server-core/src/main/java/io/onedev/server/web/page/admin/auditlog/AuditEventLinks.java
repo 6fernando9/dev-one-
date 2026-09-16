@@ -14,10 +14,12 @@ import io.onedev.server.service.IssueService;
 import io.onedev.server.service.ProjectService;
 import io.onedev.server.service.PullRequestService;
 import io.onedev.server.service.UserService;
+import io.onedev.server.web.page.project.builds.detail.BuildDefaultPage;
 import io.onedev.server.web.page.project.builds.detail.BuildDetailPage;
 import io.onedev.server.web.page.project.issues.detail.IssueDetailPage;
 import io.onedev.server.web.page.project.overview.ProjectOverviewPage;
 import io.onedev.server.web.page.project.pullrequests.detail.PullRequestDetailPage;
+import io.onedev.server.web.page.project.pullrequests.detail.activities.PullRequestActivitiesPage;
 import io.onedev.server.web.page.user.UserPage;
 import io.onedev.server.web.page.user.profile.UserProfilePage;
 
@@ -159,11 +161,11 @@ public class AuditEventLinks {
 	private static Class<? extends Page> pageClassOf(String refType) {
 		switch (refType) {
 			case "PullRequest":
-				return PullRequestDetailPage.class;
+				return PullRequestActivitiesPage.class;
 			case "Issue":
 				return IssueDetailPage.class;
 			case "Build":
-				return BuildDetailPage.class;
+				return BuildDefaultPage.class;
 			case "User":
 				return UserProfilePage.class;
 			case "Project":

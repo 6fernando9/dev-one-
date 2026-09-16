@@ -724,16 +724,16 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 	private String newActorHql(@Nullable Project project, @Nullable String term, boolean count) {
 		var hql = new StringBuilder();
 		if (count)
-			hql.append("select count(distinct actor)");
+			hql.append("select count(distinct e.actor)");
 		else
-			hql.append("select distinct actor");
-		hql.append(" from AuditEvent where actor is not null");
+			hql.append("select distinct e.actor");
+		hql.append(" from AuditEvent e where e.actor is not null");
 		if (project != null)
-			hql.append(" and project = :project");
+			hql.append(" and e.project = :project");
 		if (term != null && !term.isBlank())
-			hql.append(" and (actor.name like :term or actor.fullName like :term)");
+			hql.append(" and (e.actor.name like :term or e.actor.fullName like :term)");
 		if (!count)
-			hql.append(" order by actor.name");
+			hql.append(" order by e.actor.name");
 		return hql.toString();
 	}
 

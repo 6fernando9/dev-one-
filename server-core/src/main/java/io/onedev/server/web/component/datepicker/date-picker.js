@@ -14,6 +14,7 @@ onedev.server.datePicker = {
 			dateFormat: withTime? 'Y-m-d H:i': 'Y-m-d', 
 			enableTime: withTime,
 			allowInput: true,
+			clickOpens: true,
 			onOpen: function() {
 				open = true;
 			},
