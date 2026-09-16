@@ -539,6 +539,7 @@ public class AuditEventListPanel extends Panel {
 				AuditEvent event = rowModel.getObject();
 				fragment.add(new Label("summary", event.getSummary()));
 				fragment.add(AuditEventLinks.newTargetRef("target", event));
+				fragment.add(AuditEventLinks.newCommitRef("target2", event));
 				cellItem.add(fragment);
 			}
 		});

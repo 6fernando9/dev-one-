@@ -271,13 +271,27 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		var user = event.getUser();
 		if (user == null)
 			return;
+		var branch = GitUtils.ref2branch(event.getRefName());
+		var tag = GitUtils.ref2tag(event.getRefName());
+		String refType;
+		Long refId;
+		if (branch != null) {
+			refType = "Branch";
+			refId = null;
+		} else if (tag != null) {
+			refType = "Tag";
+			refId = null;
+		} else {
+			refType = "Project";
+			refId = event.getProject().getId();
+		}
 		record(AuditEventType.CODE_PUSHED, user, null, getCurrentIpAddress(),
 				event.getProject(),
 				getActorDisplay(user) + " " + describeRefUpdate(event),
 				detailsJson(detailMap("ref", event.getRefName(),
 						"oldCommit", shortCommit(event.getOldCommitId()),
 						"newCommit", shortCommit(event.getNewCommitId()))),
-				"Project", event.getProject().getId());
+				refType, refId);
 	}
 
 	private String describeRefUpdate(RefUpdated event) {
@@ -377,7 +391,7 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 					actorDisplay + " deleted iteration '" + iteration.getName() + "'",
 					detailsJson(detailMap("name", iteration.getName(),
 							"project", iteration.getProject().getPath())),
-					"Project", iteration.getProject().getId());
+					"Iteration", iteration.getId());
 		}
 	}
 
@@ -481,13 +495,13 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		if (isNew) {
 			record(AuditEventType.ITERATION_CREATED, actor, null, getCurrentIpAddress(), project,
 					actorDisplay + " created iteration '" + iteration.getName() + "'",
-					detailsJson(detailMap("name", iteration.getName(), "project", project.getPath())),
-					"Project", project.getId());
+				detailsJson(detailMap("name", iteration.getName(), "project", project.getPath())),
+				"Iteration", iteration.getId());
 		} else {
 			record(AuditEventType.ITERATION_UPDATED, actor, null, getCurrentIpAddress(), project,
 					actorDisplay + " updated iteration '" + iteration.getName() + "'",
 					detailsJson(detailMap("name", iteration.getName(), "project", project.getPath())),
-					"Project", project.getId());
+					"Iteration", iteration.getId());
 		}
 	}
 
