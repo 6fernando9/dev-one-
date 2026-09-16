@@ -36,12 +36,14 @@ import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
 import org.jspecify.annotations.Nullable;
 
+import io.onedev.server.OneDev;
 import io.onedev.server.model.AuditEvent;
 import io.onedev.server.model.Project;
 import io.onedev.server.model.User;
 import io.onedev.server.model.support.AuditEventSeverity;
 import io.onedev.server.model.support.AuditEventType;
 import io.onedev.server.service.AuditEventService;
+import io.onedev.server.service.UserService;
 import io.onedev.server.util.DateUtils;
 import io.onedev.server.web.WebConstants;
 import io.onedev.server.web.behavior.OnTypingDoneBehavior;
@@ -353,29 +355,49 @@ public class AuditEventListPanel extends Panel {
 
 		add(newActionChoice("filterAction"));
 
-		var actorChoice = new Select2Choice<User>("filterActor", new IModel<User>() {
+		var actorButton = new AjaxLink<Void>("filterActor") {
 			@Override
-			public void detach() {
-			}
+			public void onClick(AjaxRequestTarget target) {
+				new ActorSelectorModalPanel(target, project) {
+					@Override
+					protected Project getProject() {
+						return AuditEventListPanel.this.project;
+					}
 
-			@Override
-			public User getObject() {
-				return filterActor;
+					@Override
+					protected void onSelect(AjaxRequestTarget target, User user) {
+						filterActor = user;
+						refresh(target);
+					}
+				};
 			}
+		};
+		actorButton.add(new UserAvatar("avatar", OneDev.getInstance(UserService.class).getSystem()));
+		actorButton.add(new Label("actorLabel", new AbstractReadOnlyModel<>() {
+			@Override
+			public Object getObject() {
+				if (filterActor != null)
+					return filterActor.getDisplayName();
+				else
+					return _T("All Actors");
+			}
+		}));
+		add(actorButton);
 
+		var clearActorLink = new AjaxLink<Void>("clearActor") {
 			@Override
-			public void setObject(User object) {
-				filterActor = object;
-			}
-		}, new AuditActorChoiceProvider(project));
-		actorChoice.getSettings().setPlaceholder(_T("All Actors"));
-		actorChoice.add(new AjaxFormComponentUpdatingBehavior("change") {
-			@Override
-			protected void onUpdate(AjaxRequestTarget target) {
+			public void onClick(AjaxRequestTarget target) {
+				filterActor = null;
 				refresh(target);
 			}
-		});
-		add(actorChoice);
+
+			@Override
+			protected void onConfigure() {
+				super.onConfigure();
+				setVisible(filterActor != null);
+			}
+		};
+		add(clearActorLink);
 
 		add(scopeFilterLink = new MenuLink("filterScope") {
 			@Override

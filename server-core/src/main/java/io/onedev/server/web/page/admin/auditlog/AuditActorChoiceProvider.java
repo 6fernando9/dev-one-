@@ -71,7 +71,7 @@ public class AuditActorChoiceProvider extends AbstractUserChoiceProvider {
 		} else {
 			// Vista global: todos los usuarios del sistema
 			List<User> allUsers = OneDev.getInstance(UserService.class)
-					.query(null, 0, FETCH_LIMIT);
+					.query((String) null, 0, FETCH_LIMIT);
 			candidates.addAll(allUsers);
 
 			// Asegurar que el usuario del sistema esté incluido
