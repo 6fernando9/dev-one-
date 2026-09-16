@@ -23,7 +23,7 @@ import io.onedev.server.service.ProjectService;
 /**
  * Listener reactivo de eventos de repositorio SCM.
  * Intercepta cada git push (RefUpdated), extrae el diff de código y dispara el
- * análisis de impacto asistido por IA (RF2).
+ * análisis de impacto asistido por IA (RF2) y la generación de propuestas (RF3).
  */
 @Singleton
 public class CommitImpactListener {
@@ -32,11 +32,15 @@ public class CommitImpactListener {
 
     private final ImpactAnalysisService impactAnalysisService;
     private final ProjectService projectService;
+    private final ChangeProposalService changeProposalService;
 
     @Inject
-    public CommitImpactListener(ImpactAnalysisService impactAnalysisService, ProjectService projectService) {
+    public CommitImpactListener(ImpactAnalysisService impactAnalysisService,
+                                ProjectService projectService,
+                                ChangeProposalService changeProposalService) {
         this.impactAnalysisService = impactAnalysisService;
         this.projectService = projectService;
+        this.changeProposalService = changeProposalService;
     }
 
     @Listen
@@ -47,6 +51,11 @@ public class CommitImpactListener {
 
         if (event.getNewCommitId().equals(ObjectId.zeroId())) {
             return; // Rama eliminada
+        }
+
+        String branchName = GitUtils.ref2branch(event.getRefName());
+        if (branchName != null && branchName.startsWith("proposal-sync-")) {
+            return; // Evitar procesar ramas generadas por el propio sistema
         }
 
         Project project = event.getProject();
@@ -91,8 +100,15 @@ public class CommitImpactListener {
                 analysis.hasDrift(),
                 analysis.getImpactedItems().size());
 
+            // RF3: Si se detecta desfase (Drift), generar automáticamente la propuesta de sincronización
+            if (analysis.hasDrift() && branchName != null) {
+                logger.info("Detectado Drift en rama '{}' tras commit {}. Disparando generación de propuesta de cambio (RF3)...",
+                    branchName, commitHash.substring(0, Math.min(8, commitHash.length())));
+                changeProposalService.proposeChanges(project, branchName, revCommit, analysis);
+            }
+
         } catch (Exception e) {
-            logger.error("Error al interceptar y analizar el commit {}: {}", newCommitId.name(), e.getMessage(), e);
+            logger.error("Error al interceptar y procesar el commit {}: {}", newCommitId.name(), e.getMessage(), e);
         }
     }
 }
