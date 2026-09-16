@@ -120,8 +120,8 @@ public class AuditReportPdfResource {
 							<tr>
 								<td>${event.date}</td>
 								<td class="severity-${event.eventSeverity}">${event.eventSeverity}</td>
-								<td>${AuditEventLinks.humanize(event.eventType.name())}</td>
-								<td>${AuditEventLinks.getActorDisplay(event)}</td>
+							<td>${event.eventType.name().replace('_', ' ').toLowerCase().capitalize()}</td>
+							<td>${event.actorName ?: "System"}</td>
 								<td>${event.ipAddress ?: "-"}</td>
 								<% if (showProjectColumn) { %><td>${event.projectPath ?: "-"}</td><% } %>
 								<td>${event.summary}</td>
