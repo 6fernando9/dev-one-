@@ -1,0 +1,198 @@
+/* Estilos para la Matriz de Trazabilidad Integral (OneDev) */
+
+/* Contenedor principal */
+.project-traceability {
+    min-height: 100%;
+}
+
+/* Tarjetas métricas */
+.project-traceability .metric-card {
+    background-color: #ffffff;
+    border: 1px solid var(--light-gray);
+    box-shadow: 0px 1px 3px rgba(0,0,0,0.05);
+    border-radius: 0.42rem;
+}
+.project-traceability .metric-label {
+    color: var(--gray);
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+.project-traceability .metric-sub {
+    color: var(--muted);
+}
+.dark-mode .project-traceability .metric-card {
+    background-color: var(--dark-mode-dark) !important;
+    border: 1px solid var(--dark-mode-light-dark) !important;
+    box-shadow: none !important;
+}
+.dark-mode .project-traceability .metric-label {
+    color: var(--dark-mode-gray);
+}
+.dark-mode .project-traceability .metric-sub {
+    color: var(--dark-mode-dark-gray);
+}
+
+/* Tarjeta del Gate de Despliegue */
+.project-traceability .gate-card {
+    border-left: 5px solid var(--light-gray);
+    background-color: #ffffff;
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.06);
+    border-radius: 0.42rem;
+    border-top: 1px solid var(--light-gray);
+    border-right: 1px solid var(--light-gray);
+    border-bottom: 1px solid var(--light-gray);
+}
+.project-traceability .gate-card.gate-passed {
+    border-left: 5px solid var(--success) !important;
+    background: linear-gradient(90deg, rgba(27,197,189,0.08) 0%, #ffffff 40%);
+}
+.project-traceability .gate-card.gate-blocked {
+    border-left: 5px solid var(--danger) !important;
+    background: linear-gradient(90deg, rgba(246,78,96,0.08) 0%, #ffffff 40%);
+}
+
+.dark-mode .project-traceability .gate-card {
+    background-color: var(--dark-mode-dark) !important;
+    border: 1px solid var(--dark-mode-light-dark) !important;
+    box-shadow: none !important;
+}
+.dark-mode .project-traceability .gate-card.gate-passed {
+    border-left: 5px solid var(--success) !important;
+    background: linear-gradient(90deg, rgba(27,197,189,0.18) 0%, var(--dark-mode-dark) 45%) !important;
+}
+.dark-mode .project-traceability .gate-card.gate-blocked {
+    border-left: 5px solid var(--danger) !important;
+    background: linear-gradient(90deg, rgba(246,78,96,0.18) 0%, var(--dark-mode-dark) 45%) !important;
+}
+
+.project-traceability .gate-message {
+    color: var(--gray-dark);
+}
+.dark-mode .project-traceability .gate-message {
+    color: var(--dark-mode-light-gray);
+}
+
+/* Sección de motivos de bloqueo */
+.project-traceability .gate-reasons {
+    border-top: 1px solid var(--light-gray);
+}
+.dark-mode .project-traceability .gate-reasons {
+    border-top: 1px solid var(--dark-mode-light-dark);
+}
+.project-traceability .gate-reasons-title {
+    color: var(--danger);
+}
+.project-traceability .gate-reasons ul {
+    color: var(--danger);
+}
+.dark-mode .project-traceability .gate-reasons ul {
+    color: #ff8595;
+}
+
+/* Caja de riesgos y consecuencias */
+.project-traceability .gate-risks {
+    background-color: #fffdf5;
+    border: 1px solid #ffe082;
+}
+.project-traceability .gate-risks-title {
+    color: #b78103;
+    font-size: 0.85rem;
+}
+.project-traceability .gate-risks-list li {
+    color: #616161;
+    line-height: 1.5;
+}
+
+.dark-mode .project-traceability .gate-risks {
+    background-color: var(--dark-mode-darker) !important;
+    border: 1px solid #795516 !important;
+}
+.dark-mode .project-traceability .gate-risks-title {
+    color: #ffca28 !important;
+}
+.dark-mode .project-traceability .gate-risks-list li {
+    color: var(--dark-mode-light-gray) !important;
+}
+
+/* Tarjetas y Cabeceras */
+.project-traceability .card {
+    border-radius: 0.42rem;
+}
+.project-traceability .card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--light-gray);
+    min-height: 54px;
+}
+.dark-mode .project-traceability .card-header {
+    border-bottom-color: var(--dark-mode-light-dark) !important;
+}
+
+/* Tablas de trazabilidad */
+.project-traceability .table {
+    margin-bottom: 0;
+    background-color: transparent;
+}
+.project-traceability .table thead th {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-top: none;
+    border-bottom: 1px solid var(--light-gray);
+    padding: 0.75rem 1rem;
+}
+.project-traceability .table tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    border-top: 1px solid var(--light-gray);
+    background-color: transparent;
+}
+.project-traceability .table-hover tbody tr:hover td {
+    background-color: #f3f6f9;
+}
+
+/* Adaptación completa de tablas a modo oscuro */
+.dark-mode .project-traceability .table thead th {
+    background-color: var(--dark-mode-darker) !important;
+    color: var(--dark-mode-light-gray) !important;
+    border-bottom: 1px solid var(--dark-mode-light-dark) !important;
+    border-top: none !important;
+}
+.dark-mode .project-traceability .table tbody td {
+    background-color: var(--dark-mode-dark) !important;
+    color: var(--dark-mode-gray) !important;
+    border-top: 1px solid var(--dark-mode-light-dark) !important;
+}
+.dark-mode .project-traceability .table-hover tbody tr:hover td {
+    background-color: var(--dark-mode-light-dark) !important;
+    color: var(--dark-mode-light-gray) !important;
+}
+
+/* Tarjeta de código huérfano */
+.project-traceability .orphan-card {
+    border-left: 5px solid var(--danger) !important;
+}
+.dark-mode .project-traceability .orphan-card {
+    background-color: var(--dark-mode-dark) !important;
+    border: 1px solid var(--dark-mode-light-dark) !important;
+    border-left: 5px solid var(--danger) !important;
+}
+
+/* Notas de diagnóstico */
+.project-traceability .diag-note {
+    color: var(--muted);
+}
+.dark-mode .project-traceability .diag-note {
+    color: var(--dark-mode-gray) !important;
+}
+
+/* Insignia outline */
+.project-traceability .badge-outline {
+    border: 1px solid var(--light-gray);
+    background: transparent;
+    color: var(--gray);
+}
+.dark-mode .project-traceability .badge-outline {
+    border: 1px solid var(--dark-mode-light-dark) !important;
+    color: var(--dark-mode-light-gray) !important;
+}

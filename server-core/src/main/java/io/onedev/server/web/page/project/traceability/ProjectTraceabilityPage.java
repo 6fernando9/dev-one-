@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.Component;
+import org.apache.wicket.markup.head.CssHeaderItem;
+import org.apache.wicket.markup.head.IHeaderResponse;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.link.BookmarkablePageLink;
@@ -60,6 +62,12 @@ public class ProjectTraceabilityPage extends ProjectPage {
     }
 
     @Override
+    public void renderHead(IHeaderResponse response) {
+        super.renderHead(response);
+        response.render(CssHeaderItem.forReference(new ProjectTraceabilityCssResourceReference()));
+    }
+
+    @Override
     protected void onInitialize() {
         super.onInitialize();
 
@@ -79,11 +87,11 @@ public class ProjectTraceabilityPage extends ProjectPage {
 
         // Tarjeta Banner de Estado del Gate de Despliegue (RF5)
         WebMarkupContainer gateCard = new WebMarkupContainer("gateCard");
-        String borderClass = gateResult.isPassed() ? "border-left-success" : "border-left-danger";
-        gateCard.add(AttributeModifier.append("class", borderClass));
+        String gateClass = gateResult.isPassed() ? "gate-passed" : "gate-blocked";
+        gateCard.add(AttributeModifier.append("class", gateClass));
 
         Label gateBadge = new Label("gateStatusBadge", gateResult.isPassed() ? "APROBADO PARA DESPLIEGUE" : "BLOQUEADO PARA DESPLIEGUE");
-        gateBadge.add(AttributeModifier.replace("class", gateResult.isPassed() ? "badge badge-success p-2" : "badge badge-danger p-2"));
+        gateBadge.add(AttributeModifier.replace("class", gateResult.isPassed() ? "badge badge-success px-2 py-1 font-weight-bold" : "badge badge-danger px-2 py-1 font-weight-bold"));
         gateCard.add(gateBadge);
 
         String gateMessageText = gateResult.isPassed()
