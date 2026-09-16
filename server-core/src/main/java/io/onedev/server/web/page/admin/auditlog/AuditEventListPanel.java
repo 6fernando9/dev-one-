@@ -77,10 +77,6 @@ public class AuditEventListPanel extends Panel {
 
 	private User filterActor;
 
-	private AuditEventSeverity chartSeverity;
-
-	private String chartMetric = "Total";
-
 	private Boolean filterScope;
 
 	private Date filterFrom;
@@ -298,26 +294,35 @@ public class AuditEventListPanel extends Panel {
 		});
 		customRange.add(dateToPicker);
 
-		add(newMetricChoice("chartMetric"));
-
 		add(chartContainer = new WebMarkupContainer("chartContainer"));
 		chartContainer.setOutputMarkupId(true);
 		chartContainer.add(new BarChartPanel("chart", new LoadableDetachableModel<BarData>() {
 			@Override
 			protected BarData load() {
-				Map<LocalDate, Long> counts = auditEventService.countByDay(project, filterType,
-						chartSeverity, filterActor, project != null ? null : filterScope,
-						filterFrom, filterTo);
+				Map<LocalDate, Map<AuditEventType, Long>> countsByType = auditEventService.countByDayAndType(
+						project, filterType, null, filterActor,
+						project != null ? null : filterScope, filterFrom, filterTo);
 				List<String> labels = new ArrayList<>();
-				List<Long> values = new ArrayList<>();
-				for (var entry : counts.entrySet()) {
+				for (var entry : countsByType.entrySet())
 					labels.add(entry.getKey().format(DAY_FORMATTER));
-					values.add(entry.getValue());
+
+				java.util.Set<AuditEventType> activeTypes = new java.util.LinkedHashSet<>();
+				for (var typeMap : countsByType.values())
+					activeTypes.addAll(typeMap.keySet());
+
+				if (activeTypes.isEmpty())
+					return new BarData(List.of(), labels, List.of());
+
+				List<String> seriesNames = new ArrayList<>();
+				List<List<Long>> yAxisValuesList = new ArrayList<>();
+				for (var eventType : activeTypes) {
+					seriesNames.add(humanize(eventType.name()));
+					List<Long> values = new ArrayList<>();
+					for (var typeMap : countsByType.values())
+						values.add(typeMap.getOrDefault(eventType, 0L));
+					yAxisValuesList.add(values);
 				}
-				var title = chartSeverity != null
-						? humanize(chartSeverity.name()) + _T(" changes")
-						: _T("Number of changes");
-				return new BarData(title, labels, values);
+				return new BarData(seriesNames, labels, yAxisValuesList);
 			}
 		}));
 
@@ -617,37 +622,6 @@ public class AuditEventListPanel extends Panel {
 			}
 		}, Model.ofList(names), Model.ofMap(displayNames), false);
 		choice.getSettings().setPlaceholder(_T("All Actions"));
-		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
-			@Override
-			protected void onUpdate(AjaxRequestTarget target) {
-				refresh(target);
-			}
-		});
-		return choice;
-	}
-
-	private StringSingleChoice newMetricChoice(String id) {
-		var names = List.of("Total", "Critical", "Warning", "Info");
-		var displayNames = new LinkedHashMap<String, String>();
-		for (var name : names)
-			displayNames.put(name, name);
-		var choice = new StringSingleChoice(id, new IModel<String>() {
-			@Override
-			public void detach() {
-			}
-
-			@Override
-			public String getObject() {
-				return chartMetric;
-			}
-
-			@Override
-			public void setObject(String object) {
-				chartMetric = object != null ? object : "Total";
-				chartSeverity = "Total".equals(chartMetric)
-						? null : AuditEventSeverity.valueOf(chartMetric.toUpperCase());
-			}
-		}, Model.ofList(names), Model.ofMap(displayNames), false);
 		choice.add(new AjaxFormComponentUpdatingBehavior("change") {
 			@Override
 			protected void onUpdate(AjaxRequestTarget target) {

@@ -642,6 +642,65 @@ public class DefaultAuditEventService extends BaseEntityService<AuditEvent>
 		}
 		return counts;
 	}
+
+	@Sessional
+	@Override
+	@SuppressWarnings("unchecked")
+	public Map<LocalDate, Map<AuditEventType, Long>> countByDayAndType(@Nullable Project project,
+			@Nullable AuditEventType type, @Nullable AuditEventSeverity severity, @Nullable User actor,
+			@Nullable Boolean projectScoped, @Nullable Date from, @Nullable Date to) {
+		var zone = ZoneId.systemDefault();
+		var toDay = to != null
+				? to.toInstant().atZone(zone).toLocalDate()
+				: LocalDate.now();
+		var fromDay = from != null
+				? from.toInstant().atZone(zone).toLocalDate()
+				: toDay.minusDays(6);
+
+		var counts = new LinkedHashMap<LocalDate, Map<AuditEventType, Long>>();
+		for (var day = fromDay; !day.isAfter(toDay); day = day.plusDays(1))
+			counts.put(day, new LinkedHashMap<>());
+
+		var hql = new StringBuilder("select date, type from AuditEvent where date >= :from and date <= :to");
+		if (project != null)
+			hql.append(" and project = :project");
+		else if (projectScoped != null) {
+			if (projectScoped)
+				hql.append(" and project is not null");
+			else
+				hql.append(" and project is null");
+		}
+		if (type != null)
+			hql.append(" and type = :type");
+		if (severity != null)
+			hql.append(" and severity = :severity");
+		if (actor != null)
+			hql.append(" and actor = :actor");
+		hql.append(" order by date");
+		var query = getSession().createQuery(hql.toString());
+		query.setParameter("from", Date.from(fromDay.atStartOfDay(zone).toInstant()));
+		query.setParameter("to", Date.from(toDay.plusDays(1).atStartOfDay(zone).toInstant()));
+		if (project != null)
+			query.setParameter("project", project);
+		if (type != null)
+			query.setParameter("type", type.name());
+		if (severity != null)
+			query.setParameter("severity", severity.name());
+		if (actor != null)
+			query.setParameter("actor", actor);
+
+		for (var row : (List<Object[]>) query.list()) {
+			var date = (Date) row[0];
+			var typeName = (String) row[1];
+			var day = date.toInstant().atZone(zone).toLocalDate();
+			var eventType = AuditEventType.valueOf(typeName);
+			counts.computeIfPresent(day, (key, typeMap) -> {
+				typeMap.merge(eventType, 1L, Long::sum);
+				return typeMap;
+			});
+		}
+		return counts;
+	}
 	@Sessional
 	@Override
 	@SuppressWarnings("unchecked")

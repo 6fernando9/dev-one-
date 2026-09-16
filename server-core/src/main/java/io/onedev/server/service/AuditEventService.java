@@ -38,6 +38,10 @@ public interface AuditEventService extends EntityService<AuditEvent> {
 			@Nullable AuditEventSeverity severity, @Nullable User actor, @Nullable Boolean projectScoped,
 			@Nullable Date from, @Nullable Date to);
 
+	Map<LocalDate, Map<AuditEventType, Long>> countByDayAndType(@Nullable Project project,
+			@Nullable AuditEventType type, @Nullable AuditEventSeverity severity, @Nullable User actor,
+			@Nullable Boolean projectScoped, @Nullable Date from, @Nullable Date to);
+
 	List<User> queryActors(@Nullable Project project, @Nullable String term,
 			int firstResult, int maxResults);
 
