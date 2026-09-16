@@ -99,6 +99,8 @@ public class AuditEventListPanel extends Panel {
 
 	private WebMarkupContainer customRange;
 
+	private AjaxLink<Void> actorButton;
+
 	public AuditEventListPanel(String id, @Nullable Project project, boolean showProjectColumn) {
 		super(id);
 		this.project = project;
@@ -172,6 +174,7 @@ public class AuditEventListPanel extends Panel {
 		target.add(rangeLabel);
 		target.add(dateRangeLink);
 		target.add(customRange);
+		target.add(actorButton);
 		if (scopeFilterLink.isVisible())
 			target.add(scopeFilterLink);
 	}
@@ -355,7 +358,7 @@ public class AuditEventListPanel extends Panel {
 
 		add(newActionChoice("filterAction"));
 
-		var actorButton = new AjaxLink<Void>("filterActor") {
+		actorButton = new AjaxLink<Void>("filterActor") {
 			@Override
 			public void onClick(AjaxRequestTarget target) {
 				new ActorSelectorModalPanel(target, project) {
@@ -372,7 +375,20 @@ public class AuditEventListPanel extends Panel {
 				};
 			}
 		};
-		actorButton.add(new UserAvatar("avatar", OneDev.getInstance(UserService.class).getSystem()));
+		actorButton.add(new WebMarkupContainer("avatar") {
+			@Override
+			protected void onComponentTag(org.apache.wicket.markup.ComponentTag tag) {
+				super.onComponentTag(tag);
+				tag.setName("img");
+				tag.put("class", "avatar");
+				var userService = OneDev.getInstance(UserService.class);
+				User user = filterActor != null ? filterActor : userService.getSystem();
+				tag.put("src", OneDev.getInstance(io.onedev.server.web.avatar.AvatarService.class)
+						.getUserAvatarUrl(user.getId()));
+				if (user.isSystem())
+					tag.put("class", "avatar system-avatar");
+			}
+		});
 		actorButton.add(new Label("actorLabel", new AbstractReadOnlyModel<>() {
 			@Override
 			public Object getObject() {
@@ -383,6 +399,7 @@ public class AuditEventListPanel extends Panel {
 			}
 		}));
 		add(actorButton);
+		actorButton.setOutputMarkupId(true);
 
 		var clearActorLink = new AjaxLink<Void>("clearActor") {
 			@Override
