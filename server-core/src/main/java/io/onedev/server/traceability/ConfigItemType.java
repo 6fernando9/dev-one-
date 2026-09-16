@@ -1,18 +1,19 @@
 package io.onedev.server.traceability;
 
 /**
- * Representa los 7 elementos de configuración (ConfigItems) según el estándar de
- * trazabilidad integral y sincronización automática.
+ * Representa los elementos de configuración (ConfigItems) según el estándar de
+ * trazabilidad integral y sincronización automática (RF1).
  */
 public enum ConfigItemType {
 
+    REQUIREMENT("Requisitos Funcionales", "list-ol", "Especificaciones de requisitos y matriz de trazabilidad (RTM)"),
     SOURCE_CODE("Código Fuente", "code", "Lógica de negocio y archivos de código fuente"),
+    TEST_SPEC("Pruebas y Tests", "beaker", "Pruebas unitarias, de integración y especificaciones de prueba"),
+    INFRASTRUCTURE_IAC("Infraestructura como Código", "server", "Plantillas de infraestructura como código, Docker y Kubernetes"),
+    ADR("Decisiones Arquitectónicas", "file-text", "Architecture Decision Records bajo estándar docs/adr/"),
+    DATA_MODEL_ERD("Bases de Datos y Esquemas", "database", "Esquemas de bases de datos, scripts SQL, migraciones y modelos ERD"),
     ARCHITECTURE_WIKI("Documentación de Arquitectura", "wiki", "Wikis y diagramas de arquitectura"),
-    DATA_MODEL_ERD("Modelo de Datos (ERD)", "database", "Esquemas de bases de datos, migraciones y diagramas entidad-relación"),
-    REQUIREMENT("Requisito Funcional", "list-ol", "Especificaciones de requisitos y matriz de trazabilidad (RTM)"),
-    PROJECT_TASK("Plan de Proyecto", "task", "Tareas, tickets y elementos de trabajo en el plan"),
-    INFRASTRUCTURE_IAC("Infraestructura (IaC)", "server", "Plantillas de infraestructura como código, Docker y Kubernetes"),
-    ADR("Decisión Técnica (ADR)", "file-text", "Architecture Decision Records bajo estándar docs/adr/");
+    PROJECT_TASK("Plan de Proyecto", "task", "Tareas, tickets y elementos de trabajo en el plan");
 
     private final String displayName;
     private final String icon;

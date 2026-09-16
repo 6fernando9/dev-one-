@@ -5,6 +5,44 @@
     min-height: 100%;
 }
 
+/* Pestañas de navegación (Matriz RTM vs Elementos de configuración) */
+.project-traceability .project-traceability-tabs {
+    border-bottom: 2px solid var(--light-gray);
+}
+.project-traceability .project-traceability-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--gray);
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
+    transition: all 0.15s ease-in-out;
+}
+.project-traceability .project-traceability-tabs .nav-link:hover {
+    color: var(--primary);
+    border-bottom-color: var(--light-gray);
+}
+.project-traceability .project-traceability-tabs .nav-link.active {
+    color: var(--primary);
+    background-color: transparent;
+    border-bottom: 2px solid var(--primary);
+}
+
+.dark-mode .project-traceability .project-traceability-tabs {
+    border-bottom: 2px solid var(--dark-mode-light-dark) !important;
+}
+.dark-mode .project-traceability .project-traceability-tabs .nav-link {
+    color: var(--dark-mode-gray) !important;
+}
+.dark-mode .project-traceability .project-traceability-tabs .nav-link:hover {
+    color: var(--primary) !important;
+    border-bottom-color: var(--dark-mode-light-dark) !important;
+}
+.dark-mode .project-traceability .project-traceability-tabs .nav-link.active {
+    color: #4da3ff !important;
+    border-bottom: 2px solid #4da3ff !important;
+    background-color: transparent !important;
+}
+
 /* Tarjetas métricas */
 .project-traceability .metric-card {
     background-color: #ffffff;
@@ -114,6 +152,16 @@
     color: var(--dark-mode-light-gray) !important;
 }
 
+/* Tarjetas de Categorías de Elementos de Configuración */
+.project-traceability .ci-category-card {
+    border-radius: 0.42rem;
+    box-shadow: 0px 1px 3px rgba(0,0,0,0.04);
+}
+.dark-mode .project-traceability .ci-category-card {
+    background-color: var(--dark-mode-dark) !important;
+    border: 1px solid var(--dark-mode-light-dark) !important;
+}
+
 /* Tarjetas y Cabeceras */
 .project-traceability .card {
     border-radius: 0.42rem;
@@ -121,7 +169,7 @@
 .project-traceability .card-header {
     background-color: transparent;
     border-bottom: 1px solid var(--light-gray);
-    min-height: 54px;
+    min-height: 50px;
 }
 .dark-mode .project-traceability .card-header {
     border-bottom-color: var(--dark-mode-light-dark) !important;
@@ -184,6 +232,28 @@
 }
 .dark-mode .project-traceability .diag-note {
     color: var(--dark-mode-gray) !important;
+}
+
+/* Insignias personalizadas y colores temáticos */
+.badge-purple {
+    background-color: #6f42c1;
+    color: #ffffff;
+}
+.badge-teal {
+    background-color: #20c997;
+    color: #ffffff;
+}
+.text-purple {
+    color: #8b5cf6 !important;
+}
+.text-teal {
+    color: #0d9488 !important;
+}
+.dark-mode .text-purple {
+    color: #a78bfa !important;
+}
+.dark-mode .text-teal {
+    color: #2dd4bf !important;
 }
 
 /* Insignia outline */

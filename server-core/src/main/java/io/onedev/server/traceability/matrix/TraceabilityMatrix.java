@@ -5,11 +5,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import io.onedev.server.traceability.ConfigItem;
 import io.onedev.server.traceability.ConfigItemType;
 
 /**
- * Representa la Matriz de Trazabilidad Integral consolidada para un proyecto en una revisión dada.
+ * Representa la Matriz de Trazabilidad Integral consolidada para un proyecto en una revisión dada,
+ * incluyendo el inventario completo de elementos de configuración (RF1).
  */
 public class TraceabilityMatrix implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -18,6 +21,7 @@ public class TraceabilityMatrix implements Serializable {
     private final String revision;
     private final List<TraceabilityRow> rows;
     private final List<TraceabilityLink> links;
+    private final List<ConfigItem> allItems;
     private final Date calculatedAt;
 
     private final int totalRequirements;
@@ -30,11 +34,13 @@ public class TraceabilityMatrix implements Serializable {
     public TraceabilityMatrix(Long projectId,
                               String revision,
                               List<TraceabilityRow> rows,
-                              List<TraceabilityLink> links) {
+                              List<TraceabilityLink> links,
+                              List<ConfigItem> allItems) {
         this.projectId = projectId;
         this.revision = revision != null ? revision : "HEAD";
         this.rows = rows != null ? new ArrayList<>(rows) : new ArrayList<>();
         this.links = links != null ? new ArrayList<>(links) : new ArrayList<>();
+        this.allItems = allItems != null ? new ArrayList<>(allItems) : new ArrayList<>();
         this.calculatedAt = new Date();
 
         int totalReq = 0;
@@ -66,6 +72,13 @@ public class TraceabilityMatrix implements Serializable {
         this.coveragePercentage = totalReq > 0 ? (syncd * 100.0) / totalReq : 0.0;
     }
 
+    public TraceabilityMatrix(Long projectId,
+                              String revision,
+                              List<TraceabilityRow> rows,
+                              List<TraceabilityLink> links) {
+        this(projectId, revision, rows, links, Collections.emptyList());
+    }
+
     public Long getProjectId() {
         return projectId;
     }
@@ -80,6 +93,22 @@ public class TraceabilityMatrix implements Serializable {
 
     public List<TraceabilityLink> getLinks() {
         return Collections.unmodifiableList(links);
+    }
+
+    public List<ConfigItem> getAllItems() {
+        return Collections.unmodifiableList(allItems);
+    }
+
+    public List<ConfigItem> getItemsByType(ConfigItemType type) {
+        return allItems.stream()
+            .filter(item -> item.getType() == type)
+            .collect(Collectors.toList());
+    }
+
+    public int getItemCount(ConfigItemType type) {
+        return (int) allItems.stream()
+            .filter(item -> item.getType() == type)
+            .count();
     }
 
     public Date getCalculatedAt() {

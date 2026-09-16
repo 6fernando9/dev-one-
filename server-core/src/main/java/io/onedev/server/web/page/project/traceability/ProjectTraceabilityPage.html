@@ -1,7 +1,7 @@
 <wicket:extend>
 	<div class="p-3 p-sm-4 project-traceability">
 		<!-- Cabecera y Acciones -->
-		<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+		<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
 			<div>
 				<h4 class="mb-1 d-flex align-items-center font-weight-bold">
 					<wicket:svg href="fork" class="icon mr-2 text-primary"></wicket:svg>
@@ -21,126 +21,404 @@
 			</div>
 		</div>
 
-		<!-- Banner de Estado de Puerta de Bloqueo de Despliegue (RF5: Deployment Gate) -->
-		<div wicket:id="gateCard" class="card gate-card mb-4">
-			<div class="card-body p-3">
-				<div class="d-flex align-items-center justify-content-between flex-wrap">
-					<div class="d-flex align-items-center">
-						<span wicket:id="gateStatusBadge" class="mr-3"></span>
-						<span wicket:id="gateMessage" class="gate-message small font-weight-bold"></span>
+		<!-- Pestañas de Navegación (RF4: Matriz RTM vs RF1: Elementos de Configuración) -->
+		<ul class="nav nav-tabs mb-4 project-traceability-tabs" role="tablist">
+			<li class="nav-item">
+				<a class="nav-link active font-weight-bold" id="tab-rtm-link" data-toggle="tab" href="#tab-rtm" role="tab" aria-controls="tab-rtm" aria-selected="true">
+					<wicket:svg href="fork" class="icon mr-2 text-primary"></wicket:svg>
+					<wicket:t>Matriz de Trazabilidad (RTM)</wicket:t>
+				</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link font-weight-bold" id="tab-cis-link" data-toggle="tab" href="#tab-cis" role="tab" aria-controls="tab-cis" aria-selected="false">
+					<wicket:svg href="package" class="icon mr-2 text-info"></wicket:svg>
+					<wicket:t>Elementos de configuracion</wicket:t>
+					<span class="badge badge-primary ml-1"><span wicket:id="totalCisCount">0</span></span>
+				</a>
+			</li>
+		</ul>
+
+		<div class="tab-content">
+			<!-- PESTAÑA 1: MATRIZ DE TRAZABILIDAD (RTM) -->
+			<div class="tab-pane fade show active" id="tab-rtm" role="tabpanel" aria-labelledby="tab-rtm-link">
+				<!-- Banner de Estado de Puerta de Bloqueo de Despliegue (RF5: Deployment Gate) -->
+				<div wicket:id="gateCard" class="card gate-card mb-4">
+					<div class="card-body p-3">
+						<div class="d-flex align-items-center justify-content-between flex-wrap">
+							<div class="d-flex align-items-center">
+								<span wicket:id="gateStatusBadge" class="mr-3"></span>
+								<span wicket:id="gateMessage" class="gate-message small font-weight-bold"></span>
+							</div>
+						</div>
+						<div wicket:id="gateReasonsSection" class="gate-reasons mt-3 pt-3">
+							<div class="gate-reasons-title font-weight-bold small mb-1">
+								<wicket:svg href="warning" class="icon mr-1 text-danger"></wicket:svg> <wicket:t>Motivos que impiden el despliegue a producción:</wicket:t>
+							</div>
+							<ul class="mb-0 pl-3 small">
+								<li wicket:id="blockingReasons"><span wicket:id="reason"></span></li>
+							</ul>
+						</div>
+						<div wicket:id="gateRisksSection" class="gate-risks mt-3 p-3 rounded">
+							<div class="gate-risks-title font-weight-bold small mb-1">
+								<wicket:svg href="alert" class="icon mr-1 text-warning"></wicket:svg> <wicket:t>Consecuencias y riesgos si se despliega con deriva:</wicket:t>
+							</div>
+							<ul class="mb-0 pl-3 small gate-risks-list">
+								<li wicket:id="riskConsequences"><span wicket:id="risk"></span></li>
+							</ul>
+						</div>
 					</div>
 				</div>
-				<div wicket:id="gateReasonsSection" class="gate-reasons mt-3 pt-3">
-					<div class="gate-reasons-title font-weight-bold small mb-1">
-						<wicket:svg href="warning" class="icon mr-1 text-danger"></wicket:svg> <wicket:t>Motivos que impiden el despliegue a producción:</wicket:t>
+
+				<!-- Tarjetas de Métricas -->
+				<div class="row mb-4">
+					<div class="col-6 col-lg-3 mb-3 mb-lg-0">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Requisitos</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-primary"><span wicket:id="totalReqs">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Especificados</wicket:t></div>
+						</div>
 					</div>
-					<ul class="mb-0 pl-3 small">
-						<li wicket:id="blockingReasons"><span wicket:id="reason"></span></li>
-					</ul>
-				</div>
-				<div wicket:id="gateRisksSection" class="gate-risks mt-3 p-3 rounded">
-					<div class="gate-risks-title font-weight-bold small mb-1">
-						<wicket:svg href="alert" class="icon mr-1 text-warning"></wicket:svg> <wicket:t>Consecuencias y riesgos si se despliega con deriva:</wicket:t>
+					<div class="col-6 col-lg-3 mb-3 mb-lg-0">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Cobertura</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-success"><span wicket:id="coverage">0%</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Totalmente sincronizados</wicket:t></div>
+						</div>
 					</div>
-					<ul class="mb-0 pl-3 small gate-risks-list">
-						<li wicket:id="riskConsequences"><span wicket:id="risk"></span></li>
-					</ul>
+					<div class="col-6 col-lg-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Desfases (Drift)</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-danger"><span wicket:id="driftCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Requieren atención</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-lg-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Relaciones</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-info"><span wicket:id="totalLinks">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Enlaces bidireccionales</wicket:t></div>
+						</div>
+					</div>
 				</div>
-			</div>
-		</div>
 
-		<!-- Tarjetas de Métricas -->
-		<div class="row mb-4">
-			<div class="col-6 col-lg-3 mb-3 mb-lg-0">
-				<div class="card metric-card text-center p-3">
-					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Requisitos</wicket:t></div>
-					<h3 class="mb-0 font-weight-bold text-primary"><span wicket:id="totalReqs">0</span></h3>
-					<div class="metric-sub small mt-1"><wicket:t>Especificados</wicket:t></div>
+				<!-- Tabla Principal de Trazabilidad -->
+				<div class="card mb-4">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold"><wicket:t>Matriz Bidireccional de Requisitos</wicket:t></h6>
+						<span class="badge badge-outline"><wicket:t>Trazabilidad Hacia Adelante y Hacia Atrás</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 140px;"><wicket:t>ID Requisito</wicket:t></th>
+									<th><wicket:t>Título / Especificación</wicket:t></th>
+									<th style="width: 130px;"><wicket:t>Estado</wicket:t></th>
+									<th><wicket:t>Tareas (Issues)</wicket:t></th>
+									<th><wicket:t>Código Fuente</wicket:t></th>
+									<th><wicket:t>ADR / Decisión</wicket:t></th>
+									<th><wicket:t>Modelo / Arquitectura</wicket:t></th>
+									<th><wicket:t>Diagnóstico</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="reqRows">
+									<td class="font-weight-bold text-primary"><span wicket:id="id"></span></td>
+									<td><span wicket:id="title"></span></td>
+									<td><span wicket:id="status" class="badge"></span></td>
+									<td><span wicket:id="tasks" class="small"></span></td>
+									<td><span wicket:id="sources" class="small text-monospace"></span></td>
+									<td><span wicket:id="adrs" class="small"></span></td>
+									<td><span wicket:id="models" class="small text-monospace"></span></td>
+									<td><span wicket:id="notes" class="diag-note small"></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
 				</div>
-			</div>
-			<div class="col-6 col-lg-3 mb-3 mb-lg-0">
-				<div class="card metric-card text-center p-3">
-					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Cobertura</wicket:t></div>
-					<h3 class="mb-0 font-weight-bold text-success"><span wicket:id="coverage">0%</span></h3>
-					<div class="metric-sub small mt-1"><wicket:t>Totalmente sincronizados</wicket:t></div>
-				</div>
-			</div>
-			<div class="col-6 col-lg-3">
-				<div class="card metric-card text-center p-3">
-					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Desfases (Drift)</wicket:t></div>
-					<h3 class="mb-0 font-weight-bold text-danger"><span wicket:id="driftCount">0</span></h3>
-					<div class="metric-sub small mt-1"><wicket:t>Requieren atención</wicket:t></div>
-				</div>
-			</div>
-			<div class="col-6 col-lg-3">
-				<div class="card metric-card text-center p-3">
-					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Relaciones</wicket:t></div>
-					<h3 class="mb-0 font-weight-bold text-info"><span wicket:id="totalLinks">0</span></h3>
-					<div class="metric-sub small mt-1"><wicket:t>Enlaces bidireccionales</wicket:t></div>
-				</div>
-			</div>
-		</div>
 
-		<!-- Tabla Principal de Trazabilidad -->
-		<div class="card mb-4">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h6 class="mb-0 font-weight-bold"><wicket:t>Matriz Bidireccional de Requisitos</wicket:t></h6>
-				<span class="badge badge-outline"><wicket:t>Trazabilidad Hacia Adelante y Hacia Atrás</wicket:t></span>
+				<!-- Sección Inferior: Código Huérfano / Desfases Detectados -->
+				<div wicket:id="orphanSection" class="card orphan-card mb-4">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold text-danger d-flex align-items-center">
+							<wicket:svg href="warning" class="icon mr-2 text-danger"></wicket:svg>
+							<wicket:t>Código Fuente Huérfano (Desfase / Drift Detectado)</wicket:t>
+						</h6>
+						<span class="badge badge-danger"><span wicket:id="orphanCount"></span> <wicket:t>archivos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-sm table-hover mb-0">
+							<thead>
+								<tr>
+									<th><wicket:t>Ruta del Archivo de Código</wicket:t></th>
+									<th><wicket:t>Diagnóstico de Trazabilidad</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="orphanRows">
+									<td class="text-monospace text-danger font-weight-bold"><span wicket:id="path"></span></td>
+									<td><span wicket:id="notes" class="diag-note small"></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
-			<div class="table-responsive">
-				<table class="table table-hover mb-0">
-					<thead>
-						<tr>
-							<th style="width: 140px;"><wicket:t>ID Requisito</wicket:t></th>
-							<th><wicket:t>Título / Especificación</wicket:t></th>
-							<th style="width: 130px;"><wicket:t>Estado</wicket:t></th>
-							<th><wicket:t>Tareas (Issues)</wicket:t></th>
-							<th><wicket:t>Código Fuente</wicket:t></th>
-							<th><wicket:t>ADR / Decisión</wicket:t></th>
-							<th><wicket:t>Modelo / Arquitectura</wicket:t></th>
-							<th><wicket:t>Diagnóstico</wicket:t></th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr wicket:id="reqRows">
-							<td class="font-weight-bold text-primary"><span wicket:id="id"></span></td>
-							<td><span wicket:id="title"></span></td>
-							<td><span wicket:id="status" class="badge"></span></td>
-							<td><span wicket:id="tasks" class="small"></span></td>
-							<td><span wicket:id="sources" class="small text-monospace"></span></td>
-							<td><span wicket:id="adrs" class="small"></span></td>
-							<td><span wicket:id="models" class="small text-monospace"></span></td>
-							<td><span wicket:id="notes" class="diag-note small"></span></td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
 
-		<!-- Sección Inferior: Código Huérfano / Desfases Detectados -->
-		<div wicket:id="orphanSection" class="card orphan-card mb-4">
-			<div class="card-header d-flex justify-content-between align-items-center">
-				<h6 class="mb-0 font-weight-bold text-danger d-flex align-items-center">
-					<wicket:svg href="warning" class="icon mr-2 text-danger"></wicket:svg>
-					<wicket:t>Código Fuente Huérfano (Desfase / Drift Detectado)</wicket:t>
-				</h6>
-				<span class="badge badge-danger"><span wicket:id="orphanCount"></span> <wicket:t>archivos</wicket:t></span>
-			</div>
-			<div class="table-responsive">
-				<table class="table table-sm table-hover mb-0">
-					<thead>
-						<tr>
-							<th><wicket:t>Ruta del Archivo de Código</wicket:t></th>
-							<th><wicket:t>Diagnóstico de Trazabilidad</wicket:t></th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr wicket:id="orphanRows">
-							<td class="text-monospace text-danger font-weight-bold"><span wicket:id="path"></span></td>
-							<td><span wicket:id="notes" class="diag-note small"></span></td>
-						</tr>
-					</tbody>
-				</table>
+			<!-- PESTAÑA 2: ELEMENTOS DE CONFIGURACION (RF1) -->
+			<div class="tab-pane fade" id="tab-cis" role="tabpanel" aria-labelledby="tab-cis-link">
+				<!-- Encabezado de la Pestaña -->
+				<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap">
+					<div>
+						<h5 class="mb-1 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="package" class="icon mr-2 text-info"></wicket:svg>
+							<wicket:t>Inventario de Elementos de Configuración (RF1)</wicket:t>
+						</h5>
+						<div class="metric-sub small">
+							<wicket:t>Clasificación integral de elementos versionados en el repositorio en las 6 categorías del estándar.</wicket:t>
+						</div>
+					</div>
+				</div>
+
+				<!-- Tarjetas de Conteo por Categoría (6 Categorías) -->
+				<div class="row mb-4">
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Requisitos</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-primary"><span wicket:id="ciReqCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Funcionales</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Código</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-success"><span wicket:id="ciSrcCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Fuente</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Pruebas</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-warning"><span wicket:id="ciTestCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Y Tests</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Infraestructura</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-info"><span wicket:id="ciIacCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Como Código</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Decisiones</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-purple"><span wicket:id="ciAdrCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>ADRs</wicket:t></div>
+						</div>
+					</div>
+					<div class="col-6 col-md-4 col-lg-2 mb-3">
+						<div class="card metric-card text-center p-3">
+							<div class="metric-label text-uppercase font-weight-bold small mb-1"><wicket:t>Bases de Datos</wicket:t></div>
+							<h3 class="mb-0 font-weight-bold text-teal"><span wicket:id="ciDbCount">0</span></h3>
+							<div class="metric-sub small mt-1"><wicket:t>Y Esquemas</wicket:t></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Acordeón / Secciones de las 6 Categorías -->
+
+				<!-- 1. DECISIONES ARQUITECTÓNICAS (ADRs) -->
+				<div class="card mb-3 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="file-text" class="icon mr-2 text-purple"></wicket:svg>
+							<wicket:t>Decisiones arquitectónicas</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Architecture Decision Records - ADR)</span>
+						</h6>
+						<span class="badge badge-purple px-2 py-1"><span wicket:id="adrSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Título / Decisión</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="adrRows">
+									<td class="font-weight-bold text-purple"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-purple"><wicket:t>ADR</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- 2. BASES DE DATOS Y ESQUEMAS -->
+				<div class="card mb-3 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="database" class="icon mr-2 text-teal"></wicket:svg>
+							<wicket:t>Bases de datos y esquemas</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Scripts SQL, Migraciones y Modelos ERD)</span>
+						</h6>
+						<span class="badge badge-teal px-2 py-1"><span wicket:id="dbSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Descripción del Esquema</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="dbRows">
+									<td class="font-weight-bold text-teal"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-teal"><wicket:t>Base de Datos</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- 3. REQUISITOS FUNCIONALES -->
+				<div class="card mb-3 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="list-ol" class="icon mr-2 text-primary"></wicket:svg>
+							<wicket:t>Requisitos funcionales</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Especificaciones de Negocio y RTM)</span>
+						</h6>
+						<span class="badge badge-primary px-2 py-1"><span wicket:id="reqSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Especificación del Requisito</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="reqCiRows">
+									<td class="font-weight-bold text-primary"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-primary"><wicket:t>Requisito</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- 4. INFRAESTRUCTURA COMO CÓDIGO -->
+				<div class="card mb-3 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="server" class="icon mr-2 text-info"></wicket:svg>
+							<wicket:t>Infraestructura como código</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Pipelines CI/CD, Docker y Despliegue)</span>
+						</h6>
+						<span class="badge badge-info px-2 py-1"><span wicket:id="iacSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Componente de Infraestructura</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="iacRows">
+									<td class="font-weight-bold text-info"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-info"><wicket:t>IaC</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- 5. CÓDIGO FUENTE -->
+				<div class="card mb-3 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="code" class="icon mr-2 text-success"></wicket:svg>
+							<wicket:t>Código fuente</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Lógica de Dominio, Clases y Controladores)</span>
+						</h6>
+						<span class="badge badge-success px-2 py-1"><span wicket:id="srcSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Nombre del Componente</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="srcRows">
+									<td class="font-weight-bold text-success"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-success"><wicket:t>Código</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- 6. PRUEBAS Y TESTS -->
+				<div class="card mb-4 ci-category-card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h6 class="mb-0 font-weight-bold d-flex align-items-center">
+							<wicket:svg href="beaker" class="icon mr-2 text-warning"></wicket:svg>
+							<wicket:t>Pruebas y tests</wicket:t>
+							<span class="small font-weight-normal text-muted ml-2">(Pruebas Unitarias, de Integración y E2E)</span>
+						</h6>
+						<span class="badge badge-warning px-2 py-1"><span wicket:id="testSectionBadge">0</span> <wicket:t>elementos</wicket:t></span>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-hover mb-0">
+							<thead>
+								<tr>
+									<th style="width: 160px;"><wicket:t>Identificador</wicket:t></th>
+									<th><wicket:t>Especificación de Prueba</wicket:t></th>
+									<th><wicket:t>Ruta del Archivo</wicket:t></th>
+									<th style="width: 140px;"><wicket:t>Tipo</wicket:t></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr wicket:id="testRows">
+									<td class="font-weight-bold text-warning"><span wicket:id="ciId"></span></td>
+									<td><span wicket:id="ciTitle"></span></td>
+									<td><a wicket:id="ciPathLink" class="text-monospace font-weight-bold" target="_blank"><span wicket:id="ciPath"></span></a></td>
+									<td><span class="badge badge-warning"><wicket:t>Test</wicket:t></span></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

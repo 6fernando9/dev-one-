@@ -17,11 +17,13 @@ import org.apache.wicket.markup.html.list.ListItem;
 import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
+import org.apache.wicket.request.cycle.RequestCycle;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
+import org.eclipse.jgit.lib.FileMode;
 
 import io.onedev.server.OneDev;
+import io.onedev.server.git.BlobIdent;
 import io.onedev.server.model.Project;
-import io.onedev.server.security.SecurityUtils;
 import io.onedev.server.traceability.ConfigItem;
 import io.onedev.server.traceability.ConfigItemType;
 import io.onedev.server.traceability.gate.TraceabilityGateResult;
@@ -32,12 +34,15 @@ import io.onedev.server.traceability.matrix.TraceabilityRow;
 import io.onedev.server.traceability.matrix.TraceabilitySyncStatus;
 import io.onedev.server.web.component.link.ViewStateAwarePageLink;
 import io.onedev.server.web.page.project.ProjectPage;
-import io.onedev.server.web.page.project.overview.ProjectOverviewPage;
+import io.onedev.server.web.page.project.blob.ProjectBlobPage;
 
 /**
- * Vista web de la Matriz de Trazabilidad Integral (RF4) y Puerta de Bloqueo de Despliegues (RF5).
+ * Vista web de la Matriz de Trazabilidad Integral (RF4), Puerta de Bloqueo de Despliegues (RF5)
+ * y Catálogo de Elementos de Configuración (RF1).
  */
 public class ProjectTraceabilityPage extends ProjectPage {
+
+    private static final long serialVersionUID = 1L;
 
     public ProjectTraceabilityPage(PageParameters params) {
         super(params);
@@ -54,11 +59,7 @@ public class ProjectTraceabilityPage extends ProjectPage {
 
     @Override
     protected BookmarkablePageLink<Void> navToProject(String componentId, Project project) {
-        if (project.isCodeManagement() && SecurityUtils.canReadCode(project)) {
-            return new ViewStateAwarePageLink<Void>(componentId, ProjectTraceabilityPage.class, ProjectTraceabilityPage.paramsOf(project));
-        } else {
-            return new ViewStateAwarePageLink<Void>(componentId, ProjectOverviewPage.class, ProjectOverviewPage.paramsOf(project.getId()));
-        }
+        return new ViewStateAwarePageLink<Void>(componentId, ProjectTraceabilityPage.class, paramsOf(project));
     }
 
     @Override
@@ -134,11 +135,30 @@ public class ProjectTraceabilityPage extends ProjectPage {
 
         add(gateCard);
 
-        // Tarjetas de métricas
+        // Tarjetas de métricas de la Matriz RTM (Pestaña 1)
         add(new Label("totalReqs", String.valueOf(matrix.getTotalRequirements())));
         add(new Label("coverage", String.format(Locale.US, "%.1f%%", matrix.getCoveragePercentage())));
         add(new Label("driftCount", String.valueOf(matrix.getDriftCount())));
         add(new Label("totalLinks", String.valueOf(matrix.getTotalLinks())));
+
+        // Conteo total de Elementos de Configuración en el badge de la pestaña (RF1)
+        add(new Label("totalCisCount", String.valueOf(matrix.getAllItems().size())));
+
+        // Conteos por categoría en la pestaña de Elementos de Configuración (RF1)
+        add(new Label("ciReqCount", String.valueOf(matrix.getItemCount(ConfigItemType.REQUIREMENT))));
+        add(new Label("ciSrcCount", String.valueOf(matrix.getItemCount(ConfigItemType.SOURCE_CODE))));
+        add(new Label("ciTestCount", String.valueOf(matrix.getItemCount(ConfigItemType.TEST_SPEC))));
+        add(new Label("ciIacCount", String.valueOf(matrix.getItemCount(ConfigItemType.INFRASTRUCTURE_IAC))));
+        add(new Label("ciAdrCount", String.valueOf(matrix.getItemCount(ConfigItemType.ADR))));
+        add(new Label("ciDbCount", String.valueOf(matrix.getItemCount(ConfigItemType.DATA_MODEL_ERD))));
+
+        // Badges en los encabezados de las 6 secciones
+        add(new Label("adrSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.ADR))));
+        add(new Label("dbSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.DATA_MODEL_ERD))));
+        add(new Label("reqSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.REQUIREMENT))));
+        add(new Label("iacSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.INFRASTRUCTURE_IAC))));
+        add(new Label("srcSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.SOURCE_CODE))));
+        add(new Label("testSectionBadge", String.valueOf(matrix.getItemCount(ConfigItemType.TEST_SPEC))));
 
         // Enlaces de descarga / exportación
         WebMarkupContainer csvBtn = new WebMarkupContainer("csvBtn");
@@ -149,7 +169,7 @@ public class ProjectTraceabilityPage extends ProjectPage {
         mdBtn.add(AttributeModifier.replace("href", "/api/traceability/export/" + getProject().getId() + "?format=md"));
         add(mdBtn);
 
-        // Tabla de filas de requisitos
+        // Tabla de filas de requisitos (Pestaña 1)
         add(new ListView<TraceabilityRow>("reqRows", new LoadableDetachableModel<List<TraceabilityRow>>() {
             @Override
             protected List<TraceabilityRow> load() {
@@ -191,7 +211,7 @@ public class ProjectTraceabilityPage extends ProjectPage {
             }
         });
 
-        // Tabla de código huérfano (desfase)
+        // Tabla de código huérfano (Pestaña 1)
         WebMarkupContainer orphanSection = new WebMarkupContainer("orphanSection") {
             @Override
             protected void onConfigure() {
@@ -216,6 +236,43 @@ public class ProjectTraceabilityPage extends ProjectPage {
             }
         });
         add(orphanSection);
+
+        // ListViews para las 6 categorías en la Pestaña 2 (Elementos de Configuración)
+        addCiListView("adrRows", ConfigItemType.ADR, matrixModel);
+        addCiListView("dbRows", ConfigItemType.DATA_MODEL_ERD, matrixModel);
+        addCiListView("reqCiRows", ConfigItemType.REQUIREMENT, matrixModel);
+        addCiListView("iacRows", ConfigItemType.INFRASTRUCTURE_IAC, matrixModel);
+        addCiListView("srcRows", ConfigItemType.SOURCE_CODE, matrixModel);
+        addCiListView("testRows", ConfigItemType.TEST_SPEC, matrixModel);
+    }
+
+    private void addCiListView(String id, ConfigItemType type, IModel<TraceabilityMatrix> matrixModel) {
+        add(new ListView<ConfigItem>(id, new LoadableDetachableModel<List<ConfigItem>>() {
+            @Override
+            protected List<ConfigItem> load() {
+                return matrixModel.getObject().getItemsByType(type);
+            }
+        }) {
+            @Override
+            protected void populateItem(ListItem<ConfigItem> item) {
+                ConfigItem ci = item.getModelObject();
+                item.add(new Label("ciId", ci.getIdentifier()));
+                item.add(new Label("ciTitle", ci.getTitle()));
+
+                WebMarkupContainer link = new WebMarkupContainer("ciPathLink");
+                String fileUrl;
+                if (ci.getPath().startsWith("issue:#")) {
+                    fileUrl = "/" + getProject().getPath() + "/~issues/" + ci.getIdentifier().replace("#", "");
+                } else {
+                    String branch = getProject().getDefaultBranch() != null ? getProject().getDefaultBranch() : "master";
+                    BlobIdent blobIdent = new BlobIdent(branch, ci.getPath(), FileMode.REGULAR_FILE.getBits());
+                    fileUrl = RequestCycle.get().urlFor(ProjectBlobPage.class, ProjectBlobPage.paramsOf(getProject(), blobIdent)).toString();
+                }
+                link.add(AttributeModifier.replace("href", fileUrl));
+                link.add(new Label("ciPath", ci.getPath()));
+                item.add(link);
+            }
+        });
     }
 
     @Override

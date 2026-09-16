@@ -1,20 +1,22 @@
 package io.onedev.server.traceability;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.inject.Singleton;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Servicio encargado de la identificación y clasificación automática de los
- * 7 Elementos de Configuración (ConfigItems) según el RF1.
+ * Clasifica automáticamente los archivos del repositorio e Issues de OneDev
+ * en los 7 Elementos de Configuración (ConfigItems) según su estándar.
  */
+@Singleton
 public class ConfigItemClassifier {
 
     private static final Pattern ADR_PATTERN = Pattern.compile("^(?:docs/)?adr/ADR-?([0-9A-Za-z_-]+)\\.md$", Pattern.CASE_INSENSITIVE);
@@ -28,12 +30,17 @@ public class ConfigItemClassifier {
 
     private static final Pattern ERD_FOLDER_PATTERN = Pattern.compile("^(?:docs/)?database/.*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ERD_FILE_PATTERN = Pattern.compile("^(?:.*/)?(?:schema|database|db|migration|migrations)/.*\\.(sql|prisma|erd|dbm)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ERD_EXT_PATTERN = Pattern.compile(".*\\.(erd|prisma)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ERD_SQL_PATTERN = Pattern.compile("^(?:.*/)?(?:schema|init|tables|migrations?|db).*\\.sql$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ERD_EXT_PATTERN = Pattern.compile(".*\\.(erd|prisma|dbm)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ERD_SQL_PATTERN = Pattern.compile(".*\\.sql$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ERD_MD_PATTERN = Pattern.compile(".*erd\\.md$", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern IAC_PATTERN = Pattern.compile(
         "^(?:.*/)?(?:Dockerfile.*|docker-compose.*|\\.onedev-buildspec.*|.*\\.tf|.*\\.tfvars|k8s/.*|helm/.*|ansible/.*|deploy/.*)$",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern TEST_PATTERN = Pattern.compile(
+        "^(?:src/test/.*|.*(?:Test|Tests|TestCase)\\.java|.*\\.(?:spec|test)\\.[jt]sx?|tests?/.*)$",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -85,14 +92,7 @@ public class ConfigItemClassifier {
             return new ConfigItem(ConfigItemType.REQUIREMENT, id, normalizedPath, "Requisito: " + formatTitle(stripExtension(fileName)), hash);
         }
 
-        // 3. Documentación de Arquitectura (Wiki)
-        if (ARCH_PATTERN.matcher(normalizedPath).matches() || WIKI_PATTERN.matcher(normalizedPath).matches()) {
-            String id = "WIKI:" + stripExtension(fileName);
-            String title = "Arquitectura: " + formatTitle(stripExtension(fileName));
-            return new ConfigItem(ConfigItemType.ARCHITECTURE_WIKI, id, normalizedPath, title, hash);
-        }
-
-        // 4. Modelos de Datos (ERD / Esquemas)
+        // 3. Modelos de Datos (ERD / Esquemas / SQL)
         if (ERD_FOLDER_PATTERN.matcher(normalizedPath).matches() 
                 || ERD_FILE_PATTERN.matcher(normalizedPath).matches()
                 || ERD_EXT_PATTERN.matcher(normalizedPath).matches()
@@ -103,21 +103,39 @@ public class ConfigItemClassifier {
             return new ConfigItem(ConfigItemType.DATA_MODEL_ERD, id, normalizedPath, title, hash);
         }
 
-        // 5. Infraestructura como Código (IaC)
+        // 4. Infraestructura como Código (IaC)
         if (IAC_PATTERN.matcher(normalizedPath).matches()) {
             String id = "IAC:" + fileName;
             String title = "Infraestructura: " + fileName;
             return new ConfigItem(ConfigItemType.INFRASTRUCTURE_IAC, id, normalizedPath, title, hash);
         }
 
-        // 6. Código Fuente
+        // 5. Pruebas y Tests (TEST_SPEC)
+        if (TEST_PATTERN.matcher(normalizedPath).matches()) {
+            String id = "TEST:" + stripExtension(fileName);
+            String title = "Prueba: " + formatTitle(stripExtension(fileName));
+            return new ConfigItem(ConfigItemType.TEST_SPEC, id, normalizedPath, title, hash);
+        }
+
+        // 6. Documentación de Arquitectura (Wiki)
+        if (ARCH_PATTERN.matcher(normalizedPath).matches() || WIKI_PATTERN.matcher(normalizedPath).matches()) {
+            String id = "WIKI:" + stripExtension(fileName);
+            String title = "Arquitectura: " + formatTitle(stripExtension(fileName));
+            return new ConfigItem(ConfigItemType.ARCHITECTURE_WIKI, id, normalizedPath, title, hash);
+        }
+
+        // 7. Código Fuente
         if (SOURCE_CODE_PATTERN.matcher(normalizedPath).matches()) {
             String id = "SRC:" + stripExtension(fileName);
             String title = "Código Fuente: " + fileName;
             return new ConfigItem(ConfigItemType.SOURCE_CODE, id, normalizedPath, title, hash);
         }
 
-        // Fallback para cualquier otro archivo versionado
+        // Fallback: Si es documento, tratar como wiki/arquitectura, de lo contrario recurso de código
+        if (normalizedPath.endsWith(".md") || normalizedPath.endsWith(".txt") || normalizedPath.endsWith(".pdf") || normalizedPath.endsWith(".png") || normalizedPath.endsWith(".jpg")) {
+            return new ConfigItem(ConfigItemType.ARCHITECTURE_WIKI, "DOC:" + stripExtension(fileName), normalizedPath, "Documento: " + fileName, hash);
+        }
+
         return new ConfigItem(ConfigItemType.SOURCE_CODE, "SRC:" + fileName, normalizedPath, "Recurso: " + fileName, hash);
     }
 
@@ -160,7 +178,7 @@ public class ConfigItemClassifier {
     }
 
     /**
-     * Clasifica un lote de rutas de archivos (por ejemplo, los modificados en un commit).
+     * Clasifica un lote de rutas de archivos.
      */
     public List<ConfigItem> classifyPaths(Collection<String> paths) {
         Set<ConfigItem> items = new LinkedHashSet<ConfigItem>();

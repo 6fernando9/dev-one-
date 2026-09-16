@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -37,7 +40,8 @@ import io.onedev.server.traceability.ConfigItemClassifier;
 import io.onedev.server.traceability.ConfigItemType;
 
 /**
- * Implementación predeterminada del servicio de Matriz de Trazabilidad Dinámica y Bidireccional (RF4).
+ * Implementación predeterminada del servicio de Matriz de Trazabilidad Dinámica y Bidireccional (RF4)
+ * e Inventario de Elementos de Configuración (RF1).
  */
 @Singleton
 public class DefaultTraceabilityMatrixService implements TraceabilityMatrixService, Serializable {
@@ -66,53 +70,56 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
         String branch = revision != null ? revision : (project.getDefaultBranch() != null ? project.getDefaultBranch() : "master");
 
         List<ConfigItem> allItems = new ArrayList<>();
-        Map<String, List<String>> commitToChangedFiles = new HashMap<>();
         Map<String, String> commitMessages = new HashMap<>();
 
         // 1. Escanear árbol Git del repositorio en la revisión especificada
-        try (Repository repo = projectService.getRepository(project.getId())) {
-            ObjectId revId = gitService.resolve(project, branch, false);
-            if (revId == null) {
-                revId = gitService.resolve(project, Constants.R_HEADS + branch, false);
-            }
+        if (projectService != null) {
+            try (Repository repo = projectService.getRepository(project.getId())) {
+                ObjectId revId = gitService.resolve(project, branch, false);
+                if (revId == null) {
+                    revId = gitService.resolve(project, Constants.R_HEADS + branch, false);
+                }
 
-            if (revId != null) {
-                try (RevWalk revWalk = new RevWalk(repo)) {
-                    RevCommit commit = revWalk.parseCommit(revId);
-                    try (TreeWalk treeWalk = new TreeWalk(repo)) {
-                        treeWalk.addTree(commit.getTree());
-                        treeWalk.setRecursive(true);
-                        while (treeWalk.next()) {
-                            String path = treeWalk.getPathString();
-                            ObjectId blobId = treeWalk.getObjectId(0);
-                            ConfigItem item = classifier.classifyPath(path, blobId.name());
-                            allItems.add(item);
+                if (revId != null) {
+                    try (RevWalk revWalk = new RevWalk(repo)) {
+                        RevCommit commit = revWalk.parseCommit(revId);
+                        try (TreeWalk treeWalk = new TreeWalk(repo)) {
+                            treeWalk.addTree(commit.getTree());
+                            treeWalk.setRecursive(true);
+                            while (treeWalk.next()) {
+                                String path = treeWalk.getPathString();
+                                ObjectId blobId = treeWalk.getObjectId(0);
+                                ConfigItem item = classifier.classifyPath(path, blobId.name());
+                                allItems.add(item);
+                            }
+                        }
+
+                        // Analizar commits recientes (hasta 50) para rastreo por mensajes
+                        revWalk.markStart(commit);
+                        int count = 0;
+                        for (RevCommit rev : revWalk) {
+                            if (++count > 50) break;
+                            String fullMsg = rev.getFullMessage();
+                            commitMessages.put(rev.name(), fullMsg);
                         }
                     }
-
-                    // Analizar commits recientes (hasta 50) para rastreo por mensajes
-                    revWalk.markStart(commit);
-                    int count = 0;
-                    for (RevCommit rev : revWalk) {
-                        if (++count > 50) break;
-                        String fullMsg = rev.getFullMessage();
-                        commitMessages.put(rev.name(), fullMsg);
-                    }
                 }
+            } catch (Exception e) {
+                logger.warn("No se pudo escanear el repositorio Git para trazabilidad en proyecto {}: {}", project.getName(), e.getMessage());
             }
-        } catch (Exception e) {
-            logger.warn("No se pudo escanear el repositorio Git para trazabilidad en proyecto {}: {}", project.getName(), e.getMessage());
         }
 
         // 2. Escanear Issues de OneDev para tareas de proyecto
-        try {
-            List<Issue> issues = issueService.queryAfter(project.getId(), 0L, 500);
-            for (Issue issue : issues) {
-                ConfigItem issueItem = classifier.classifyIssue(issue.getNumber(), issue.getTitle(), Collections.emptyList());
-                allItems.add(issueItem);
+        if (issueService != null) {
+            try {
+                List<Issue> issues = issueService.queryAfter(project.getId(), 0L, 500);
+                for (Issue issue : issues) {
+                    ConfigItem issueItem = classifier.classifyIssue(issue.getNumber(), issue.getTitle(), Collections.emptyList());
+                    allItems.add(issueItem);
+                }
+            } catch (Exception e) {
+                logger.warn("No se pudieron cargar issues para trazabilidad en proyecto {}: {}", project.getName(), e.getMessage());
             }
-        } catch (Exception e) {
-            logger.warn("No se pudieron cargar issues para trazabilidad en proyecto {}: {}", project.getName(), e.getMessage());
         }
 
         return buildMatrixFromItems(project.getId(), branch, allItems, commitMessages);
@@ -125,6 +132,7 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
         List<ConfigItem> requirements = new ArrayList<>();
         List<ConfigItem> tasks = new ArrayList<>();
         List<ConfigItem> sourceFiles = new ArrayList<>();
+        List<ConfigItem> testSpecs = new ArrayList<>();
         List<ConfigItem> adrs = new ArrayList<>();
         List<ConfigItem> dataModels = new ArrayList<>();
         List<ConfigItem> architectureDocs = new ArrayList<>();
@@ -140,6 +148,9 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                     break;
                 case SOURCE_CODE:
                     sourceFiles.add(item);
+                    break;
+                case TEST_SPEC:
+                    testSpecs.add(item);
                     break;
                 case ADR:
                     adrs.add(item);
@@ -164,16 +175,24 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
         for (ConfigItem req : requirements) {
             String reqId = req.getIdentifier().toUpperCase(Locale.ROOT);
             String reqIdLower = reqId.toLowerCase(Locale.ROOT);
-            String reqNum = reqIdLower.replace("rf-", "").replace("req:", "").trim();
+            Integer reqNum = extractNumber(reqId);
+            if (reqNum == null) {
+                reqNum = extractNumber(req.getPath());
+            }
 
             Set<String> keywords = new HashSet<>();
             keywords.add(reqIdLower);
-            if (!reqNum.isEmpty()) {
+            if (reqNum != null) {
                 keywords.add("rf" + reqNum);
                 keywords.add("rf-" + reqNum);
+                keywords.add("rf-0" + reqNum);
+                keywords.add("rf-00" + reqNum);
+                keywords.add("adr-" + reqNum);
+                keywords.add("adr-0" + reqNum);
+                keywords.add("adr-00" + reqNum);
             }
 
-            // Extraer palabras clave del nombre de archivo (ej. RF-01-auth.md -> "auth")
+            // Extraer palabras clave del nombre de archivo (ej. RF-01-Autenticacion.md -> "autenticacion")
             String fileName = req.getPath();
             int slash = fileName.lastIndexOf('/');
             if (slash >= 0) fileName = fileName.substring(slash + 1);
@@ -192,17 +211,12 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                     token = token.trim().toLowerCase(Locale.ROOT);
                     if (token.length() >= 4 && !token.equals("requisito") && !token.equals("funcional") && !token.equals("especificacion") && !token.equals("para")) {
                         keywords.add(token);
-                        if (token.startsWith("usuario")) {
-                            keywords.add("user");
-                            keywords.add("users");
-                        }
-                        if (token.startsWith("autentica")) {
-                            keywords.add("auth");
-                            keywords.add("login");
-                        }
                     }
                 }
             }
+
+            // Expansión de sinónimos y conceptos del dominio de carpintería y negocio
+            expandDomainKeywords(keywords, reqNum);
 
             List<ConfigItem> linkedTasks = new ArrayList<>();
             List<ConfigItem> linkedSources = new ArrayList<>();
@@ -220,10 +234,20 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                 }
             }
 
-            // 2. Vincular ADRs
+            // 2. Vincular ADRs (Por número correlacionado o coincidencia semántica)
             for (ConfigItem adr : adrs) {
-                String adrText = (adr.getIdentifier() + " " + adr.getTitle() + " " + adr.getPath()).toLowerCase(Locale.ROOT);
-                if (matchesAnyKeyword(adrText, keywords)) {
+                Integer adrNum = extractNumber(adr.getIdentifier());
+                if (adrNum == null) adrNum = extractNumber(adr.getPath());
+
+                boolean matches = false;
+                if (reqNum != null && adrNum != null && reqNum.equals(adrNum)) {
+                    matches = true;
+                } else {
+                    String adrText = (adr.getIdentifier() + " " + adr.getTitle() + " " + adr.getPath()).toLowerCase(Locale.ROOT);
+                    matches = matchesAnyKeyword(adrText, keywords);
+                }
+
+                if (matches) {
                     linkedAdrs.add(adr);
                     links.add(new TraceabilityLink(adr, req, TraceabilityLinkType.DECIDES, "Decisión técnica para " + reqId));
                 }
@@ -232,7 +256,14 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
             // 3. Vincular Modelos de Datos (ERD/SQL)
             for (ConfigItem dm : dataModels) {
                 String dmText = (dm.getIdentifier() + " " + dm.getTitle() + " " + dm.getPath()).toLowerCase(Locale.ROOT);
-                if (matchesAnyKeyword(dmText, keywords)) {
+                boolean matches = matchesAnyKeyword(dmText, keywords);
+
+                // Si es el script principal de base de datos del proyecto, respalda los requisitos de negocio
+                if (!matches && (dm.getPath().toLowerCase(Locale.ROOT).contains("scriptbasededatos") || dm.getPath().toLowerCase(Locale.ROOT).contains("schema.sql"))) {
+                    matches = true;
+                }
+
+                if (matches) {
                     linkedModels.add(dm);
                     links.add(new TraceabilityLink(dm, req, TraceabilityLinkType.MODELS, "Esquema de datos para " + reqId));
                 }
@@ -247,7 +278,7 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                 }
             }
 
-            // 5. Vincular Código Fuente
+            // 5. Vincular Código Fuente (Clases, controladores y módulos)
             for (ConfigItem src : sourceFiles) {
                 String srcText = (src.getIdentifier() + " " + src.getPath()).toLowerCase(Locale.ROOT);
                 boolean matches = matchesAnyKeyword(srcText, keywords);
@@ -270,39 +301,39 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                 }
             }
 
-            // 6. Vincular Infraestructura
-            for (ConfigItem infra : infrastructure) {
-                String infraText = (infra.getIdentifier() + " " + infra.getTitle() + " " + infra.getPath()).toLowerCase(Locale.ROOT);
-                if (matchesAnyKeyword(infraText, keywords)) {
-                    linkedInfra.add(infra);
-                    links.add(new TraceabilityLink(infra, req, TraceabilityLinkType.DEPLOYS, "Infraestructura para " + reqId));
-                }
-            }
-
-            // Calcular estado de sincronización de la fila
+            // Determinar estado de sincronización de la fila
             TraceabilitySyncStatus status;
-            StringBuilder notes = new StringBuilder();
+            String note;
 
-            if (!linkedSources.isEmpty()) {
-                if (!linkedAdrs.isEmpty() || !linkedArch.isEmpty()) {
-                    status = TraceabilitySyncStatus.SYNCHRONIZED;
-                    notes.append("Cobertura completa.");
-                } else {
-                    status = TraceabilitySyncStatus.PARTIAL;
-                    notes.append("Implementado en código; carece de ADR o documentación técnica formal.");
-                }
-            } else {
+            if (linkedSources.isEmpty()) {
                 status = TraceabilitySyncStatus.DRIFT_UNLINKED;
-                notes.append("Requisito sin código fuente vinculado (no implementado o desincronizado).");
+                note = "Requisito sin código fuente vinculado (no implementado o desincronizado).";
+            } else if (linkedAdrs.isEmpty() && linkedModels.isEmpty()) {
+                status = TraceabilitySyncStatus.PARTIAL;
+                note = "Implementación parcial: código presente pero sin ADR o modelo de datos formal.";
+            } else {
+                status = TraceabilitySyncStatus.SYNCHRONIZED;
+                note = "Totalmente sincronizado con especificación, código fuente y arquitectura.";
             }
 
-            rows.add(new TraceabilityRow(req, linkedTasks, linkedSources, linkedAdrs, linkedModels, linkedArch, linkedInfra, status, notes.toString()));
+            TraceabilityRow row = new TraceabilityRow(
+                req,
+                linkedTasks,
+                linkedSources,
+                linkedAdrs,
+                linkedModels,
+                linkedArch,
+                linkedInfra,
+                status,
+                note
+            );
+            rows.add(row);
         }
 
-        // Sección Inferior: Identificar Código Huérfano (sin ningún requisito asociado)
+        // Trazabilidad Hacia Atrás: Detección de Código Huérfano (Drift)
         for (ConfigItem src : sourceFiles) {
             if (!linkedSourcePaths.contains(src.getPath())) {
-                rows.add(new TraceabilityRow(
+                TraceabilityRow orphanRow = new TraceabilityRow(
                     src,
                     Collections.emptyList(),
                     Collections.singletonList(src),
@@ -312,11 +343,95 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                     Collections.emptyList(),
                     TraceabilitySyncStatus.DRIFT_UNLINKED,
                     "Código fuente huérfano (no vinculado a ningún requisito funcional o tarea)"
-                ));
+                );
+                rows.add(orphanRow);
             }
         }
 
-        return new TraceabilityMatrix(projectId, revision, rows, links);
+        return new TraceabilityMatrix(projectId, revision, rows, links, allItems);
+    }
+
+    private void expandDomainKeywords(Set<String> keywords, @Nullable Integer reqNum) {
+        boolean hasAuth = false;
+        boolean hasCatalog = false;
+        boolean hasOrders = false;
+        boolean hasSales = false;
+        boolean hasReports = false;
+
+        for (String kw : keywords) {
+            if (kw.contains("autentica") || kw.contains("auth") || kw.contains("login") || kw.contains("seguridad") || (reqNum != null && reqNum == 1)) {
+                hasAuth = true;
+            }
+            if (kw.contains("catalogo") || kw.contains("inventario") || (reqNum != null && reqNum == 2)) {
+                hasCatalog = true;
+            }
+            if (kw.contains("cotizacion") || kw.contains("pedido") || (reqNum != null && reqNum == 3)) {
+                hasOrders = true;
+            }
+            if (kw.contains("venta") || kw.contains("pago") || (reqNum != null && reqNum == 4)) {
+                hasSales = true;
+            }
+            if (kw.contains("reporte") || kw.contains("informe") || (reqNum != null && reqNum == 5)) {
+                hasReports = true;
+            }
+        }
+
+        if (hasAuth) {
+            keywords.add("usuario");
+            keywords.add("permiso");
+            keywords.add("rol");
+            keywords.add("token");
+            keywords.add("sesion");
+            keywords.add("seguridad");
+            keywords.add("auth");
+            keywords.add("login");
+        }
+        if (hasCatalog) {
+            keywords.add("producto");
+            keywords.add("insumo");
+            keywords.add("tipo");
+            keywords.add("catalogo");
+            keywords.add("inventario");
+        }
+        if (hasOrders) {
+            keywords.add("cotizacion");
+            keywords.add("pedido");
+            keywords.add("detallecotizacion");
+            keywords.add("detallepedido");
+            keywords.add("cliente");
+            keywords.add("carpintero");
+        }
+        if (hasSales) {
+            keywords.add("venta");
+            keywords.add("pago");
+            keywords.add("ventaui");
+        }
+        if (hasReports) {
+            keywords.add("reporte");
+            keywords.add("report");
+        }
+    }
+
+    private Integer extractNumber(String text) {
+        if (text == null) return null;
+        Matcher m = Pattern.compile("(?i)(?:rf|adr|req)?[-_\\s]*0*([1-9][0-9]*)").matcher(text);
+        if (m.find()) {
+            try {
+                return Integer.parseInt(m.group(1));
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private boolean matchesAnyKeyword(String target, Set<String> keywords) {
+        if (target == null || keywords == null || keywords.isEmpty()) return false;
+        String lower = target.toLowerCase(Locale.ROOT);
+        for (String kw : keywords) {
+            if (kw.length() >= 3 && lower.contains(kw)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -359,41 +474,51 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                 }
             }
             if (!found) {
-                for (ConfigItem dm : row.getDataModels()) {
-                    if (dm.getIdentifier().equalsIgnoreCase(itemIdentifierOrPath) || dm.getPath().equalsIgnoreCase(itemIdentifierOrPath)) {
+                for (ConfigItem adr : row.getAdrs()) {
+                    if (adr.getIdentifier().equalsIgnoreCase(itemIdentifierOrPath) || adr.getPath().equalsIgnoreCase(itemIdentifierOrPath)) {
                         found = true;
                         break;
                     }
                 }
             }
-
-            if (found && row.getPrimaryItem().getType() == ConfigItemType.REQUIREMENT) {
+            if (found) {
                 origins.add(row.getPrimaryItem());
-                origins.addAll(row.getAdrs());
             }
         }
-
         return origins;
+    }
+
+    private List<TraceabilityRow> getOrphanSources(TraceabilityMatrix matrix) {
+        return matrix.getRows().stream()
+            .filter(r -> r.getPrimaryItem().getType() != ConfigItemType.REQUIREMENT)
+            .collect(Collectors.toList());
     }
 
     @Override
     public String exportToCsv(TraceabilityMatrix matrix) {
         StringBuilder sb = new StringBuilder();
-        sb.append("ID Elemento,Tipo,Titulo,Estado,Tareas / Issues,Codigo Fuente,ADRs,Modelos de Datos,Arquitectura,Infraestructura,Notas\n");
+        sb.append("ID Elemento,Tipo,Titulo,Estado,Tareas / Issues,Codigo Fuente,ADRs,Modelos / ERD,Diagnostico\n");
 
         for (TraceabilityRow row : matrix.getRows()) {
-            ConfigItem primary = row.getPrimaryItem();
-            sb.append("\"").append(escapeCsv(primary.getIdentifier())).append("\",");
-            sb.append("\"").append(escapeCsv(primary.getType().getDisplayName())).append("\",");
-            sb.append("\"").append(escapeCsv(primary.getTitle())).append("\",");
-            sb.append("\"").append(escapeCsv(row.getStatus().getDisplayName())).append("\",");
-            sb.append("\"").append(escapeCsv(joinIdentifiers(row.getTasks()))).append("\",");
-            sb.append("\"").append(escapeCsv(joinPaths(row.getSourceFiles()))).append("\",");
-            sb.append("\"").append(escapeCsv(joinIdentifiers(row.getAdrs()))).append("\",");
-            sb.append("\"").append(escapeCsv(joinPaths(row.getDataModels()))).append("\",");
-            sb.append("\"").append(escapeCsv(joinPaths(row.getArchitectureDocs()))).append("\",");
-            sb.append("\"").append(escapeCsv(joinPaths(row.getInfrastructure()))).append("\",");
-            sb.append("\"").append(escapeCsv(row.getNotes())).append("\"\n");
+            ConfigItem pi = row.getPrimaryItem();
+            sb.append(escapeCsv(pi.getIdentifier())).append(",");
+            sb.append(escapeCsv(pi.getType().getDisplayName())).append(",");
+            sb.append(escapeCsv(pi.getTitle())).append(",");
+            sb.append(escapeCsv(row.getStatus().getDisplayName())).append(",");
+
+            String tasks = row.getTasks().stream().map(ConfigItem::getIdentifier).collect(Collectors.joining("; "));
+            sb.append(escapeCsv(tasks)).append(",");
+
+            String sources = row.getSourceFiles().stream().map(ConfigItem::getPath).collect(Collectors.joining("; "));
+            sb.append(escapeCsv(sources)).append(",");
+
+            String adrs = row.getAdrs().stream().map(ConfigItem::getIdentifier).collect(Collectors.joining("; "));
+            sb.append(escapeCsv(adrs)).append(",");
+
+            String models = row.getDataModels().stream().map(ConfigItem::getPath).collect(Collectors.joining("; "));
+            sb.append(escapeCsv(models)).append(",");
+
+            sb.append(escapeCsv(row.getNotes())).append("\n");
         }
 
         return sb.toString();
@@ -403,46 +528,55 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
     public String exportToMarkdown(TraceabilityMatrix matrix) {
         StringBuilder sb = new StringBuilder();
         sb.append("# Matriz de Trazabilidad de Requisitos (RTM)\n\n");
-        sb.append("**Proyecto ID:** `").append(matrix.getProjectId()).append("` | ");
-        sb.append("**Revisión:** `").append(matrix.getRevision()).append("` | ");
-        sb.append("**Generado:** `").append(matrix.getCalculatedAt()).append("`\n\n");
+        sb.append("**Proyecto ID:** ").append(matrix.getProjectId()).append(" | ");
+        sb.append("**Rama / Revisión:** `").append(matrix.getRevision()).append("` | ");
+        sb.append("**Generado:** ").append(matrix.getCalculatedAt()).append("\n\n");
 
         sb.append("## Métricas Generales de Cobertura\n\n");
-        sb.append("| Métrica | Valor |\n");
-        sb.append("| :--- | :--- |\n");
-        sb.append("| **Total Requisitos Funcionales** | ").append(matrix.getTotalRequirements()).append(" |\n");
-        sb.append("| **Sincronizados (Completos)** | 🟢 ").append(matrix.getSynchronizedCount()).append(" |\n");
-        sb.append("| **Parciales (Sin ADR/Doc)** | 🟡 ").append(matrix.getPartialCount()).append(" |\n");
-        sb.append("| **Con Desfase (Drift)** | 🔴 ").append(matrix.getDriftCount()).append(" |\n");
-        sb.append("| **Código Huérfano** | ⚠️ ").append(matrix.getOrphanCount()).append(" |\n");
-        sb.append("| **% Cobertura** | **").append(String.format(Locale.US, "%.1f%%", matrix.getCoveragePercentage())).append("** |\n");
-        sb.append("| **Total Enlaces Bidireccionales** | ").append(matrix.getTotalLinks()).append(" |\n\n");
+        sb.append("- **Total Requisitos:** ").append(matrix.getTotalRequirements()).append("\n");
+        sb.append("- **Cobertura Sincronizada:** ").append(String.format(Locale.US, "%.1f%%", matrix.getCoveragePercentage())).append("\n");
+        sb.append("- **Requisitos Sincronizados:** ").append(matrix.getSynchronizedCount()).append("\n");
+        sb.append("- **Requisitos Parciales:** ").append(matrix.getPartialCount()).append("\n");
+        sb.append("- **Desfases (Drift):** ").append(matrix.getDriftCount()).append("\n");
+        sb.append("- **Archivos Huérfanos:** ").append(matrix.getOrphanCount()).append("\n\n");
 
         sb.append("## Matriz Bidireccional de Requisitos\n\n");
-        sb.append("| Requisito | Estado | Tareas / Issues | Código Fuente | ADRs | Modelo Datos / Wiki |\n");
-        sb.append("| :--- | :--- | :--- | :--- | :--- | :--- |\n");
+        sb.append("| ID Requisito | Título / Especificación | Estado | Tareas (Issues) | Código Fuente | ADR / Decisión | Modelo / BD | Diagnóstico |\n");
+        sb.append("|---|---|---|---|---|---|---|---|\n");
 
         for (TraceabilityRow row : matrix.getRows()) {
             if (row.getPrimaryItem().getType() == ConfigItemType.REQUIREMENT) {
-                sb.append("| `").append(row.getPrimaryItem().getIdentifier()).append("` - ").append(row.getPrimaryItem().getTitle()).append(" | ");
-                sb.append(row.getStatus() == TraceabilitySyncStatus.SYNCHRONIZED ? "🟢 Sincronizado" :
-                          (row.getStatus() == TraceabilitySyncStatus.PARTIAL ? "🟡 Parcial" : "🔴 Drift")).append(" | ");
-                sb.append(joinIdentifiers(row.getTasks()).isEmpty() ? "-" : joinIdentifiers(row.getTasks())).append(" | ");
-                sb.append(joinPaths(row.getSourceFiles()).isEmpty() ? "-" : joinPaths(row.getSourceFiles())).append(" | ");
-                sb.append(joinIdentifiers(row.getAdrs()).isEmpty() ? "-" : joinIdentifiers(row.getAdrs())).append(" | ");
-                sb.append(joinPaths(row.getDataModels()).isEmpty() && joinPaths(row.getArchitectureDocs()).isEmpty() ? "-" :
-                          (joinPaths(row.getDataModels()) + " " + joinPaths(row.getArchitectureDocs())).trim()).append(" |\n");
+                ConfigItem req = row.getPrimaryItem();
+                String statusIcon = row.getStatus() == TraceabilitySyncStatus.SYNCHRONIZED ? "🟢 Sincronizado" :
+                    (row.getStatus() == TraceabilitySyncStatus.PARTIAL ? "🟡 Parcial" : "🔴 Desfase");
+
+                String tasks = row.getTasks().isEmpty() ? "-" :
+                    row.getTasks().stream().map(ConfigItem::getIdentifier).collect(Collectors.joining(", "));
+                String sources = row.getSourceFiles().isEmpty() ? "-" :
+                    row.getSourceFiles().stream().map(ConfigItem::getPath).collect(Collectors.joining("<br>"));
+                String adrs = row.getAdrs().isEmpty() ? "-" :
+                    row.getAdrs().stream().map(ConfigItem::getIdentifier).collect(Collectors.joining(", "));
+                String models = row.getDataModels().isEmpty() ? "-" :
+                    row.getDataModels().stream().map(ConfigItem::getPath).collect(Collectors.joining("<br>"));
+
+                sb.append("| ").append(req.getIdentifier())
+                  .append(" | ").append(req.getTitle())
+                  .append(" | ").append(statusIcon)
+                  .append(" | ").append(tasks)
+                  .append(" | ").append(sources)
+                  .append(" | ").append(adrs)
+                  .append(" | ").append(models)
+                  .append(" | ").append(row.getNotes()).append(" |\n");
             }
         }
 
-        if (matrix.getOrphanCount() > 0) {
+        List<TraceabilityRow> orphans = getOrphanSources(matrix);
+        if (!orphans.isEmpty()) {
             sb.append("\n## Código Fuente Huérfano (Desfase Detectado)\n\n");
-            sb.append("| Archivo Huérfano | Diagnóstico |\n");
-            sb.append("| :--- | :--- |\n");
-            for (TraceabilityRow row : matrix.getRows()) {
-                if (row.getPrimaryItem().getType() != ConfigItemType.REQUIREMENT) {
-                    sb.append("| `").append(row.getPrimaryItem().getPath()).append("` | ").append(row.getNotes()).append(" |\n");
-                }
+            sb.append("| Archivo de Código | Diagnóstico de Trazabilidad |\n");
+            sb.append("|---|---|\n");
+            for (TraceabilityRow orphan : orphans) {
+                sb.append("| `").append(orphan.getPrimaryItem().getPath()).append("` | ").append(orphan.getNotes()).append(" |\n");
             }
         }
 
@@ -455,40 +589,9 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
         return gson.toJson(matrix);
     }
 
-    private boolean matchesAnyKeyword(String targetText, Set<String> keywords) {
-        if (targetText == null || keywords == null || keywords.isEmpty()) {
-            return false;
-        }
-        for (String kw : keywords) {
-            if (targetText.contains(kw)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String escapeCsv(String str) {
-        if (str == null) return "";
-        return str.replace("\"", "\"\"");
-    }
-
-    private String joinIdentifiers(Collection<ConfigItem> items) {
-        if (items == null || items.isEmpty()) return "";
-        StringBuilder sb = new StringBuilder();
-        for (ConfigItem item : items) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(item.getIdentifier());
-        }
-        return sb.toString();
-    }
-
-    private String joinPaths(Collection<ConfigItem> items) {
-        if (items == null || items.isEmpty()) return "";
-        StringBuilder sb = new StringBuilder();
-        for (ConfigItem item : items) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(item.getPath());
-        }
-        return sb.toString();
+    private String escapeCsv(String value) {
+        if (value == null) return "\"\"";
+        String escaped = value.replace("\"", "\"\"");
+        return "\"" + escaped + "\"";
     }
 }
