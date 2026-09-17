@@ -146,4 +146,24 @@ public class TraceabilityMatrixServiceTest {
         assertTrue(json.contains("\"totalRequirements\": 3"));
         assertTrue(json.contains("\"rows\":"));
     }
+    @Test
+    public void testRequirementContentExplicitLinking() {
+        List<ConfigItem> items = createSampleItems();
+        Map<String, String> reqDocs = new HashMap<>();
+        reqDocs.put("RF-03", "# RF-03\nImplementado por la clase `LegacyUtil.java`");
+
+        TraceabilityMatrix matrix = service.buildMatrixFromItems(1L, "master", items, Collections.emptyMap(), reqDocs);
+
+        TraceabilityRow rf03Row = null;
+        for (TraceabilityRow row : matrix.getRows()) {
+            if ("RF-03".equals(row.getPrimaryItem().getIdentifier())) {
+                rf03Row = row;
+                break;
+            }
+        }
+        assertNotNull(rf03Row);
+        assertEquals(1, rf03Row.getSourceFiles().size());
+        assertEquals("SRC:LegacyUtil.java", rf03Row.getSourceFiles().get(0).getIdentifier());
+        assertEquals(0, matrix.getOrphanCount());
+    }
 }

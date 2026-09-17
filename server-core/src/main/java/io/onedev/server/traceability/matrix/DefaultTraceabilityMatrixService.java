@@ -71,6 +71,7 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
 
         List<ConfigItem> allItems = new ArrayList<>();
         Map<String, String> commitMessages = new HashMap<>();
+        Map<String, String> requirementContents = new HashMap<>();
 
         // 1. Escanear árbol Git del repositorio en la revisión especificada
         if (projectService != null) {
@@ -91,6 +92,14 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                                 ObjectId blobId = treeWalk.getObjectId(0);
                                 ConfigItem item = classifier.classifyPath(path, blobId.name());
                                 allItems.add(item);
+                                if (item.getType() == ConfigItemType.REQUIREMENT) {
+                                    try {
+                                        byte[] bytes = repo.open(blobId).getBytes();
+                                        String docText = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                                        requirementContents.put(item.getIdentifier(), docText);
+                                        requirementContents.put(item.getPath(), docText);
+                                    } catch (Exception ignored) {}
+                                }
                             }
                         }
 
@@ -122,13 +131,20 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
             }
         }
 
-        return buildMatrixFromItems(project.getId(), branch, allItems, commitMessages);
+        return buildMatrixFromItems(project.getId(), branch, allItems, commitMessages, requirementContents);
     }
 
     /**
      * Construye la matriz y los enlaces a partir de los ConfigItems recopilados.
      */
     public TraceabilityMatrix buildMatrixFromItems(Long projectId, String revision, List<ConfigItem> allItems, Map<String, String> commitMessages) {
+        return buildMatrixFromItems(projectId, revision, allItems, commitMessages, Collections.emptyMap());
+    }
+
+    /**
+     * Construye la matriz y los enlaces considerando contenidos explícitos de requisitos.
+     */
+    public TraceabilityMatrix buildMatrixFromItems(Long projectId, String revision, List<ConfigItem> allItems, Map<String, String> commitMessages, Map<String, String> requirementContents) {
         List<ConfigItem> requirements = new ArrayList<>();
         List<ConfigItem> tasks = new ArrayList<>();
         List<ConfigItem> sourceFiles = new ArrayList<>();
@@ -179,6 +195,12 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
             if (reqNum == null) {
                 reqNum = extractNumber(req.getPath());
             }
+
+            String reqDoc = requirementContents != null ? requirementContents.get(req.getIdentifier()) : null;
+            if (reqDoc == null && requirementContents != null) {
+                reqDoc = requirementContents.get(req.getPath());
+            }
+            String reqDocLower = reqDoc != null ? reqDoc.toLowerCase(Locale.ROOT) : "";
 
             Set<String> keywords = new HashSet<>();
             keywords.add(reqIdLower);
@@ -247,6 +269,14 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                     matches = matchesAnyKeyword(adrText, keywords);
                 }
 
+                if (!matches && !reqDocLower.isEmpty()) {
+                    String adrIdLower = adr.getIdentifier().toLowerCase(Locale.ROOT);
+                    String adrPathLower = adr.getPath().toLowerCase(Locale.ROOT);
+                    if (reqDocLower.contains(adrPathLower) || reqDocLower.contains(adrIdLower)) {
+                        matches = true;
+                    }
+                }
+
                 if (matches) {
                     linkedAdrs.add(adr);
                     links.add(new TraceabilityLink(adr, req, TraceabilityLinkType.DECIDES, "Decisión técnica para " + reqId));
@@ -261,6 +291,14 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
                 // Si es el script principal de base de datos del proyecto, respalda los requisitos de negocio
                 if (!matches && (dm.getPath().toLowerCase(Locale.ROOT).contains("scriptbasededatos") || dm.getPath().toLowerCase(Locale.ROOT).contains("schema.sql"))) {
                     matches = true;
+                }
+
+                if (!matches && !reqDocLower.isEmpty()) {
+                    String dmIdLower = dm.getIdentifier().toLowerCase(Locale.ROOT);
+                    String dmPathLower = dm.getPath().toLowerCase(Locale.ROOT);
+                    if (reqDocLower.contains(dmPathLower) || reqDocLower.contains(dmIdLower)) {
+                        matches = true;
+                    }
                 }
 
                 if (matches) {
@@ -282,6 +320,19 @@ public class DefaultTraceabilityMatrixService implements TraceabilityMatrixServi
             for (ConfigItem src : sourceFiles) {
                 String srcText = (src.getIdentifier() + " " + src.getPath()).toLowerCase(Locale.ROOT);
                 boolean matches = matchesAnyKeyword(srcText, keywords);
+
+                if (!matches && !reqDocLower.isEmpty()) {
+                    String srcIdLower = src.getIdentifier().toLowerCase(Locale.ROOT);
+                    String srcPathLower = src.getPath().toLowerCase(Locale.ROOT);
+                    String cleanIdLower = srcIdLower.startsWith("src:") ? srcIdLower.substring(4) : srcIdLower;
+                    String cleanClassLower = cleanIdLower.endsWith(".java") ? cleanIdLower.substring(0, cleanIdLower.length() - 5) : cleanIdLower;
+                    String srcTitleLower = src.getTitle() != null ? src.getTitle().toLowerCase(Locale.ROOT) : "";
+                    if (reqDocLower.contains(srcPathLower) || reqDocLower.contains(cleanIdLower) || 
+                        (!srcTitleLower.isEmpty() && reqDocLower.contains(srcTitleLower)) || 
+                        (cleanClassLower.length() >= 4 && reqDocLower.contains(cleanClassLower))) {
+                        matches = true;
+                    }
+                }
 
                 // También revisar mensajes de commits recientes
                 if (!matches && commitMessages != null) {
