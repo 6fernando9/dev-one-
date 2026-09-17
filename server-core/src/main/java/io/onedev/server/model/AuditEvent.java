@@ -53,7 +53,7 @@ public class AuditEvent extends AbstractEntity {
 	private String projectPath;
 
 	@ManyToOne(fetch=FetchType.LAZY)
-	@JoinColumn(name="o_actor_id")
+	@JoinColumn
 	private User actor;
 
 	@Column(length=256)
