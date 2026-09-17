@@ -1,0 +1,147 @@
+<wicket:extend>
+	<div class="p-3 p-sm-4 project-traceability">
+		<!-- Cabecera y Acciones -->
+		<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+			<div>
+				<h4 class="mb-1 d-flex align-items-center font-weight-bold">
+					<wicket:svg href="fork" class="icon mr-2 text-primary"></wicket:svg>
+					<wicket:t>Matriz de Trazabilidad Integral (RTM)</wicket:t>
+				</h4>
+				<div class="metric-sub small">
+					<wicket:t>Sincronización y trazabilidad bidireccional entre Requisitos, Código, ADRs, ERD y Tareas.</wicket:t>
+				</div>
+			</div>
+			<div class="mt-2 mt-sm-0">
+				<a wicket:id="csvBtn" class="btn btn-outline-secondary btn-sm mr-2" target="_blank">
+					<wicket:svg href="excel" class="icon mr-1"></wicket:svg> <wicket:t>Descargar CSV</wicket:t>
+				</a>
+				<a wicket:id="mdBtn" class="btn btn-primary btn-sm" target="_blank">
+					<wicket:svg href="download" class="icon mr-1"></wicket:svg> <wicket:t>Informe Markdown</wicket:t>
+				</a>
+			</div>
+		</div>
+
+		<!-- Banner de Estado de Puerta de Bloqueo de Despliegue (RF5: Deployment Gate) -->
+		<div wicket:id="gateCard" class="card gate-card mb-4">
+			<div class="card-body p-3">
+				<div class="d-flex align-items-center justify-content-between flex-wrap">
+					<div class="d-flex align-items-center">
+						<span wicket:id="gateStatusBadge" class="mr-3"></span>
+						<span wicket:id="gateMessage" class="gate-message small font-weight-bold"></span>
+					</div>
+				</div>
+				<div wicket:id="gateReasonsSection" class="gate-reasons mt-3 pt-3">
+					<div class="gate-reasons-title font-weight-bold small mb-1">
+						<wicket:svg href="warning" class="icon mr-1 text-danger"></wicket:svg> <wicket:t>Motivos que impiden el despliegue a producción:</wicket:t>
+					</div>
+					<ul class="mb-0 pl-3 small">
+						<li wicket:id="blockingReasons"><span wicket:id="reason"></span></li>
+					</ul>
+				</div>
+				<div wicket:id="gateRisksSection" class="gate-risks mt-3 p-3 rounded">
+					<div class="gate-risks-title font-weight-bold small mb-1">
+						<wicket:svg href="alert" class="icon mr-1 text-warning"></wicket:svg> <wicket:t>Consecuencias y riesgos si se despliega con deriva:</wicket:t>
+					</div>
+					<ul class="mb-0 pl-3 small gate-risks-list">
+						<li wicket:id="riskConsequences"><span wicket:id="risk"></span></li>
+					</ul>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tarjetas de Métricas -->
+		<div class="row mb-4">
+			<div class="col-6 col-lg-3 mb-3 mb-lg-0">
+				<div class="card metric-card text-center p-3">
+					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Requisitos</wicket:t></div>
+					<h3 class="mb-0 font-weight-bold text-primary"><span wicket:id="totalReqs">0</span></h3>
+					<div class="metric-sub small mt-1"><wicket:t>Especificados</wicket:t></div>
+				</div>
+			</div>
+			<div class="col-6 col-lg-3 mb-3 mb-lg-0">
+				<div class="card metric-card text-center p-3">
+					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Cobertura</wicket:t></div>
+					<h3 class="mb-0 font-weight-bold text-success"><span wicket:id="coverage">0%</span></h3>
+					<div class="metric-sub small mt-1"><wicket:t>Totalmente sincronizados</wicket:t></div>
+				</div>
+			</div>
+			<div class="col-6 col-lg-3">
+				<div class="card metric-card text-center p-3">
+					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Desfases (Drift)</wicket:t></div>
+					<h3 class="mb-0 font-weight-bold text-danger"><span wicket:id="driftCount">0</span></h3>
+					<div class="metric-sub small mt-1"><wicket:t>Requieren atención</wicket:t></div>
+				</div>
+			</div>
+			<div class="col-6 col-lg-3">
+				<div class="card metric-card text-center p-3">
+					<div class="metric-label text-uppercase font-weight-bold mb-1"><wicket:t>Relaciones</wicket:t></div>
+					<h3 class="mb-0 font-weight-bold text-info"><span wicket:id="totalLinks">0</span></h3>
+					<div class="metric-sub small mt-1"><wicket:t>Enlaces bidireccionales</wicket:t></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tabla Principal de Trazabilidad -->
+		<div class="card mb-4">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h6 class="mb-0 font-weight-bold"><wicket:t>Matriz Bidireccional de Requisitos</wicket:t></h6>
+				<span class="badge badge-outline"><wicket:t>Trazabilidad Hacia Adelante y Hacia Atrás</wicket:t></span>
+			</div>
+			<div class="table-responsive">
+				<table class="table table-hover mb-0">
+					<thead>
+						<tr>
+							<th style="width: 140px;"><wicket:t>ID Requisito</wicket:t></th>
+							<th><wicket:t>Título / Especificación</wicket:t></th>
+							<th style="width: 130px;"><wicket:t>Estado</wicket:t></th>
+							<th><wicket:t>Tareas (Issues)</wicket:t></th>
+							<th><wicket:t>Código Fuente</wicket:t></th>
+							<th><wicket:t>ADR / Decisión</wicket:t></th>
+							<th><wicket:t>Modelo / Arquitectura</wicket:t></th>
+							<th><wicket:t>Diagnóstico</wicket:t></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="reqRows">
+							<td class="font-weight-bold text-primary"><span wicket:id="id"></span></td>
+							<td><span wicket:id="title"></span></td>
+							<td><span wicket:id="status" class="badge"></span></td>
+							<td><span wicket:id="tasks" class="small"></span></td>
+							<td><span wicket:id="sources" class="small text-monospace"></span></td>
+							<td><span wicket:id="adrs" class="small"></span></td>
+							<td><span wicket:id="models" class="small text-monospace"></span></td>
+							<td><span wicket:id="notes" class="diag-note small"></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Sección Inferior: Código Huérfano / Desfases Detectados -->
+		<div wicket:id="orphanSection" class="card orphan-card mb-4">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h6 class="mb-0 font-weight-bold text-danger d-flex align-items-center">
+					<wicket:svg href="warning" class="icon mr-2 text-danger"></wicket:svg>
+					<wicket:t>Código Fuente Huérfano (Desfase / Drift Detectado)</wicket:t>
+				</h6>
+				<span class="badge badge-danger"><span wicket:id="orphanCount"></span> <wicket:t>archivos</wicket:t></span>
+			</div>
+			<div class="table-responsive">
+				<table class="table table-sm table-hover mb-0">
+					<thead>
+						<tr>
+							<th><wicket:t>Ruta del Archivo de Código</wicket:t></th>
+							<th><wicket:t>Diagnóstico de Trazabilidad</wicket:t></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr wicket:id="orphanRows">
+							<td class="text-monospace text-danger font-weight-bold"><span wicket:id="path"></span></td>
+							<td><span wicket:id="notes" class="diag-note small"></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</wicket:extend>

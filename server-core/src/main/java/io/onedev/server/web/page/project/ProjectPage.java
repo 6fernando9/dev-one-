@@ -65,6 +65,7 @@ import io.onedev.server.web.page.layout.SidebarMenu;
 import io.onedev.server.web.page.layout.SidebarMenuItem;
 import io.onedev.server.web.page.project.blob.ProjectBlobPage;
 import io.onedev.server.web.page.project.wiki.ProjectWikiPage;
+import io.onedev.server.web.page.project.traceability.ProjectTraceabilityPage;
 import io.onedev.server.web.page.project.setting.wiki.WikiSettingPage;
 import io.onedev.server.web.page.project.branches.ProjectBranchesPage;
 import io.onedev.server.web.page.project.builds.ProjectBuildsPage;
@@ -257,6 +258,11 @@ public abstract class ProjectPage extends LayoutPage implements ProjectAware, Ch
 				&& SecurityUtils.canAccessProject(getProject())) {
 			menuItems.add(new SidebarMenuItem.Page("wiki", _T("Wiki"),
 					ProjectWikiPage.class, ProjectWikiPage.paramsOf(getProject())));
+		}
+
+		if (getProject().isCodeManagement() && SecurityUtils.canReadCode(getProject())) {
+			menuItems.add(new SidebarMenuItem.Page("fork", _T("Traceability"),
+					ProjectTraceabilityPage.class, ProjectTraceabilityPage.paramsOf(getProject())));
 		}
 
 		List<SidebarMenuItem> statsMenuItems = new ArrayList<>();
