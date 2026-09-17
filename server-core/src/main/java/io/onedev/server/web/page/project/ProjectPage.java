@@ -115,6 +115,7 @@ import io.onedev.server.web.page.project.setting.webhook.WebHooksPage;
 import io.onedev.server.web.page.project.setting.workspacespec.WorkspaceSpecsPage;
 import io.onedev.server.web.page.project.stats.code.CodeContribsPage;
 import io.onedev.server.web.page.project.tags.ProjectTagsPage;
+import io.onedev.server.web.page.project.auditlog.ProjectAuditLogPage;
 import io.onedev.server.web.page.project.workspaces.ProjectWorkspacesPage;
 import io.onedev.server.web.page.project.workspaces.detail.WorkspaceDetailPage;
 import io.onedev.server.web.page.security.LoginPage;
@@ -274,6 +275,11 @@ public abstract class ProjectPage extends LayoutPage implements ProjectAware, Ch
 		// Add the sub menu even if it is empty as we need to place stats menu in the right place.
 		// Menu items may be added to the sub menu later via contribution
 		menuItems.add(new SidebarMenuItem.SubMenu("stats", _T("Statistics"), statsMenuItems));
+
+		if (SecurityUtils.canAccessProject(getProject())) {
+			menuItems.add(new SidebarMenuItem.Page("audit", _T("Audit Log"),
+					ProjectAuditLogPage.class, ProjectAuditLogPage.paramsOf(getProject().getPath())));
+		}
 		
 		if (SecurityUtils.canManageProject(getProject())) {
 			List<SidebarMenuItem> settingMenuItems = new ArrayList<>();

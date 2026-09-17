@@ -40,6 +40,7 @@ import io.onedev.server.model.SsoProvider;
 import io.onedev.server.model.User;
 import io.onedev.server.security.AuthenticatingService;
 import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.AuditEventService;
 import io.onedev.server.service.SettingService;
 import io.onedev.server.service.SsoProviderService;
 import io.onedev.server.service.UserService;
@@ -64,6 +65,9 @@ public class LoginPage extends SimplePage {
 
 	@Inject
 	private RememberMeManager rememberMeManager;
+
+	@Inject
+	private AuditEventService auditEventService;
 
 	private String userName;
 	
@@ -132,8 +136,10 @@ public class LoginPage extends SimplePage {
 						afterLogin(user);
 					}
 				} catch (IncorrectCredentialsException|UnknownAccountException|DisabledAccountException e) {
+					auditEventService.recordLoginFailed(userName, "password form");
 					error(_T(SecurityUtils.AUTHENTICATION_FAILED_MESSAGE));
 				} catch (AuthenticationException ae) {
+					auditEventService.recordLoginFailed(userName, "password form");
 					error(ae.getMessage());
 				}
 			}
@@ -219,6 +225,7 @@ public class LoginPage extends SimplePage {
 	}
 		
 	private void afterLogin(User user) {
+		auditEventService.recordLoginSucceeded(user, "password form");
 		if (rememberMe) {
 			AuthenticationToken token = new UsernamePasswordToken(userName, password, rememberMe);
 			rememberMeManager.onSuccessfulLogin(SecurityUtils.getSubject(), token, user);

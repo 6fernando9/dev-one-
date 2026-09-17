@@ -1,0 +1,21 @@
+<wicket:panel>
+	<div class="modal-header">
+		<h5 class="modal-title"><wicket:t>Audit Event Detail</wicket:t></h5>
+		<a wicket:id="close" class="close" t:data-tippy-content="Close">&times;</a>
+	</div>
+	<div class="modal-body">
+		<table class="table">
+			<tr><td><wicket:t>Date</wicket:t></td><td><span wicket:id="date"></span></td></tr>
+			<tr><td><wicket:t>Scope</wicket:t></td><td><span wicket:id="scope"></span></td></tr>
+			<tr><td><wicket:t>Severity</wicket:t></td><td><span wicket:id="severity"></span></td></tr>
+			<tr><td><wicket:t>Action</wicket:t></td><td><span wicket:id="action"></span></td></tr>
+			<tr><td><wicket:t>IP Address</wicket:t></td><td><span wicket:id="ip"></span></td></tr>
+			<tr><td><wicket:t>Actor</wicket:t></td><td><span wicket:id="actor"></span></td></tr>
+			<tr><td><wicket:t>Project</wicket:t></td><td><span wicket:id="project"></span></td></tr>
+			<tr><td><wicket:t>Target</wicket:t></td><td><span wicket:id="target"></span></td></tr>
+			<tr><td><wicket:t>Summary</wicket:t></td><td><span wicket:id="summary"></span></td></tr>
+		</table>
+		<h6 class="mt-3"><wicket:t>Details</wicket:t></h6>
+		<pre wicket:id="details" class="font-size-sm"></pre>
+	</div>
+</wicket:panel>

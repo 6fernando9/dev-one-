@@ -7,6 +7,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.HttpHeaders;
 
+import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.codec.Base64;
 import org.apache.shiro.subject.Subject;
@@ -17,15 +18,20 @@ import io.onedev.commons.utils.StringUtils;
 import io.onedev.k8shelper.KubernetesHelper;
 import io.onedev.server.persistence.annotation.Sessional;
 import io.onedev.server.service.AccessTokenService;
+import io.onedev.server.service.AuditEventService;
 
 @Singleton
 public class BasicAuthenticationFilter extends ExceptionHandleFilter {
 	
 	private final AccessTokenService accessTokenService;
+
+	private final AuditEventService auditEventService;
 	
 	@Inject
-	public BasicAuthenticationFilter(AccessTokenService accessTokenService) {
+	public BasicAuthenticationFilter(AccessTokenService accessTokenService,
+			AuditEventService auditEventService) {
 		this.accessTokenService = accessTokenService;
+		this.auditEventService = auditEventService;
 	}
 	
 	@Sessional
@@ -57,10 +63,15 @@ public class BasicAuthenticationFilter extends ExceptionHandleFilter {
 						return true;
 					}
 				}
-				if (userName.length() != 0 && password.length() != 0) {
+			if (userName.length() != 0 && password.length() != 0) {
+				try {
 					subject.login(new UsernamePasswordToken(userName, password));
-					return true;
+				} catch (AuthenticationException e) {
+					auditEventService.recordLoginFailed(userName, "basic auth");
+					throw e;
 				}
+				return true;
+			}
 	        }
 		}
 		return true;

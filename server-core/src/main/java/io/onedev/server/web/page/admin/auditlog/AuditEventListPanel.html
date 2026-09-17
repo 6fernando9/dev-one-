@@ -1,0 +1,83 @@
+<wicket:panel>
+	<div class="audit-event-list">
+		<div class="card mb-4">
+			<div class="card-body">
+				<div class="d-flex align-items-center justify-content-between mb-2">
+					<div wicket:id="rangeLabel" class="text-gray"></div>
+				</div>
+				<div class="d-flex align-items-center mb-4">
+					<a wicket:id="dateRange" class="btn btn-light btn-sm mr-3 text-nowrap">
+						<wicket:svg href="calendar" class="icon"></wicket:svg>
+						<span wicket:id="label" class="ml-1"></span>
+					</a>
+					<div wicket:id="customRange" class="d-flex align-items-center">
+						<div class="clearable-wrapper mr-2">
+							<span class="text-gray small mr-1">From</span>
+							<input wicket:id="dateFrom" type="text" class="form-control form-control-sm">
+						</div>
+						<div class="clearable-wrapper">
+							<span class="text-gray small mr-1">To</span>
+							<input wicket:id="dateTo" type="text" class="form-control form-control-sm">
+						</div>
+					</div>
+				</div>
+				<div wicket:id="chartContainer">
+					<div wicket:id="chart"></div>
+				</div>
+			</div>
+		</div>
+		<div class="d-flex align-items-center mb-4">
+			<div class="clearable-wrapper flex-grow-1 mr-3">
+				<input wicket:id="filterText" class="form-control search" t:placeholder="Filter by action, actor, project, IP or summary">
+			</div>
+		</div>
+		<div class="mb-4 d-flex align-items-center flex-wrap">
+			<span class="text-gray small mr-1 mb-2">Severity</span>
+			<select wicket:id="filterSeverity" class="form-control form-control-sm mr-3 mb-2" style="min-width: 180px"></select>
+			<span class="text-gray small mr-1 mb-2">Action</span>
+			<select wicket:id="filterAction" class="form-control form-control-sm mr-3 mb-2" style="min-width: 220px"></select>
+			<span class="text-gray small mr-1 mb-2">Actor</span>
+			<a wicket:id="filterActor" class="btn btn-light btn-sm mr-1 mb-2 text-nowrap">
+				<img wicket:id="avatar" class="mr-1"> <span wicket:id="actorLabel"></span>
+			</a>
+			<a wicket:id="clearActor" class="btn btn-sm btn-link text-danger mb-2 p-0" title="Clear actor filter">
+				<wicket:svg href="cross" class="icon"></wicket:svg>
+			</a>
+			<a wicket:id="filterScope" class="text-gray mb-2 d-inline-block text-nowrap">
+				<wicket:svg href="arrow" class="icon rotate-90"></wicket:svg>
+				<span wicket:id="label"></span>
+			</a>
+			<div class="ml-auto mb-2">
+				<a wicket:id="exportMenu" class="btn btn-light btn-sm text-nowrap">
+					<wicket:svg href="download" class="icon"></wicket:svg>
+					<span class="ml-1">Export</span>
+				</a>
+			</div>
+		</div>
+		<table wicket:id="events" class="events table table-hover"></table>
+		<a wicket:id="exportXlsx" class="d-none export-xlsx">Export XLSX</a>
+		<a wicket:id="exportCsv" class="d-none export-csv">Export CSV</a>
+		<a wicket:id="exportPdf" class="d-none export-pdf">Export PDF</a>
+	</div>
+	<wicket:fragment wicket:id="dateFrag">
+		<div wicket:id="time"></div>
+		<div wicket:id="day" class="text-gray small"></div>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="severityFrag">
+		<span wicket:id="badge"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actionFrag">
+		<span wicket:id="badge"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="actorFrag">
+		<span wicket:id="avatar" class="mr-1"></span>
+		<span wicket:id="actor"></span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="summaryFrag">
+		<span wicket:id="summary"></span>
+		<span class="ml-1">[<span wicket:id="target"></span>]</span>
+	</wicket:fragment>
+	<wicket:fragment wicket:id="detailFrag">
+		<a wicket:id="show" class="btn btn-xs btn-icon btn-light btn-hover-primary" t:data-tippy-content="View detail"><wicket:svg href="eye" class="icon"></wicket:svg></a>
+	</wicket:fragment>
+</wicket:panel>
