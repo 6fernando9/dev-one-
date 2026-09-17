@@ -14,7 +14,6 @@ public class SidebarMenu implements Serializable {
 
 	// 1. SET DE OPCIONES ENTERPRISE (EE)
     private static final Set<String> BLOCKED_EE_ITEMS = Set.of(
-        "Audit Log",
         "Pull Request",
         "Issue",
         "Build",

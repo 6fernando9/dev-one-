@@ -148,6 +148,7 @@ import io.onedev.server.web.page.admin.rolemanagement.RoleDetailPage;
 import io.onedev.server.web.page.admin.rolemanagement.RoleListPage;
 import io.onedev.server.web.page.admin.securitysetting.SecuritySettingPage;
 import io.onedev.server.web.page.admin.serverinformation.ServerInformationPage;
+import io.onedev.server.web.page.admin.auditlog.GlobalAuditLogPage;
 import io.onedev.server.web.page.admin.serverlog.ServerLogPage;
 import io.onedev.server.web.page.admin.servicedesk.ServiceDeskSettingPage;
 import io.onedev.server.web.page.admin.sshserverkey.SshServerKeyPage;
@@ -392,9 +393,11 @@ public abstract class LayoutPage extends BasePage {
 						}
 						maintenanceMenuItems.add(new SidebarMenuItem.SubMenu(null, _T("Server Log"), serverLogMenuItems));
 						maintenanceMenuItems.add(new SidebarMenuItem.SubMenu(null, _T("Server Information"), serverInformationMenuItems));
-					} else {
-						maintenanceMenuItems.add(new SidebarMenuItem.Page(null, _T("Server Log"),
-								ServerLogPage.class, new PageParameters()));
+				} else {
+					maintenanceMenuItems.add(new SidebarMenuItem.Page(null, _T("Server Log"),
+							ServerLogPage.class, new PageParameters()));
+					maintenanceMenuItems.add(new SidebarMenuItem.Page(null, _T("Audit Log"),
+							GlobalAuditLogPage.class, new PageParameters()));
 						maintenanceMenuItems.add(new SidebarMenuItem.Page(null, _T("Server Information"),
 								ServerInformationPage.class, new PageParameters()));
 					}

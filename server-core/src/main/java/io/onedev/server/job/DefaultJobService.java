@@ -806,6 +806,7 @@ public class DefaultJobService implements JobService, Runnable, CodePullAuthoriz
 									ProjectScopedCommit.pop();
 								}
 								Long projectId = event.getProject().getId();
+								Long triggerUserId = User.idOf(event.getUser());
 
 								// run asynchrously as session may get closed due to exception
 								sessionService.runAsyncAfterCommit(new Runnable() {
@@ -813,7 +814,8 @@ public class DefaultJobService implements JobService, Runnable, CodePullAuthoriz
 									@Override
 									public void run() {
 										SecurityUtils.bindAsSystem();
-										var user = SecurityUtils.getUser();
+										var user = triggerUserId != null ?
+												userService.load(triggerUserId) : SecurityUtils.getUser();
 										Project project = projectService.load(projectId);
 										try {
 											for (var paramMap: paramMaps) {

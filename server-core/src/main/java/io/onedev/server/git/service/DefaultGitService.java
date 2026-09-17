@@ -103,11 +103,13 @@ import io.onedev.server.git.command.RevListOptions;
 import io.onedev.server.git.exception.NotTreeException;
 import io.onedev.server.git.exception.ObjectAlreadyExistsException;
 import io.onedev.server.model.Project;
+import io.onedev.server.model.User;
 import io.onedev.server.model.support.code.BranchProtection;
 import io.onedev.server.persistence.SessionService;
 import io.onedev.server.persistence.annotation.Sessional;
 import io.onedev.server.service.ProjectService;
 import io.onedev.server.service.SettingService;
+import io.onedev.server.security.SecurityUtils;
 
 @Singleton
 public class DefaultGitService implements GitService, Serializable {
@@ -143,6 +145,15 @@ public class DefaultGitService implements GitService, Serializable {
 
 	private Repository getRepository(Long projectId) {
 		return projectService.getRepository(projectId);
+	}
+
+	@Nullable
+	private User getCurrentUser() {
+		try {
+			return SecurityUtils.getUser();
+		} catch (Exception e) {
+			return null;
+		}
 	}
 	
 	private File getGitDir(Long projectId) {
@@ -255,7 +266,7 @@ public class DefaultGitService implements GitService, Serializable {
 			
 		});
 		project.cacheObjectId(branchName, commitId);
-		listenerRegistry.post(new RefUpdated(project, 
+		listenerRegistry.post(new RefUpdated(getCurrentUser(), project,
 				GitUtils.branch2ref(branchName), ObjectId.zeroId(), commitId));
 		return commitId;
 	}
@@ -306,7 +317,7 @@ public class DefaultGitService implements GitService, Serializable {
 			}
 		});
 		project.cacheObjectId(tagName, tagAndCommitId.getTagId());
-		listenerRegistry.post(new RefUpdated(project, 
+		listenerRegistry.post(new RefUpdated(getCurrentUser(), project,
 				GitUtils.tag2ref(tagName), ObjectId.zeroId(), tagAndCommitId.getCommitId()));
 		return tagAndCommitId;
 	}
@@ -384,7 +395,8 @@ public class DefaultGitService implements GitService, Serializable {
 	@Override
 	public void deleteBranch(Project project, String branchName) {
 		Long projectId = project.getId();
-		
+		User triggerUser = getCurrentUser();
+
 		runOnProjectServer(projectId, () -> {
 			Repository repository = getRepository(projectId);
 			try (RevWalk revWalk = new RevWalk(repository)) {
@@ -397,7 +409,7 @@ public class DefaultGitService implements GitService, Serializable {
 					@Override
 					public void run() {
 						Project innerProject = projectService.load(projectId);
-						listenerRegistry.post(new RefUpdated(innerProject, refName, commitId, ObjectId.zeroId()));
+						listenerRegistry.post(new RefUpdated(triggerUser, innerProject, refName, commitId, ObjectId.zeroId()));
 					}
 					
 				});
@@ -414,7 +426,8 @@ public class DefaultGitService implements GitService, Serializable {
 	@Override
 	public void deleteTag(Project project, String tagName) {
 		Long projectId = project.getId();
-		
+		User triggerUser = getCurrentUser();
+
 		runOnProjectServer(projectId, () -> {
 			Repository repository = getRepository(projectId);
 			try (RevWalk revWalk = new RevWalk(repository)) {
@@ -424,7 +437,7 @@ public class DefaultGitService implements GitService, Serializable {
 				String refName = GitUtils.tag2ref(tagName);
 				sessionService.runAsync(() -> {
 					Project innerProject = projectService.load(projectId);
-					listenerRegistry.post(new RefUpdated(innerProject, refName, commitId, ObjectId.zeroId()));
+					listenerRegistry.post(new RefUpdated(triggerUser, innerProject, refName, commitId, ObjectId.zeroId()));
 				});
 				
 			} catch (Exception e) {
@@ -863,8 +876,8 @@ public class DefaultGitService implements GitService, Serializable {
 		});
 		
 		project.cacheObjectId(refName, commitId);
-		listenerRegistry.post(new RefUpdated(project, refName, expectedOldCommitId, commitId));
-		
+		listenerRegistry.post(new RefUpdated(getCurrentUser(), project, refName, expectedOldCommitId, commitId));
+
 		return commitId;
 	}
 

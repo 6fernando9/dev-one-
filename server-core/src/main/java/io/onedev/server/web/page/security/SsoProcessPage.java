@@ -42,6 +42,7 @@ import io.onedev.server.model.support.administration.sso.SsoAuthenticated;
 import io.onedev.server.persistence.TransactionService;
 import io.onedev.server.security.AuthenticatingService;
 import io.onedev.server.security.SecurityUtils;
+import io.onedev.server.service.AuditEventService;
 import io.onedev.server.service.EmailAddressService;
 import io.onedev.server.service.MembershipService;
 import io.onedev.server.service.SettingService;
@@ -98,6 +99,9 @@ public class SsoProcessPage extends SimplePage {
 
 	@Inject
 	private TransactionService transactionService;
+
+	@Inject
+	private AuditEventService auditEventService;
 
 	private final IModel<SsoProvider> providerModel;
 	
@@ -203,6 +207,7 @@ public class SsoProcessPage extends SimplePage {
 					afterLogin(aUser);
 			}
 		} catch (AuthenticationException e) {
+			auditEventService.recordLoginFailed(null, "SSO");
 			throw new RestartResponseException(new LoginPage(e.getMessage()));
 		} catch (Exception e) {
 			var parseException = ExceptionUtils.find(e, ParseException.class);
@@ -240,6 +245,7 @@ public class SsoProcessPage extends SimplePage {
 		if (StringUtils.isBlank(redirectUrlAfterLogin))
 			throw new AuthenticationException(_T("Unsolicited OIDC authentication response"));
 
+		auditEventService.recordLoginSucceeded(user, "SSO " + getProvider().getName());
 		SecurityUtils.getSubject().runAs(user.getPrincipals());
 		WebSession.get().setSsoLogoutUrl(
 				getProvider().getConnector().buildLogoutUrl(getProvider().getName()));
