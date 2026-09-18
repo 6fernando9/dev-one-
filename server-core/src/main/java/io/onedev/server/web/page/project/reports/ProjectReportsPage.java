@@ -2,9 +2,9 @@ package io.onedev.server.web.page.project.reports;
 
 import static io.onedev.server.web.translation.Translation._T;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -26,7 +26,12 @@ import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
+import org.apache.wicket.request.handler.resource.ResourceStreamRequestHandler;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
+import org.apache.wicket.request.resource.ContentDisposition;
+import org.apache.wicket.util.resource.AbstractResourceStream;
+import org.apache.wicket.util.resource.IResourceStream;
+import org.apache.wicket.util.resource.ResourceStreamNotFoundException;
 
 import io.onedev.server.OneDev;
 import io.onedev.server.model.Project;
@@ -216,30 +221,53 @@ public class ProjectReportsPage extends ProjectPage {
             }
         }));
 
-        // Enlaces de descarga (CSV y PDF)
-        WebMarkupContainer downloadCsvBtn = new WebMarkupContainer("downloadCsvBtn") {
+        // Botón descarga CSV (server-side con sesión activa)
+        resultSection.add(new AjaxLink<Void>("downloadCsvBtn") {
             private static final long serialVersionUID = 1L;
+
+            @Override
+            public void onClick(AjaxRequestTarget target) {
+                serveReportDownload("csv");
+            }
 
             @Override
             protected void onConfigure() {
                 super.onConfigure();
-                String url = buildExportUrl("csv");
-                add(AttributeModifier.replace("href", url));
+                setVisible(resultModel.getObject() != null && !resultModel.getObject().hasError());
             }
-        };
-        resultSection.add(downloadCsvBtn);
+        });
 
-        WebMarkupContainer downloadPdfBtn = new WebMarkupContainer("downloadPdfBtn") {
+        // Botón descarga PDF (server-side con sesión activa)
+        resultSection.add(new AjaxLink<Void>("downloadPdfBtn") {
             private static final long serialVersionUID = 1L;
+
+            @Override
+            public void onClick(AjaxRequestTarget target) {
+                serveReportDownload("pdf");
+            }
 
             @Override
             protected void onConfigure() {
                 super.onConfigure();
-                String url = buildExportUrl("pdf");
-                add(AttributeModifier.replace("href", url));
+                setVisible(resultModel.getObject() != null && !resultModel.getObject().hasError());
             }
-        };
-        resultSection.add(downloadPdfBtn);
+        });
+
+        // Botón descarga Excel (CSV con extensión .xlsx - compatible con Excel)
+        resultSection.add(new AjaxLink<Void>("downloadExcelBtn") {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public void onClick(AjaxRequestTarget target) {
+                serveReportDownload("excel");
+            }
+
+            @Override
+            protected void onConfigure() {
+                super.onConfigure();
+                setVisible(resultModel.getObject() != null && !resultModel.getObject().hasError());
+            }
+        });
 
         // Mensaje de error si la consulta falló
         WebMarkupContainer errorAlert = new WebMarkupContainer("errorAlert") {
@@ -350,16 +378,71 @@ public class ProjectReportsPage extends ProjectPage {
         }
     }
 
-    private String buildExportUrl(String format) {
-        String q = queryModel.getObject();
-        if (q == null || q.trim().isEmpty()) {
-            q = _T("List all project branches");
-        }
+    /**
+     * Serve a report download using Wicket's own resource stream mechanism.
+     * This reuses the current authenticated Wicket session, avoiding REST auth issues.
+     */
+    private void serveReportDownload(String format) {
+        ReportResult result = resultModel.getObject();
+        if (result == null || result.hasError()) return;
+
         try {
-            String encoded = URLEncoder.encode(q, StandardCharsets.UTF_8.name());
-            return "/api/report/export/" + getProject().getId() + "?query=" + encoded + "&format=" + format;
-        } catch (UnsupportedEncodingException e) {
-            return "/api/report/export/" + getProject().getId() + "?format=" + format;
+            ReportService reportService = OneDev.getInstance(ReportService.class);
+
+            ReportRequest.ExportFormat exportFormat;
+            String extension;
+            String mimeType;
+
+            if ("pdf".equalsIgnoreCase(format)) {
+                exportFormat = ReportRequest.ExportFormat.PDF;
+                extension = "pdf";
+                mimeType = "application/pdf";
+            } else if ("excel".equalsIgnoreCase(format)) {
+                // Export as CSV but with xlsx extension for Excel compatibility
+                exportFormat = ReportRequest.ExportFormat.CSV;
+                extension = "xlsx";
+                mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            } else {
+                exportFormat = ReportRequest.ExportFormat.CSV;
+                extension = "csv";
+                mimeType = "text/csv; charset=UTF-8";
+            }
+
+            // Re-execute the query to create a fresh request with the desired format
+            String query = queryModel.getObject();
+            if (query == null || query.trim().isEmpty()) query = _T("List all project branches");
+            ReportRequest request = reportService.translateQuery(getProject(), query);
+            request.setFormat(exportFormat);
+
+            final byte[] bytes = reportService.exportReport(result, request);
+            final String filename = "informe-" + getProject().getName() + "-" + result.getDomain().name().toLowerCase() + "." + extension;
+            final String finalMimeType = mimeType;
+
+            IResourceStream resourceStream = new AbstractResourceStream() {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public InputStream getInputStream() throws ResourceStreamNotFoundException {
+                    return new ByteArrayInputStream(bytes);
+                }
+
+                @Override
+                public String getContentType() {
+                    return finalMimeType;
+                }
+
+                @Override
+                public void close() throws IOException {
+                    // nothing to close
+                }
+            };
+
+            ResourceStreamRequestHandler handler = new ResourceStreamRequestHandler(resourceStream, filename);
+            handler.setContentDisposition(ContentDisposition.ATTACHMENT);
+            getRequestCycle().scheduleRequestHandlerAfterCurrent(handler);
+
+        } catch (Exception e) {
+            resultModel.setObject(new ReportResult(_T("Export error"), ReportDomain.COMMITS, e.getMessage()));
         }
     }
 
