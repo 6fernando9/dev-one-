@@ -40,8 +40,7 @@ import io.onedev.server.web.page.project.ProjectPage;
 
 /**
  * Página de Informes Dinámicos con Lenguaje Natural (RF6).
- * Permite al usuario generar informes tabulares interactivos y descargables (CSV, PDF)
- * a partir de consultas en lenguaje natural procesadas por IA / heurística.
+ * Soporte para Modo Claro, Modo Oscuro y cambio dinámico de idioma (_T / wicket:t).
  */
 public class ProjectReportsPage extends ProjectPage {
 
@@ -88,6 +87,7 @@ public class ProjectReportsPage extends ProjectPage {
         Form<?> queryForm = new Form<Void>("queryForm");
         TextField<String> queryInput = new TextField<>("queryInput", queryModel);
         queryInput.setOutputMarkupId(true);
+        queryInput.add(AttributeModifier.replace("placeholder", _T("Search or ask for a report in natural language...")));
         queryForm.add(queryInput);
 
         // Contenedor principal de resultados del reporte
@@ -107,14 +107,14 @@ public class ProjectReportsPage extends ProjectPage {
         });
         add(queryForm);
 
-        // Sugerencias rápidas clickeables
-        addSuggestionLink("suggestBranches", "Listar todas las ramas del proyecto", queryInput, reportContainer);
-        addSuggestionLink("suggestCommits", "Commits recientes de la última semana", queryInput, reportContainer);
-        addSuggestionLink("suggestCis", "Inventario de elementos de configuración", queryInput, reportContainer);
-        addSuggestionLink("suggestRtm", "Matriz de trazabilidad de requisitos", queryInput, reportContainer);
-        addSuggestionLink("suggestIssues", "Issues y tareas abiertas del proyecto", queryInput, reportContainer);
+        // Sugerencias rápidas clickeables con soporte de internacionalización
+        addSuggestionLink("suggestBranches", _T("List all project branches"), queryInput, reportContainer);
+        addSuggestionLink("suggestCommits", _T("Recent commits from last week"), queryInput, reportContainer);
+        addSuggestionLink("suggestCis", _T("Configuration item inventory"), queryInput, reportContainer);
+        addSuggestionLink("suggestRtm", _T("Requirements traceability matrix"), queryInput, reportContainer);
+        addSuggestionLink("suggestIssues", _T("Open project issues and tasks"), queryInput, reportContainer);
 
-        // Estado inicial vacío (sin consulta aún)
+        // Estado inicial vacío
         WebMarkupContainer emptyState = new WebMarkupContainer("emptyState") {
             private static final long serialVersionUID = 1L;
 
@@ -126,7 +126,7 @@ public class ProjectReportsPage extends ProjectPage {
         };
         reportContainer.add(emptyState);
 
-        // Sección con datos del reporte (visible si hay resultado)
+        // Sección con datos del reporte
         WebMarkupContainer resultSection = new WebMarkupContainer("resultSection") {
             private static final long serialVersionUID = 1L;
 
@@ -164,7 +164,7 @@ public class ProjectReportsPage extends ProjectPage {
             @Override
             protected String load() {
                 ReportResult r = resultModel.getObject();
-                return r != null ? r.getRowCount() + " registros" : "0 registros";
+                return r != null ? r.getRowCount() + " " + _T("records") : "0 " + _T("records");
             }
         }));
 
@@ -300,7 +300,7 @@ public class ProjectReportsPage extends ProjectPage {
 
     private void executeReport(String query) {
         if (query == null || query.trim().isEmpty()) {
-            query = "Listar ramas del proyecto";
+            query = _T("List all project branches");
         }
         try {
             ReportService reportService = OneDev.getInstance(ReportService.class);
@@ -308,14 +308,14 @@ public class ProjectReportsPage extends ProjectPage {
             ReportResult result = reportService.collectData(getProject(), request);
             resultModel.setObject(result);
         } catch (Exception e) {
-            resultModel.setObject(new ReportResult("Error en informe", ReportDomain.COMMITS, e.getMessage()));
+            resultModel.setObject(new ReportResult(_T("Execution error"), ReportDomain.COMMITS, e.getMessage()));
         }
     }
 
     private String buildExportUrl(String format) {
         String q = queryModel.getObject();
         if (q == null || q.trim().isEmpty()) {
-            q = "Listar ramas del proyecto";
+            q = _T("List all project branches");
         }
         try {
             String encoded = URLEncoder.encode(q, StandardCharsets.UTF_8.name());

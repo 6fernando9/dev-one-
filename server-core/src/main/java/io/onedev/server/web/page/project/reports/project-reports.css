@@ -1,27 +1,44 @@
 /* Estilos para la página de Informes Dinámicos con Lenguaje Natural (RF6) */
+/* Soporte completo para Modo Claro y Modo Oscuro (OneDev Dark Mode) */
 
 .project-reports {
     max-width: 1400px;
     margin: 0 auto;
 }
 
+/* --- HERO BANNER --- */
 .project-reports .reports-hero {
-    background: linear-gradient(135deg, rgba(74, 144, 217, 0.08) 0%, rgba(106, 90, 205, 0.05) 100%);
-    border: 1px solid rgba(74, 144, 217, 0.2);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 24px;
+    background: linear-gradient(135deg, rgba(74, 144, 217, 0.07) 0%, rgba(106, 90, 205, 0.04) 100%);
+    border: 1px solid var(--light-gray, #e1e4e8);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
 }
 
+.dark-mode .project-reports .reports-hero,
+[data-theme="dark"] .project-reports .reports-hero {
+    background: linear-gradient(135deg, rgba(74, 144, 217, 0.14) 0%, rgba(106, 90, 205, 0.08) 100%) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+}
+
+/* --- FORM CARD --- */
 .project-reports .query-form-card {
-    background: var(--card-bg, #ffffff);
-    border: 1px solid var(--border-color, #e1e4e8);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    background-color: #ffffff;
+    border: 1px solid var(--light-gray, #e1e4e8);
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+.dark-mode .project-reports .query-form-card,
+[data-theme="dark"] .project-reports .query-form-card {
+    background-color: var(--dark-mode-dark, #1e1e24) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+    box-shadow: none !important;
+}
+
+/* --- INPUT GROUP --- */
 .project-reports .query-input-group {
     display: flex;
     gap: 10px;
@@ -30,21 +47,37 @@
 
 .project-reports .query-input {
     flex: 1;
-    font-size: 15px;
-    padding: 10px 16px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #ced4da);
-    transition: border-color 0.2s, box-shadow 0.2s;
+    font-size: 14px;
+    padding: 9px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--light-gray, #ced4da);
+    background-color: #ffffff;
+    color: var(--gray-dark, #24292e);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .project-reports .query-input:focus {
     border-color: #4a90d9;
-    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.2);
+    box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
     outline: none;
 }
 
+.dark-mode .project-reports .query-input,
+[data-theme="dark"] .project-reports .query-input {
+    background-color: var(--dark-mode-darker, #16181d) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+    color: var(--dark-mode-light-gray, #e6edf3) !important;
+}
+
+.dark-mode .project-reports .query-input:focus,
+[data-theme="dark"] .project-reports .query-input:focus {
+    border-color: #4a90d9 !important;
+    box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.35) !important;
+}
+
+/* --- SUGGESTION CHIPS --- */
 .project-reports .suggestions-container {
-    margin-top: 14px;
+    margin-top: 12px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -52,52 +85,84 @@
 }
 
 .project-reports .suggestion-chip {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     padding: 4px 12px;
     font-size: 12px;
-    background: rgba(74, 144, 217, 0.1);
-    color: #2b6cb0;
+    background: rgba(74, 144, 217, 0.08);
+    color: var(--primary, #2b6cb0);
     border: 1px solid rgba(74, 144, 217, 0.25);
-    border-radius: 16px;
+    border-radius: 14px;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease-in-out;
 }
 
 .project-reports .suggestion-chip:hover {
     background: #4a90d9;
     color: #ffffff;
     border-color: #4a90d9;
-    transform: translateY(-1px);
+    text-decoration: none;
 }
 
+.dark-mode .project-reports .suggestion-chip,
+[data-theme="dark"] .project-reports .suggestion-chip {
+    background: rgba(74, 144, 217, 0.15) !important;
+    color: #63b3ed !important;
+    border: 1px solid rgba(74, 144, 217, 0.35) !important;
+}
+
+.dark-mode .project-reports .suggestion-chip:hover,
+[data-theme="dark"] .project-reports .suggestion-chip:hover {
+    background: #3182ce !important;
+    color: #ffffff !important;
+    border-color: #3182ce !important;
+    text-decoration: none;
+}
+
+/* --- REPORT HEADER CARD --- */
 .project-reports .report-header-card {
-    background: var(--card-bg, #ffffff);
-    border: 1px solid var(--border-color, #e1e4e8);
-    border-radius: 8px;
-    padding: 16px 20px;
+    background-color: #ffffff;
+    border: 1px solid var(--light-gray, #e1e4e8);
+    border-radius: 6px;
+    padding: 14px 18px;
     margin-bottom: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dark-mode .project-reports .report-header-card,
+[data-theme="dark"] .project-reports .report-header-card {
+    background-color: var(--dark-mode-dark, #1e1e24) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+    box-shadow: none !important;
 }
 
 .project-reports .report-title {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
     margin: 0;
-    color: var(--text-heading, #24292e);
+    color: var(--gray-dark, #24292e);
 }
 
-.project-reports .report-meta {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+.dark-mode .project-reports .report-title,
+[data-theme="dark"] .project-reports .report-title {
+    color: var(--dark-mode-light-gray, #e6edf3) !important;
+}
+
+.project-reports .report-description {
     font-size: 13px;
-    color: #6a737d;
-    margin-top: 4px;
+    color: var(--muted, #6a737d);
+    margin-top: 3px;
+}
+
+.dark-mode .project-reports .report-description,
+[data-theme="dark"] .project-reports .report-description {
+    color: var(--dark-mode-gray, #8b949e) !important;
 }
 
 .project-reports .export-actions {
@@ -105,88 +170,135 @@
     gap: 8px;
 }
 
+/* --- TABLE CONTAINER & STYLES --- */
 .project-reports .table-container {
-    background: var(--card-bg, #ffffff);
-    border: 1px solid var(--border-color, #e1e4e8);
-    border-radius: 8px;
+    background-color: #ffffff;
+    border: 1px solid var(--light-gray, #e1e4e8);
+    border-radius: 6px;
     overflow-x: auto;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dark-mode .project-reports .table-container,
+[data-theme="dark"] .project-reports .table-container {
+    background-color: var(--dark-mode-dark, #1e1e24) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+    box-shadow: none !important;
 }
 
 .project-reports .table-reports {
     width: 100%;
     margin-bottom: 0;
     font-size: 13px;
+    background-color: transparent;
 }
 
-.project-reports .table-reports th {
-    background-color: var(--table-header-bg, #f6f8fa);
-    color: var(--text-heading, #495057);
+.project-reports .table-reports thead th {
+    background-color: #f8f9fa;
+    color: #495057;
     font-weight: 600;
     border-top: none;
-    border-bottom: 2px solid var(--border-color, #dee2e6);
+    border-bottom: 1px solid var(--light-gray, #dee2e6);
     padding: 10px 14px;
     white-space: nowrap;
 }
 
-.project-reports .table-reports td {
+.project-reports .table-reports tbody td {
     padding: 10px 14px;
     vertical-align: middle;
-    border-top: 1px solid var(--border-color, #e9ecef);
+    border-top: 1px solid var(--light-gray, #e9ecef);
+    color: var(--gray-dark, #24292e);
     word-break: break-word;
+    background-color: transparent;
 }
 
-.project-reports .table-reports tbody tr:hover {
-    background-color: rgba(74, 144, 217, 0.04);
+.project-reports .table-reports tbody tr:hover td {
+    background-color: #f3f6f9;
 }
 
+.dark-mode .project-reports .table-reports thead th,
+[data-theme="dark"] .project-reports .table-reports thead th {
+    background-color: var(--dark-mode-darker, #16181d) !important;
+    color: var(--dark-mode-light-gray, #e6edf3) !important;
+    border-bottom: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+    border-top: none !important;
+}
+
+.dark-mode .project-reports .table-reports tbody td,
+[data-theme="dark"] .project-reports .table-reports tbody td {
+    background-color: var(--dark-mode-dark, #1e1e24) !important;
+    color: var(--dark-mode-gray, #c9d1d9) !important;
+    border-top: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
+}
+
+.dark-mode .project-reports .table-reports tbody tr:hover td,
+[data-theme="dark"] .project-reports .table-reports tbody tr:hover td {
+    background-color: var(--dark-mode-light-dark, #25282e) !important;
+    color: var(--dark-mode-light-gray, #ffffff) !important;
+}
+
+/* --- EMPTY STATE --- */
 .project-reports .empty-state {
+    background-color: #ffffff;
+    border: 1px solid var(--light-gray, #e1e4e8);
+    border-radius: 6px;
+    padding: 40px 20px;
     text-align: center;
-    padding: 48px 20px;
-    color: #6a737d;
 }
 
-.project-reports .empty-state svg {
-    margin-bottom: 16px;
-    opacity: 0.6;
+.project-reports .empty-state-title {
+    color: var(--gray-dark, #24292e);
+    font-weight: 600;
 }
 
-/* Dark mode adjustments */
-body.dark-mode .project-reports .reports-hero {
-    background: linear-gradient(135deg, rgba(74, 144, 217, 0.15) 0%, rgba(106, 90, 205, 0.1) 100%);
-    border-color: rgba(74, 144, 217, 0.3);
+.dark-mode .project-reports .empty-state,
+[data-theme="dark"] .project-reports .empty-state {
+    background-color: var(--dark-mode-dark, #1e1e24) !important;
+    border: 1px solid var(--dark-mode-light-dark, #2f3338) !important;
 }
 
-body.dark-mode .project-reports .query-form-card,
-body.dark-mode .project-reports .report-header-card,
-body.dark-mode .project-reports .table-container {
-    background-color: #1e1e24;
-    border-color: #2f3338;
+.dark-mode .project-reports .empty-state-title,
+[data-theme="dark"] .project-reports .empty-state-title {
+    color: var(--dark-mode-light-gray, #e6edf3) !important;
 }
 
-body.dark-mode .project-reports .query-input {
-    background-color: #25282d;
-    border-color: #383d44;
-    color: #e6edf3;
+.dark-mode .project-reports .empty-state p {
+    color: var(--dark-mode-gray, #8b949e) !important;
 }
 
-body.dark-mode .project-reports .suggestion-chip {
-    background: rgba(74, 144, 217, 0.2);
-    color: #79b8ff;
-    border-color: rgba(74, 144, 217, 0.4);
+/* --- BUTTONS IN DARK MODE --- */
+.dark-mode .project-reports .btn-outline-success,
+[data-theme="dark"] .project-reports .btn-outline-success {
+    color: #48bb78 !important;
+    border-color: #48bb78 !important;
 }
 
-body.dark-mode .project-reports .table-reports th {
-    background-color: #25282d;
-    color: #e6edf3;
-    border-color: #383d44;
+.dark-mode .project-reports .btn-outline-success:hover,
+[data-theme="dark"] .project-reports .btn-outline-success:hover {
+    background-color: #48bb78 !important;
+    color: #ffffff !important;
 }
 
-body.dark-mode .project-reports .table-reports td {
-    border-color: #2f3338;
-    color: #c9d1d9;
+.dark-mode .project-reports .btn-outline-danger,
+[data-theme="dark"] .project-reports .btn-outline-danger {
+    color: #f56565 !important;
+    border-color: #f56565 !important;
 }
 
-body.dark-mode .project-reports .table-reports tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+.dark-mode .project-reports .btn-outline-danger:hover,
+[data-theme="dark"] .project-reports .btn-outline-danger:hover {
+    background-color: #f56565 !important;
+    color: #ffffff !important;
+}
+
+.dark-mode .project-reports .text-muted,
+[data-theme="dark"] .project-reports .text-muted {
+    color: var(--dark-mode-dark-gray, #8b949e) !important;
+}
+
+.dark-mode .project-reports h4,
+.dark-mode .project-reports h5,
+[data-theme="dark"] .project-reports h4,
+[data-theme="dark"] .project-reports h5 {
+    color: var(--dark-mode-light-gray, #e6edf3) !important;
 }

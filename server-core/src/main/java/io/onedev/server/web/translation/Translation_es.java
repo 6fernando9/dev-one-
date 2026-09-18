@@ -5310,6 +5310,39 @@ public class Translation_es extends TranslationResourceBundle {
 		m.put("{javax.validation.constraints.Size.message}", "{javax.validation.constraints.Size.message}");
 		m.put("New", "Nuevo");
 		m.put("Old", "Antiguo");
+		m.put("Reports", "Informes");
+		m.put("Dynamic Reports with Natural Language", "Informes Dinámicos con Lenguaje Natural");
+		m.put("Dynamic Reports with Natural Language (RF6)", "Informes Dinámicos con Lenguaje Natural (RF6)");
+		m.put("Generate reports on configuration items, traceability, branches, commits, issues, and audit events using natural language. Export to CSV or PDF with one click.", "Genera reportes de configuración, trazabilidad, ramas, commits, issues y auditoría escribiendo en lenguaje natural. Exporta a CSV o PDF en un clic.");
+		m.put("Search or ask for a report in natural language...", "Busca o solicita un informe en lenguaje natural...");
+		m.put("Generate Report", "Generar Informe");
+		m.put("Suggested queries:", "Consultas sugeridas:");
+		m.put("Project branches", "Ramas del proyecto");
+		m.put("Recent commits", "Commits recientes");
+		m.put("Configuration items (CIs)", "Elementos de configuración (CIs)");
+		m.put("Traceability matrix (RTM)", "Matriz de trazabilidad (RTM)");
+		m.put("Issues and tasks", "Issues y tareas");
+		m.put("No reports generated yet", "Aún no has generado ningún informe");
+		m.put("Type a query above in natural language or click one of the suggested queries to get started.", "Escribe arriba tu petición en lenguaje natural o haz clic en alguna de las consultas sugeridas para comenzar.");
+		m.put("Download CSV", "Descargar CSV");
+		m.put("Download PDF", "Descargar PDF");
+		m.put("records", "registros");
+		m.put("List all project branches", "Listar todas las ramas del proyecto");
+		m.put("Recent commits from last week", "Commits recientes de la última semana");
+		m.put("Configuration item inventory", "Inventario de elementos de configuración");
+		m.put("Requirements traceability matrix", "Matriz de trazabilidad de requisitos");
+		m.put("Open project issues and tasks", "Issues y tareas abiertas del proyecto");
+		m.put("Report for ", "Informe de ");
+		m.put("Execution error", "Error de ejecución");
+		m.put("Branches", "Ramas");
+		m.put("Commits", "Commits");
+		m.put("Issues", "Problemas");
+		m.put("Pull Requests", "Solicitudes de extracción");
+		m.put("Configuration Items", "Elementos de Configuración");
+		m.put("Traceability Matrix", "Matriz de Trazabilidad");
+		m.put("Users and Roles", "Usuarios y Roles");
+		m.put("Audit Events", "Eventos de Auditoría");
+		m.put("Builds and CI/CD", "Compilaciones y CI/CD");
 	}
 		
 	@Override
