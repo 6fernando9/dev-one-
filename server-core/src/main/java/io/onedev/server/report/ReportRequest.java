@@ -108,4 +108,15 @@ public class ReportRequest implements Serializable {
     public void setMaxResults(int maxResults) {
         this.maxResults = Math.min(maxResults, 5000);
     }
+
+    private String engine = "Motor Semántico";
+
+    public String getEngine() {
+        return engine;
+    }
+
+    public void setEngine(String engine) {
+        this.engine = engine;
+    }
 }
+

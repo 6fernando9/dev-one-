@@ -1,15 +1,14 @@
 package io.onedev.server.report;
 
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -26,7 +25,6 @@ public class ReportQueryTranslator {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportQueryTranslator.class);
     private static final int MAX_QUERY_LENGTH = 512;
-    private static final Gson GSON = new GsonBuilder().create();
 
     private final ChatModel model;
 
@@ -35,7 +33,7 @@ public class ReportQueryTranslator {
     }
 
     /**
-     * Traduce una petición en lenguaje natural a un ReportRequest.
+     * Traduce una petición en lenguaje natural a un ReportRequest estructurado.
      */
     public ReportRequest translate(String naturalLanguage) {
         if (naturalLanguage.length() > MAX_QUERY_LENGTH) {
@@ -43,50 +41,72 @@ public class ReportQueryTranslator {
         }
 
         String domainList = Stream.of(ReportDomain.values())
-            .map(d -> "  - " + d.name() + " (" + d.getDisplayName() + "): columnas=" + String.join(", ", d.getAvailableColumns()))
+            .map(d -> "  - " + d.name() + " (" + d.getRawDisplayName() + "): columnas=" + String.join(", ", d.getAvailableColumns()))
             .collect(Collectors.joining("\n"));
 
         String systemPrompt = """
-            Eres un traductor de consultas de informes. El usuario solicita un informe en lenguaje natural \
-            y tú debes responder ÚNICAMENTE con un JSON válido con la siguiente estructura:
+            Eres un asistente especializado en clasificar consultas de informes para una plataforma de software/DevOps.
+            Tu labor es responder UNICAMENTE con un objeto JSON valido con la siguiente estructura:
 
             {
               "domain": "<DOMINIO>",
-              "filters": { "<clave>": "<valor>" },
-              "groupBy": "<campo_opcional_o_null>",
+              "filters": { "clave": "valor" },
               "columns": ["col1", "col2"],
-              "format": "CSV|PDF|EXCEL",
-              "title": "<título del informe>",
-              "description": "<descripción breve>",
+              "format": "CSV|PDF",
+              "title": "<titulo descriptivo>",
+              "description": "<resumen de la consulta>",
               "maxResults": 500
             }
 
-            DOMINIOS DISPONIBLES y sus columnas:
+            DOMINIOS DISPONIBLES:
             """ + domainList + """
 
-            REGLAS:
-            1. "domain" DEBE ser uno de los valores de DOMINIO listados arriba (ej: BRANCHES, COMMITS, ISSUES...).
-            2. "filters" es un mapa de filtros. Claves comunes: "since" (ej: "7 days ago"), "author", "state" (ej: "Open"), "status".
-            3. "columns" es una lista de columnas del dominio. Si el usuario no especifica, usa todas las columnas del dominio.
-            4. "format" por defecto es "CSV". Si el usuario pide PDF o Excel, cámbialo.
-            5. "title" debe ser un título descriptivo breve del informe.
-            6. Responde SOLO el JSON, sin texto adicional, sin bloques de código markdown.
+            REGLAS IMPORTANTES DE CLASIFICACION:
+            1. "CONFIG_ITEMS": Usar para consultas sobre elementos de configuracion, requisitos funcionales (RF), especificaciones, ADRs, tablas o bases de datos (ERD), pruebas/tests, codigo fuente o infraestructura (IaC).
+               - Si el usuario pide requisitos o requerimientos: poner filter {"type": "REQUIREMENT"}.
+               - Si pide ADRs o decisiones arquitectonicas: poner filter {"type": "ADR"}.
+               - Si pide base de datos, tablas o modelos: poner filter {"type": "DATA_MODEL_ERD"}.
+               - Si pide pruebas o tests: poner filter {"type": "TEST_SPEC"}.
+               - Si pide codigo o clases: poner filter {"type": "SOURCE_CODE"}.
+               - Si pide infraestructura, docker o iac: poner filter {"type": "INFRASTRUCTURE_IAC"}.
+            2. "TRACEABILITY_MATRIX": Usar si el usuario pide matriz de trazabilidad, RTM, sincronizacion, cobertura de requisitos o deriva (drift).
+            3. "BRANCHES": Usar si el usuario pide ramas del repositorio o git branches.
+            4. "COMMITS": Usar si pide commits, cambios recientes, historial o contribuciones por autor/fecha.
+            5. "ISSUES": Usar si pide problemas, tickets, tareas abiertas/cerradas o bugs.
+            6. "PULL_REQUESTS": Usar UNICAMENTE cuando explicitamente pida pull requests o solicitudes de extraccion (NO confundir con la palabra "proyecto").
+            7. "USERS": Usar si pide lista de usuarios, cuentas o roles.
+            8. "AUDIT_EVENTS": Usar si pide registros o eventos de auditoria o seguridad.
+            9. "BUILDS": Usar si pide compilaciones, builds o pipelines de CI/CD.
+
+            Responde EXCLUSIVAMENTE con el bloque JSON. Sin comentarios, sin markdown adicional fuera del bloque.
             """;
 
-        var response = model.chat(new SystemMessage(systemPrompt), new UserMessage(naturalLanguage));
-        String text = response.aiMessage().text().trim();
+        try {
+            var response = model.chat(new SystemMessage(systemPrompt), new UserMessage(naturalLanguage));
+            String text = response.aiMessage().text();
+            if (text != null) {
+                text = text.trim();
+                logger.info("IA response for report translation: {}", text);
+                return parseResponse(text, naturalLanguage);
+            }
+        } catch (Exception e) {
+            logger.warn("Error calling AI model: {}", e.getMessage());
+        }
 
-        return parseResponse(text, naturalLanguage);
+        ReportRequest fallback = new ReportRequest();
+        fallback.setDomain(inferDomain(naturalLanguage));
+        fallback.setTitle("Informe de " + fallback.getDomain().getDisplayName());
+        return fallback;
     }
 
     /**
      * Parsea la respuesta JSON de la IA y la valida contra los dominios conocidos.
      */
-    private ReportRequest parseResponse(String rawText, String originalQuery) {
+    public ReportRequest parseResponse(String rawText, String originalQuery) {
         ReportRequest request = new ReportRequest();
 
         try {
-            String cleanJson = cleanMarkdownJson(rawText);
+            String cleanJson = extractJson(rawText);
             JsonObject root = JsonParser.parseString(cleanJson).getAsJsonObject();
 
             // Parse domain
@@ -135,7 +155,7 @@ public class ReportQueryTranslator {
             }
 
             // Parse title
-            if (root.has("title")) {
+            if (root.has("title") && !root.get("title").isJsonNull()) {
                 request.setTitle(root.get("title").getAsString());
             } else {
                 request.setTitle("Informe de " + request.getDomain().getDisplayName());
@@ -147,12 +167,12 @@ public class ReportQueryTranslator {
             }
 
             // Parse maxResults
-            if (root.has("maxResults")) {
+            if (root.has("maxResults") && !root.get("maxResults").isJsonNull()) {
                 request.setMaxResults(root.get("maxResults").getAsInt());
             }
 
         } catch (Exception e) {
-            logger.warn("Error parseando respuesta de IA para reporte, usando heurística: {}", e.getMessage());
+            logger.warn("Error parsing AI JSON response: {}. Fallback to NLP heuristics.", e.getMessage());
             request.setDomain(inferDomain(originalQuery));
             request.setTitle("Informe de " + request.getDomain().getDisplayName());
         }
@@ -161,32 +181,51 @@ public class ReportQueryTranslator {
     }
 
     /**
-     * Infiere el dominio heurísticamente si la IA no responde correctamente.
+     * Infiere el dominio de forma segura sin colisiones por substrings como 'pr' dentro de 'proyecto'.
      */
-    private ReportDomain inferDomain(String query) {
+    public ReportDomain inferDomain(String query) {
         String q = query.toLowerCase(Locale.ROOT);
-        if (q.contains("rama") || q.contains("branch")) return ReportDomain.BRANCHES;
-        if (q.contains("commit")) return ReportDomain.COMMITS;
-        if (q.contains("issue") || q.contains("problema") || q.contains("tarea")) return ReportDomain.ISSUES;
-        if (q.contains("pull request") || q.contains("pr") || q.contains("solicitud")) return ReportDomain.PULL_REQUESTS;
-        if (q.contains("trazabilidad") || q.contains("rtm") || q.contains("matriz")) return ReportDomain.TRACEABILITY_MATRIX;
-        if (q.contains("elemento") || q.contains("configuraci")) return ReportDomain.CONFIG_ITEMS;
-        if (q.contains("usuario") || q.contains("user") || q.contains("rol")) return ReportDomain.USERS;
-        if (q.contains("auditor") || q.contains("evento") || q.contains("log")) return ReportDomain.AUDIT_EVENTS;
-        if (q.contains("build") || q.contains("compilaci")) return ReportDomain.BUILDS;
-        return ReportDomain.COMMITS;
+
+        if (q.contains("elemento") || q.contains("configuraci") || q.contains("requisito") || q.contains("ci") || q.contains("artefacto")) {
+            return ReportDomain.CONFIG_ITEMS;
+        }
+        if (q.contains("trazabilidad") || q.contains("rtm") || q.contains("matriz") || q.contains("cobertura")) {
+            return ReportDomain.TRACEABILITY_MATRIX;
+        }
+        if (q.contains("rama") || q.contains("branch")) {
+            return ReportDomain.BRANCHES;
+        }
+        if (q.contains("commit") || q.contains("cambio")) {
+            return ReportDomain.COMMITS;
+        }
+        if (q.contains("issue") || q.contains("problema") || q.contains("tarea") || q.contains("ticket")) {
+            return ReportDomain.ISSUES;
+        }
+        // ONLY match PR if full phrase or word boundary '\bprs?\b'
+        Pattern prPattern = Pattern.compile("\\b(pull\\s*request|prs?|solicitud(es)?\\s+de\\s+extracci[oó]n)\\b", Pattern.CASE_INSENSITIVE);
+        if (prPattern.matcher(q).find()) {
+            return ReportDomain.PULL_REQUESTS;
+        }
+        if (q.contains("usuario") || q.contains("user") || q.contains("rol")) {
+            return ReportDomain.USERS;
+        }
+        if (q.contains("auditor") || q.contains("evento") || q.contains("log")) {
+            return ReportDomain.AUDIT_EVENTS;
+        }
+        if (q.contains("build") || q.contains("compilaci") || q.contains("pipeline") || q.contains("job")) {
+            return ReportDomain.BUILDS;
+        }
+
+        return ReportDomain.CONFIG_ITEMS;
     }
 
-    private String cleanMarkdownJson(String raw) {
-        String text = raw.trim();
-        if (text.startsWith("```json")) {
-            text = text.substring(7);
-        } else if (text.startsWith("```")) {
-            text = text.substring(3);
+    private String extractJson(String raw) {
+        if (raw == null) return "{}";
+        int start = raw.indexOf('{');
+        int end = raw.lastIndexOf('}');
+        if (start != -1 && end != -1 && end > start) {
+            return raw.substring(start, end + 1);
         }
-        if (text.endsWith("```")) {
-            text = text.substring(0, text.length() - 3);
-        }
-        return text.trim();
+        return raw.trim();
     }
 }

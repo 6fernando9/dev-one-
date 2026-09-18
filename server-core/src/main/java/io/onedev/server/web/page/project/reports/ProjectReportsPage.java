@@ -168,6 +168,44 @@ public class ProjectReportsPage extends ProjectPage {
             }
         }));
 
+        resultSection.add(new Label("reportEngineBadge", new LoadableDetachableModel<String>() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected String load() {
+                ReportResult r = resultModel.getObject();
+                return r != null && r.getEngine() != null ? r.getEngine() : "";
+            }
+        }) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected void onConfigure() {
+                super.onConfigure();
+                ReportResult r = resultModel.getObject();
+                setVisible(r != null && r.getEngine() != null && !r.getEngine().isEmpty());
+            }
+        });
+
+        resultSection.add(new Label("reportFilterBadge", new LoadableDetachableModel<String>() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected String load() {
+                ReportResult r = resultModel.getObject();
+                return r != null && r.getFilterSummary() != null ? _T("Filters") + ": " + r.getFilterSummary() : "";
+            }
+        }) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected void onConfigure() {
+                super.onConfigure();
+                ReportResult r = resultModel.getObject();
+                setVisible(r != null && r.getFilterSummary() != null && !r.getFilterSummary().isEmpty());
+            }
+        });
+
         resultSection.add(new Label("reportDescription", new LoadableDetachableModel<String>() {
             private static final long serialVersionUID = 1L;
 

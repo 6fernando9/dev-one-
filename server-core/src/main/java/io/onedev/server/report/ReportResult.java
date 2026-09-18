@@ -10,19 +10,21 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Resultado tabular de un reporte dinámico.
- * Contiene los headers (columnas) y las filas de datos.
+ * Contiene los headers (columnas), filas de datos, motor utilizado (IA / Heurística) y filtros aplicados.
  */
 public class ReportResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private final String title;
-    private final @Nullable String description;
+    private @Nullable String description;
     private final ReportDomain domain;
     private final List<String> headers;
     private final List<List<String>> rows;
     private final Date generatedAt;
     private final @Nullable String errorMessage;
+    private String engine = "Semantic Engine";
+    private @Nullable String filterSummary = null;
 
     public ReportResult(String title, @Nullable String description, ReportDomain domain,
                         List<String> headers, List<List<String>> rows) {
@@ -52,6 +54,10 @@ public class ReportResult implements Serializable {
     @Nullable
     public String getDescription() {
         return description;
+    }
+
+    public void setDescription(@Nullable String description) {
+        this.description = description;
     }
 
     public ReportDomain getDomain() {
@@ -87,9 +93,23 @@ public class ReportResult implements Serializable {
         return headers.size();
     }
 
-    /**
-     * Returns a preview of the first N rows for display in the UI.
-     */
+    public String getEngine() {
+        return engine;
+    }
+
+    public void setEngine(String engine) {
+        this.engine = engine;
+    }
+
+    @Nullable
+    public String getFilterSummary() {
+        return filterSummary;
+    }
+
+    public void setFilterSummary(@Nullable String filterSummary) {
+        this.filterSummary = filterSummary;
+    }
+
     public List<List<String>> getPreviewRows(int maxRows) {
         if (rows.size() <= maxRows) {
             return rows;
