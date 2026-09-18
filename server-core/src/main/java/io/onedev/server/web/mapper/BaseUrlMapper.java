@@ -101,6 +101,7 @@ import io.onedev.server.web.page.packs.PackListPage;
 import io.onedev.server.web.page.project.NewProjectPage;
 import io.onedev.server.web.page.project.NoProjectStoragePage;
 import io.onedev.server.web.page.project.auditlog.ProjectAuditLogPage;
+import io.onedev.server.web.page.project.reports.ProjectReportsPage;
 import io.onedev.server.web.page.project.ProjectListPage;
 import io.onedev.server.web.page.project.blob.ProjectBlobPage;
 import io.onedev.server.web.page.project.branches.ProjectBranchesPage;
@@ -438,6 +439,7 @@ public class BaseUrlMapper extends CompoundRequestMapper {
 		add(new ProjectPageMapper("${project}/~commits/${commit}", CommitDetailPage.class));
 		add(new ProjectPageMapper("${project}/~compare", RevisionComparePage.class));
 		add(new ProjectPageMapper("${project}/~stats/code/contribs", CodeContribsPage.class));
+		add(new ProjectPageMapper("${project}/~reports", ProjectReportsPage.class));
 
 		add(new ProjectPageMapper("${project}/~branches", ProjectBranchesPage.class));
 		add(new ProjectPageMapper("${project}/~tags", ProjectTagsPage.class));

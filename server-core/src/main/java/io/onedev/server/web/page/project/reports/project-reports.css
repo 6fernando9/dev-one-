@@ -1,0 +1,192 @@
+/* Estilos para la página de Informes Dinámicos con Lenguaje Natural (RF6) */
+
+.project-reports {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.project-reports .reports-hero {
+    background: linear-gradient(135deg, rgba(74, 144, 217, 0.08) 0%, rgba(106, 90, 205, 0.05) 100%);
+    border: 1px solid rgba(74, 144, 217, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.project-reports .query-form-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e1e4e8);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.project-reports .query-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.project-reports .query-input {
+    flex: 1;
+    font-size: 15px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #ced4da);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.project-reports .query-input:focus {
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.2);
+    outline: none;
+}
+
+.project-reports .suggestions-container {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-reports .suggestion-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 12px;
+    background: rgba(74, 144, 217, 0.1);
+    color: #2b6cb0;
+    border: 1px solid rgba(74, 144, 217, 0.25);
+    border-radius: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.project-reports .suggestion-chip:hover {
+    background: #4a90d9;
+    color: #ffffff;
+    border-color: #4a90d9;
+    transform: translateY(-1px);
+}
+
+.project-reports .report-header-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e1e4e8);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.project-reports .report-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-heading, #24292e);
+}
+
+.project-reports .report-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 13px;
+    color: #6a737d;
+    margin-top: 4px;
+}
+
+.project-reports .export-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.project-reports .table-container {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e1e4e8);
+    border-radius: 8px;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.project-reports .table-reports {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 13px;
+}
+
+.project-reports .table-reports th {
+    background-color: var(--table-header-bg, #f6f8fa);
+    color: var(--text-heading, #495057);
+    font-weight: 600;
+    border-top: none;
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+
+.project-reports .table-reports td {
+    padding: 10px 14px;
+    vertical-align: middle;
+    border-top: 1px solid var(--border-color, #e9ecef);
+    word-break: break-word;
+}
+
+.project-reports .table-reports tbody tr:hover {
+    background-color: rgba(74, 144, 217, 0.04);
+}
+
+.project-reports .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #6a737d;
+}
+
+.project-reports .empty-state svg {
+    margin-bottom: 16px;
+    opacity: 0.6;
+}
+
+/* Dark mode adjustments */
+body.dark-mode .project-reports .reports-hero {
+    background: linear-gradient(135deg, rgba(74, 144, 217, 0.15) 0%, rgba(106, 90, 205, 0.1) 100%);
+    border-color: rgba(74, 144, 217, 0.3);
+}
+
+body.dark-mode .project-reports .query-form-card,
+body.dark-mode .project-reports .report-header-card,
+body.dark-mode .project-reports .table-container {
+    background-color: #1e1e24;
+    border-color: #2f3338;
+}
+
+body.dark-mode .project-reports .query-input {
+    background-color: #25282d;
+    border-color: #383d44;
+    color: #e6edf3;
+}
+
+body.dark-mode .project-reports .suggestion-chip {
+    background: rgba(74, 144, 217, 0.2);
+    color: #79b8ff;
+    border-color: rgba(74, 144, 217, 0.4);
+}
+
+body.dark-mode .project-reports .table-reports th {
+    background-color: #25282d;
+    color: #e6edf3;
+    border-color: #383d44;
+}
+
+body.dark-mode .project-reports .table-reports td {
+    border-color: #2f3338;
+    color: #c9d1d9;
+}
+
+body.dark-mode .project-reports .table-reports tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}

@@ -196,6 +196,8 @@ import io.onedev.server.traceability.matrix.DefaultTraceabilityMatrixService;
 import io.onedev.server.traceability.matrix.TraceabilityMatrixService;
 import io.onedev.server.traceability.gate.DefaultTraceabilityGateService;
 import io.onedev.server.traceability.gate.TraceabilityGateService;
+import io.onedev.server.report.DefaultReportService;
+import io.onedev.server.report.ReportService;
 import io.onedev.server.traceability.DefaultImpactAnalysisService;
 import io.onedev.server.traceability.ImpactAnalysisService;
 import io.onedev.server.service.AlertService;
@@ -541,6 +543,7 @@ public class CoreModule extends AbstractPluginModule {
 		bind(ChangeProposalService.class).to(DefaultChangeProposalService.class);
 		bind(TraceabilityMatrixService.class).to(DefaultTraceabilityMatrixService.class);
 		bind(TraceabilityGateService.class).to(DefaultTraceabilityGateService.class);
+		bind(ReportService.class).to(DefaultReportService.class);
 		bind(IssueInfoService.class).to(DefaultIssueInfoService.class);
 		bind(VisitInfoService.class).to(DefaultVisitInfoService.class);
 		bind(BatchWorkExecutionService.class).to(DefaultBatchWorkExecutionService.class);

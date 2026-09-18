@@ -1,0 +1,114 @@
+<wicket:extend>
+	<div class="p-3 p-sm-4 project-reports">
+		<!-- Cabecera de Informes Dinámicos -->
+		<div class="reports-hero">
+			<div class="d-flex align-items-center mb-2">
+				<wicket:svg href="file" class="icon mr-2 text-primary" style="width: 24px; height: 24px;"></wicket:svg>
+				<h4 class="mb-0 font-weight-bold">
+					<wicket:t>Informes Dinámicos con Lenguaje Natural (RF6)</wicket:t>
+				</h4>
+			</div>
+			<div class="text-muted small">
+				<wicket:t>Genera reportes de configuración, trazabilidad, ramas, commits, issues y auditoría escribiendo en lenguaje natural. Exporta a CSV o PDF en un clic.</wicket:t>
+			</div>
+		</div>
+
+		<!-- Tarjeta de Entrada de Consulta -->
+		<div class="query-form-card">
+			<form wicket:id="queryForm">
+				<div class="query-input-group">
+					<input wicket:id="queryInput" type="text" class="form-control query-input" 
+						   placeholder="Ejemplo: 'Listar todas las ramas', 'Commits de la última semana', 'Inventario de elementos de configuración'..." />
+					<button wicket:id="submitBtn" type="submit" class="btn btn-primary px-4 d-flex align-items-center">
+						<wicket:svg href="search" class="icon mr-2"></wicket:svg>
+						<wicket:t>Generar Informe</wicket:t>
+					</button>
+				</div>
+			</form>
+
+			<!-- Sugerencias Rápidas -->
+			<div class="suggestions-container">
+				<span class="text-muted small mr-2 font-weight-bold">
+					<wicket:svg href="light-bulb" class="icon mr-1"></wicket:svg> <wicket:t>Consultas sugeridas:</wicket:t>
+				</span>
+				<a wicket:id="suggestBranches" class="suggestion-chip">
+					<wicket:svg href="branch" class="icon mr-1"></wicket:svg> <wicket:t>Ramas del proyecto</wicket:t>
+				</a>
+				<a wicket:id="suggestCommits" class="suggestion-chip">
+					<wicket:svg href="git" class="icon mr-1"></wicket:svg> <wicket:t>Commits recientes</wicket:t>
+				</a>
+				<a wicket:id="suggestCis" class="suggestion-chip">
+					<wicket:svg href="package" class="icon mr-1"></wicket:svg> <wicket:t>Elementos de configuración (CIs)</wicket:t>
+				</a>
+				<a wicket:id="suggestRtm" class="suggestion-chip">
+					<wicket:svg href="fork" class="icon mr-1"></wicket:svg> <wicket:t>Matriz de trazabilidad (RTM)</wicket:t>
+				</a>
+				<a wicket:id="suggestIssues" class="suggestion-chip">
+					<wicket:svg href="bug" class="icon mr-1"></wicket:svg> <wicket:t>Issues y tareas</wicket:t>
+				</a>
+			</div>
+		</div>
+
+		<!-- Contenedor del Informe Generado -->
+		<div wicket:id="reportContainer">
+			<!-- Estado Inicial / Vacío -->
+			<div wicket:id="emptyState" class="empty-state card py-5">
+				<div class="card-body text-center">
+					<wicket:svg href="file" class="icon mb-3 text-muted" style="width: 48px; height: 48px;"></wicket:svg>
+					<h5 class="font-weight-bold text-muted"><wicket:t>Aún no has generado ningún informe</wicket:t></h5>
+					<p class="text-muted small max-w-sm mx-auto">
+						<wicket:t>Escribe arriba tu petición en lenguaje natural o haz clic en alguna de las consultas sugeridas para comenzar.</wicket:t>
+					</p>
+				</div>
+			</div>
+
+			<!-- Sección con Resultados -->
+			<div wicket:id="resultSection">
+				<!-- Cabecera del Reporte Generado y Botones de Descarga -->
+				<div class="report-header-card">
+					<div>
+						<div class="d-flex align-items-center mb-1">
+							<h5 class="report-title mr-3"><span wicket:id="reportTitle"></span></h5>
+							<span wicket:id="reportDomainBadge" class="badge badge-primary mr-2"></span>
+							<span wicket:id="reportCountBadge" class="badge badge-secondary"></span>
+						</div>
+						<div wicket:id="reportDescription" class="small text-muted"></div>
+					</div>
+
+					<div class="export-actions">
+						<a wicket:id="downloadCsvBtn" class="btn btn-outline-success btn-sm d-flex align-items-center" target="_blank">
+							<wicket:svg href="excel" class="icon mr-1"></wicket:svg>
+							<wicket:t>Descargar CSV</wicket:t>
+						</a>
+						<a wicket:id="downloadPdfBtn" class="btn btn-outline-danger btn-sm d-flex align-items-center" target="_blank">
+							<wicket:svg href="download" class="icon mr-1"></wicket:svg>
+							<wicket:t>Descargar PDF</wicket:t>
+						</a>
+					</div>
+				</div>
+
+				<!-- Alerta de Error si aplica -->
+				<div wicket:id="errorAlert" class="alert alert-danger" role="alert">
+					<wicket:svg href="warning" class="icon mr-2"></wicket:svg>
+					<span wicket:id="errorMessage"></span>
+				</div>
+
+				<!-- Tabla de Resultados -->
+				<div wicket:id="dataTable" class="table-container">
+					<table class="table table-hover table-reports">
+						<thead>
+							<tr>
+								<th wicket:id="headerList"><span wicket:id="headerCell"></span></th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr wicket:id="rowList">
+								<td wicket:id="cellList"><span wicket:id="cellValue"></span></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</wicket:extend>
