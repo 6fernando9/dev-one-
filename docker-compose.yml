@@ -8,8 +8,7 @@ services:
     ports:
       - "6610:6610"
     volumes:
-      scm_data:
-        -  name: onedev_scm_data_persistent
+      - scm_data:/app/site
     networks:
       - scm_net
 
@@ -19,3 +18,4 @@ networks:
 
 volumes:
   scm_data:
+    name: onedev_scm_data_persistent
