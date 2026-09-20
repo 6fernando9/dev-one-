@@ -9,7 +9,7 @@ services:
       - "6610:6610"
     volumes:
       scm_data:
-        name: onedev_scm_data_persistent
+        -  name: onedev_scm_data_persistent
     networks:
       - scm_net
 
