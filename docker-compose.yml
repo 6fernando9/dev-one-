@@ -6,15 +6,11 @@ services:
     container_name: scm_dev
     restart: always
     ports:
-      - "6610:6610"             
+      - "6610:6610"
     volumes:
-      - onedev_data:/app/site
+      - /var/onedev_data:/app/site
     networks:
       - scm_net
-  
-volumes:
-  onedev_data:
-    external: true
 
 networks:
   scm_net:
