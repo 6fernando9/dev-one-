@@ -8,12 +8,13 @@ services:
     ports:
       - "6610:6610"             
     volumes:
-      - scm_dev:/app/site 
+      - onedev_data:/app/site
     networks:
       - scm_net
   
 volumes:
-  scm_dev:
+  onedev_data:
+    external: true
 
 networks:
   scm_net:
