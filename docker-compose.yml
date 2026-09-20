@@ -8,10 +8,13 @@ services:
     ports:
       - "6610:6610"
     volumes:
-      - /var/onedev_data:/app/site
+      - scm_data:/app/site
     networks:
       - scm_net
 
 networks:
   scm_net:
     driver: bridge
+
+volumes:
+  scm_data:
