@@ -554,7 +554,7 @@ public abstract class LayoutPage extends BasePage {
 		});
 
 		// var version = AppLoader.getProduct().getVersion();
-		sidebar.add(new ExternalLink("productVersion", "https://onedev.io", "OneDev K10 "));
+		sidebar.add(new ExternalLink("productVersion", "https://onedev.io", "SCMDev"));
 		
 		// sidebar.add(new WebMarkupContainer("tryEE") {
 		// 	@Override
