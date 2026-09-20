@@ -2,7 +2,6 @@ FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 COPY pom.xml .
-
 COPY server-product/pom.xml server-product/
 
 RUN mvn dependency:go-offline -B || true
@@ -27,4 +26,5 @@ RUN unzip /app/onedev.zip -d /tmp/extracted && \
 
 EXPOSE 6610
 
-ENTRYPOINT ["/app/bin/server.sh", "console"]
+# CAMBIO AQUÍ: Usar exec para transmitir señales SIGTERM a Java
+ENTRYPOINT ["sh", "-c", "exec /app/bin/server.sh console"]
