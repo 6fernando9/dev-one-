@@ -1,0 +1,20 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scm_dev
+    restart: always
+    ports:
+      - "6610:6610"             
+    volumes:
+      - scm_dev:/app/site 
+    networks:
+      - scm_net
+  
+volumes:
+  scm_dev:
+
+networks:
+  scm_net:
+    driver: bridge
