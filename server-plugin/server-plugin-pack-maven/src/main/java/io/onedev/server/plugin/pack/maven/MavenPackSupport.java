@@ -72,7 +72,7 @@ public class MavenPackSupport implements PackSupport {
 		var template = Resources.toString(tplUrl, StandardCharsets.UTF_8);
 		template = template.replace(
 			"maven:job-token-notice", 
-			_T("Use job token as user name so that OneDev can know which build is ${permission.equals(\"write\")? \"deploying\": \"using\"} packages"));
+			_T("Use job token as user name so that SCMDev can know which build is ${permission.equals(\"write\")? \"deploying\": \"using\"} packages"));
 		template = template.replace(
 			"maven:access-token-notice", 
 			_T("Job secret 'access-token' should be defined in project build setting as an access token with package ${permission} permission"));
@@ -119,7 +119,7 @@ public class MavenPackSupport implements PackSupport {
 		var template = Resources.toString(tplUrl, StandardCharsets.UTF_8);
 		template = template.replace(
 			"gradle:job-token-notice",
-			_T("Use job token as user name so that OneDev can know which build is ${permission.equals(\"write\")? \"deploying\": \"using\"} packages"));
+			_T("Use job token as user name so that SCMDev can know which build is ${permission.equals(\"write\")? \"deploying\": \"using\"} packages"));
 		template = template.replace(
 			"gradle:access-token-notice",
 			_T("Job secret 'access-token' should be defined in project build setting as an access token with package ${permission} permission"));

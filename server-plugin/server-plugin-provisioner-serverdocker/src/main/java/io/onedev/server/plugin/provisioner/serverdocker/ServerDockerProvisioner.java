@@ -156,7 +156,7 @@ public class ServerDockerProvisioner extends WorkspaceProvisioner implements Doc
 
 	@Editable(order=30, group="Security Settings", description="Whether or not to mount docker sock into workspace container to "
 			+ "support docker operations in workspace<br>"
-			+ "<b class='text-danger'>WARNING</b>: Malicious workspaces can take control of whole OneDev "
+			+ "<b class='text-danger'>WARNING</b>: Malicious workspaces can take control of whole SCMDev "
 			+ "by operating the mounted docker sock. Make sure this provisioner can only be used by "
 			+ "trusted workspaces if this option is enabled")
 	public boolean isMountDockerSock() {
@@ -255,7 +255,7 @@ public class ServerDockerProvisioner extends WorkspaceProvisioner implements Doc
 
 	private void checkApplicable() {
 		if (OneDev.getK8sService() != null) {
-			throw new ExplicitException("OneDev running inside kubernetes cluster does not support workspaces yet");
+			throw new ExplicitException("SCMDev running inside kubernetes cluster does not support workspaces yet");
 		}
 	}
 

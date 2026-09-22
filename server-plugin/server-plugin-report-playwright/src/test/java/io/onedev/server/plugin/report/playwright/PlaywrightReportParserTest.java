@@ -91,7 +91,7 @@ public class PlaywrightReportParserTest {
 					artifacts.get(0).get("path"));
 
 			TestCase passed = report.getTestCases().stream()
-					.filter(it -> it.getName().equals("serves the OneDev web interface"))
+					.filter(it -> it.getName().equals("serves the SCMDev web interface"))
 					.findFirst().orElseThrow();
 			assertEquals(Status.PASSED, passed.getStatus());
 			assertEquals(153, passed.getDuration());

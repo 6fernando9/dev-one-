@@ -6,7 +6,7 @@ public class BrandingSetting implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 			
-	private String name = "OneDev";
+	private String name = "SCMDev";
 		
 	public String getName() {
 		return name;

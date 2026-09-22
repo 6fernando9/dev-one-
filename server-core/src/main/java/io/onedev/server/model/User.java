@@ -84,7 +84,7 @@ public class User extends AbstractEntity implements AuthenticationInfo {
 	
 	public static final Long ROOT_ID = 1L;
 	
-	public static final String SYSTEM_NAME = "OneDev";
+	public static final String SYSTEM_NAME = "SCMDev";
 	
 	public static final String UNKNOWN_NAME = "unknown";
 	

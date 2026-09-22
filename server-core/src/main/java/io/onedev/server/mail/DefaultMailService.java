@@ -363,7 +363,7 @@ public class DefaultMailService implements MailService, Serializable {
 				}
 			}
 			
-			if (senderName == null || senderName.equalsIgnoreCase("onedev")) 
+			if (senderName == null || senderName.equalsIgnoreCase("scmdev")) 
 				senderName = getQuoteMark();
 			else 
 				senderName += " " + getQuoteMark();

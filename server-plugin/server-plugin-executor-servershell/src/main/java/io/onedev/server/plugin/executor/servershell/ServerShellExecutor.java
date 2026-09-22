@@ -68,7 +68,7 @@ import io.onedev.server.terminal.Shell;
 import io.onedev.server.web.util.Testable;
 
 @Editable(order=ServerShellExecutor.ORDER, name="Server Shell Executor", description="" +
-		"This executor runs build jobs with OneDev server's shell facility")
+		"This executor runs build jobs with SCMDev server's shell facility")
 public class ServerShellExecutor extends JobExecutor implements Testable<Testable.None> {
 
 	private static final long serialVersionUID = 1L;

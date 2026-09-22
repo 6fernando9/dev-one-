@@ -171,14 +171,14 @@
 		print """
 		    Hello,
 			&lt;p style='margin: 16px 0;'&gt;
-			You are invited to use OneDev, please visit below link to set up account:
+			You are invited to use SCMDev, please visit below link to set up account:
 			&lt;br&gt;
 			&lt;br&gt;
 			&lt;a href='${setupAccountUrl}'&gt;${setupAccountUrl}&lt;/a&gt;
     	"""
     } else {
 		print "Hello,\n\n"
-		print "You are invited to use OneDev, please visit below link to set up account:\n\n"
+		print "You are invited to use SCMDev, please visit below link to set up account:\n\n"
 		print setupAccountUrl
     }
 %&gt;
@@ -188,13 +188,13 @@
         print """
             Hello,
             &lt;p style='margin: 16px 0;'&gt;
-            OneDev account "${user.name}" tries to use email address "${emailAddress}", please visit below link to verify if this is you:
+            SCMDev account "${user.name}" tries to use email address "${emailAddress}", please visit below link to verify if this is you:
             &lt;br&gt;&lt;br&gt;
             &lt;a href='${verificationUrl}'&gt;${verificationUrl}&lt;/a&gt;
         """
     } else {
         print "Hello,\n\n"
-        print "OneDev account \"${user.name}\" tries to use email address \"${emailAddress}\", please visit below link to verify if this is you:\n\n"
+        print "SCMDev account \"${user.name}\" tries to use email address \"${emailAddress}\", please visit below link to verify if this is you:\n\n"
         print verificationUrl
     }
 %&gt;
@@ -225,7 +225,7 @@
         print """
             &lt;b&gt;${HtmlEscape.escapeHtml5(alert.subject)}&lt;/b&gt;
             &lt;br&gt;&lt;br&gt;
-            OneDev URL: &lt;a href='${serverUrl}'&gt;${serverUrl}&lt;/a&gt;
+            SCMDev URL: &lt;a href='${serverUrl}'&gt;${serverUrl}&lt;/a&gt;
         """
         if (alert.detail != null) {
             print """
@@ -237,7 +237,7 @@
         }
     } else {
         print "${alert.subject}\n\n"
-        print "OneDev URL: ${serverUrl}\n\n"
+        print "SCMDev URL: ${serverUrl}\n\n"
 
         if (alert.detail != null) {
             print "Error Detail:\n"

@@ -44,9 +44,9 @@ public class ImportResult {
 		if (!nonExistentIterations.isEmpty()) 
 			feedback.append(getEntryFeedback("Non existent iterations", nonExistentIterations));
 		if (!unmappedIssueLabels.isEmpty()) 
-			feedback.append(getEntryFeedback("GitLab issue labels not mapped to OneDev custom field", unmappedIssueLabels));
+			feedback.append(getEntryFeedback("GitLab issue labels not mapped to SCMDev custom field", unmappedIssueLabels));
 		if (!nonExistentLogins.isEmpty()) {
-			feedback.append(getEntryFeedback("GitLab logins not mapped to OneDev account due to missing/unmatched email address", 
+			feedback.append(getEntryFeedback("GitLab logins not mapped to SCMDev account due to missing/unmatched email address", 
 					nonExistentLogins));
 		}
 		if (!tooLargeAttachments.isEmpty()) 

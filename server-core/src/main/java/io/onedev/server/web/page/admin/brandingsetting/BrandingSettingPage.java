@@ -102,7 +102,7 @@ public class BrandingSettingPage extends AdministrationPage {
 
 			@Override
 			public void onClick() {
-				setting.setName("OneDev");
+				setting.setName("SCMDev");
 				getSettingService().saveBrandingSetting(setting);
 				auditService.audit(null, "changed branding settings", null, null);
 				getClusterService().runOnAllServers(new UpdateLogoTask(null, false));
@@ -114,7 +114,7 @@ public class BrandingSettingPage extends AdministrationPage {
 			@Override
 			protected void onConfigure() {
 				super.onConfigure();
-				setVisible(!setting.getName().equals("OneDev") 
+				setVisible(!setting.getName().equals("SCMDev") 
 						|| getCustomLogoFile(false).exists() 
 						|| getCustomLogoFile(true).exists());
 			}

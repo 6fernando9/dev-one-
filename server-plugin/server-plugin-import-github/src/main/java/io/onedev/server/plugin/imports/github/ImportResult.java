@@ -45,11 +45,11 @@ public class ImportResult {
 		if (!nonExistentIterations.isEmpty()) 
 			feedback.append(getEntryFeedback("Non existent iterations", nonExistentIterations));
 		if (!unmappedIssueLabels.isEmpty()) { 
-			feedback.append(getEntryFeedback("GitHub issue labels not mapped to OneDev custom field",  
+			feedback.append(getEntryFeedback("GitHub issue labels not mapped to SCMDev custom field",  
 					unmappedIssueLabels));
 		}
 		if (!nonExistentLogins.isEmpty()) {
-			feedback.append(getEntryFeedback("GitHub logins not mapped to OneDev account due to missing/unmatched public email address", 
+			feedback.append(getEntryFeedback("GitHub logins not mapped to SCMDev account due to missing/unmatched public email address", 
 					nonExistentLogins));
 		}
 		

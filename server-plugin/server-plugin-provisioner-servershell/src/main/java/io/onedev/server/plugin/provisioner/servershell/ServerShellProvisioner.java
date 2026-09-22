@@ -92,7 +92,7 @@ public class ServerShellProvisioner extends WorkspaceProvisioner implements Test
 
 	private void checkApplicable() {
 		if (OneDev.getK8sService() != null) {
-			throw new ExplicitException("OneDev running inside kubernetes cluster does not support workspaces yet");
+			throw new ExplicitException("SCMDev running inside kubernetes cluster does not support workspaces yet");
 		}
 	}
 

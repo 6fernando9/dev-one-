@@ -54,7 +54,7 @@ public class GemPackPanel extends GenericPanel<Pack> {
 		add(new CodeSnippetPanel("gemfile", Model.of(gemfileContent)));
 		
 		var resolveDependencyCommands = String.format("" +
-				"# " + _T("Use job token to tell OneDev the build using the package") + "\n" +
+				"# " + _T("Use job token to tell SCMDev the build using the package") + "\n" +
 				"# " + _T("Job secret 'access-token' should be defined in project build setting as an access token with package read permission") + "\n\n" +
 				"bundle config set --global %s/%s/~rubygems/ @job_token@:@secret:access-token@\n" +
 				"bundle install", serverUrl, pack.getProject().getPath());

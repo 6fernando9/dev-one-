@@ -85,7 +85,7 @@ import io.onedev.server.validation.Validatable;
 import io.onedev.server.web.util.Testable;
 
 @Editable(order=ServerDockerExecutor.ORDER, name="Server Docker Executor", 
-		description="This executor runs build jobs as docker containers on OneDev server")
+		description="This executor runs build jobs as docker containers on SCMDev server")
 @ClassValidating
 public class ServerDockerExecutor extends JobExecutor implements DockerAware, Testable<TestData>, Validatable {
 
@@ -174,7 +174,7 @@ public class ServerDockerExecutor extends JobExecutor implements DockerAware, Te
 	}
 
 	@Editable(order=515, group="More Settings", name="Buildx Builder", description = "Specify dockerx builder used to " +
-			"build docker image. OneDev will create the builder automatically if it does not exist. Check " +
+			"build docker image. SCMDev will create the builder automatically if it does not exist. Check " +
 			"<a href='https://docs.onedev.io/tutorials/cicd/insecure-docker-registry' target='_blank'>this tutorial</a> " +
 			"on how to customize the builder for instance to allow publishing to insecure registries")
 	@NotEmpty
@@ -199,7 +199,7 @@ public class ServerDockerExecutor extends JobExecutor implements DockerAware, Te
 	
 	@Editable(order=520, group="Security Settings", description="Whether or not to mount docker sock into job container to "
 			+ "support docker operations in job commands<br>"
-			+ "<b class='text-danger'>WARNING</b>: Malicious jobs can take control of whole OneDev "
+			+ "<b class='text-danger'>WARNING</b>: Malicious jobs can take control of whole SCMDev "
 			+ "by operating the mounted docker sock. Make sure this executor can only be used by "
 			+ "trusted jobs if this option is enabled")
 	public boolean isMountDockerSock() {
@@ -294,7 +294,7 @@ public class ServerDockerExecutor extends JobExecutor implements DockerAware, Te
 	private void checkApplicable() {
 		if (OneDev.getK8sService() != null) {
 			throw new ExplicitException(""
-					+ "OneDev running inside kubernetes cluster does not support server docker executor. "
+					+ "SCMDev running inside kubernetes cluster does not support server docker executor. "
 					+ "Please use kubernetes executor instead");
 		}
 	}

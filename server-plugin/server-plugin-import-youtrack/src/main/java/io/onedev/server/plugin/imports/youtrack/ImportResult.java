@@ -60,7 +60,7 @@ public class ImportResult {
 			feedback.append("<br><br><b>NOTE:</b><ul>");
 		
 		if (!unmappedIssueStates.isEmpty()) { 
-			feedback.append(getEntryFeedback("Unmapped YouTrack issue states (using OneDev initial state)", 
+			feedback.append(getEntryFeedback("Unmapped YouTrack issue states (using SCMDev initial state)", 
 					unmappedIssueStates));
 		}
 		if (!unmappedIssueFields.isEmpty())  
@@ -68,7 +68,7 @@ public class ImportResult {
 		if (!unmappedIssueLinks.isEmpty())  
 			feedback.append(getEntryFeedback("Unmapped YouTrack issue links", unmappedIssueLinks));
 		if (!mismatchedIssueFields.isEmpty()) { 
-			feedback.append("<li> YouTrack issue fields mapped to wrong type of OneDev issue field: ");
+			feedback.append("<li> YouTrack issue fields mapped to wrong type of SCMDev issue field: ");
 			feedback.append("<ul>");
 			
 			int displayedEntries = 0;
@@ -85,11 +85,11 @@ public class ImportResult {
 			feedback.append("</ul>");
 		}
 		if (!unmappedIssueTags.isEmpty()) { 
-			feedback.append(getEntryFeedback("YouTrack issue tags not mapped to OneDev custom field", 
+			feedback.append(getEntryFeedback("YouTrack issue tags not mapped to SCMDev custom field", 
 					unmappedIssueTags));
 		}
 		if (!nonExistentLogins.isEmpty()) {
-			feedback.append(getEntryFeedback("YouTrack logins not mapped to OneDev account due to missing/unmatched email address", 
+			feedback.append(getEntryFeedback("YouTrack logins not mapped to SCMDev account due to missing/unmatched email address", 
 					nonExistentLogins));
 		}
 		if (!tooLargeAttachments.isEmpty()) {

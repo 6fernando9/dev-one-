@@ -678,7 +678,7 @@ public abstract class IssueListPanel extends Panel {
 						if (version.startsWith("v"))
 							version = version.substring(1);
 							
-						try (var workBook = new Workbook(os, "OneDev", version)) {
+						try (var workBook = new Workbook(os, "SCMDev", version)) {
 							var worksheet = workBook.newWorksheet(_T("Issues"));
 							
 							var colIndex = 0;
