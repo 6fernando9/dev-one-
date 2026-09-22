@@ -145,3 +145,47 @@
 	width: 12px !important;
 	height: 12px !important;
 }
+
+/* ==============================================================
+   FIX: Bloques de código en el chat
+   Sin esto, los <pre><code> generados por la IA causan scroll
+   horizontal que desborda el panel lateralmente.
+   ============================================================== */
+
+/* Los mensajes de respuesta deben tener min-width:0 para no
+   expandirse más allá del panel del chat */
+.chat>.body>.messages>.response>div,
+.chat>.body>.messages>.responding>div {
+    min-width: 0;
+    overflow: hidden;
+    width: 100%;
+}
+
+/* Permitir scroll horizontal SOLO dentro del bloque de código,
+   no en todo el panel */
+.chat>.body>.messages>.response .pre-outer,
+.chat>.body>.messages>.responding .pre-outer {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Evitar que pre haga wrap automático (queremos scroll horizontal
+   controlado en el bloque) */
+.chat>.body>.messages pre {
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Texto en línea con backtick (código en línea) debe hacer wrap */
+.chat>.body>.messages code:not(pre code) {
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+/* El markdown-viewer debe respetar el ancho del panel */
+.chat>.body>.messages .markdown-viewer {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}

@@ -21,6 +21,7 @@ import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.markup.html.link.BookmarkablePageLink;
+import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.markup.html.list.ListItem;
 import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.model.IModel;
@@ -221,12 +222,12 @@ public class ProjectReportsPage extends ProjectPage {
             }
         }));
 
-        // Botón descarga CSV (server-side con sesión activa)
-        resultSection.add(new AjaxLink<Void>("downloadCsvBtn") {
+        // Botón descarga CSV — Link normal (NO AjaxLink) para que el navegador descargue el archivo
+        resultSection.add(new Link<Void>("downloadCsvBtn") {
             private static final long serialVersionUID = 1L;
 
             @Override
-            public void onClick(AjaxRequestTarget target) {
+            public void onClick() {
                 serveReportDownload("csv");
             }
 
@@ -237,12 +238,12 @@ public class ProjectReportsPage extends ProjectPage {
             }
         });
 
-        // Botón descarga PDF (server-side con sesión activa)
-        resultSection.add(new AjaxLink<Void>("downloadPdfBtn") {
+        // Botón descarga PDF — Link normal (NO AjaxLink)
+        resultSection.add(new Link<Void>("downloadPdfBtn") {
             private static final long serialVersionUID = 1L;
 
             @Override
-            public void onClick(AjaxRequestTarget target) {
+            public void onClick() {
                 serveReportDownload("pdf");
             }
 
@@ -253,12 +254,12 @@ public class ProjectReportsPage extends ProjectPage {
             }
         });
 
-        // Botón descarga Excel (CSV con extensión .xlsx - compatible con Excel)
-        resultSection.add(new AjaxLink<Void>("downloadExcelBtn") {
+        // Botón descarga Excel — Link normal (NO AjaxLink)
+        resultSection.add(new Link<Void>("downloadExcelBtn") {
             private static final long serialVersionUID = 1L;
 
             @Override
-            public void onClick(AjaxRequestTarget target) {
+            public void onClick() {
                 serveReportDownload("excel");
             }
 
